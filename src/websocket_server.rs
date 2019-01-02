@@ -2,8 +2,8 @@ extern crate websocket;
 
 use std::thread;
 use std::thread::JoinHandle;
-use websocket::OwnedMessage;
 use websocket::sync::Server;
+use websocket::OwnedMessage;
 
 pub fn start(port: u16) -> JoinHandle<()> {
     setup_server()
