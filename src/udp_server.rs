@@ -13,7 +13,9 @@ enum Command {
 }
 
 pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
+    print!("Starting Udp PX server...");
     let socket = setup_udp_socket(port);
+    println!("done");
 
     thread::spawn(move || loop {
         let msg = receive_msg(&socket);
