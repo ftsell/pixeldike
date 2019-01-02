@@ -5,3 +5,4 @@ authors = ["Finn Sell <dev@finn-thorben.me>"]
 edition = "2018"
 
 [dependencies]
+websocket = "0.22.1"
