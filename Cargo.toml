@@ -1,0 +1,7 @@
+[package]
+name = "pixelflut"
+version = "0.1.0"
+authors = ["Finn Sell <dev@finn-thorben.me>"]
+edition = "2018"
+
+[dependencies]
