@@ -80,16 +80,6 @@ fn parse_message(msg: String) -> Result<Command, String> {
         let y = msg_iterator.next();
         let color = msg_iterator.next();
 
-        /*
-        let x = msg.get(Range { start: 3, end: 6 });
-        let y = msg.get(Range { start: 7, end: 10 });
-
-        // We need to take into account that the transparency value is optional
-        let color = msg
-            .get(Range { start: 11, end: 19 })
-            .or(msg.get(Range { start: 11, end: 17 }));
-        */
-
         // Check that every data point could be extracted
         if !(x.is_some() && y.is_some() && color.is_some()) {
             return Err(String::from("Could not extract data from PX command"));
