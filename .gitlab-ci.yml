@@ -44,3 +44,4 @@ deploy:
 
   script:
     - rsync -r target/release/pixelflut $target
+    - chgrp ftsell-pixelflut $target
