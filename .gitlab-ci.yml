@@ -27,3 +27,10 @@ build:cargo:
     expire_in: 1 week
     paths:
       - target/release
+
+deploy:
+  tags:
+    - shell
+
+  script:
+    - pwd
