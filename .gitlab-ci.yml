@@ -1,0 +1,47 @@
+# Optional: Install a C compiler, cmake and git into the container.
+# You will often need this when you (or any of your dependencies) depends on C code.
+#before_script:
+#- apt-get update -yqq
+#- apt-get install -yqq --no-install-recommends build-essential
+
+# Use cargo to test the project
+#test:cargo:
+#  image: "rust:latest"
+#  tags: docker
+#
+#  script:
+#  - rustc --version && cargo --version      # Print version info for debugging
+#  - cargo test --all --verbose
+
+# Use cargo to build project
+build:cargo:
+  image: "rust:latest"
+  tags: 
+    - docker
+  stage: build
+  
+  script:
+    - rustc --version && cargo --version
+    - cargo build --release
+  
+  cache:
+    paths:
+      - target/release/deps
+
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - target/release
+
+deploy:
+  tags:
+    - shell
+  stage: deploy
+  
+  variables:
+    target: '/opt/ftsell-pixelflut/pixelflut'
+    service: 'ftsell-pixelflut'
+
+  script:
+    - rsync -r target/release/pixelflut $target
+    - chgrp ftsell-pixelflut $target
