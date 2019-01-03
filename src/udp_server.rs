@@ -46,7 +46,7 @@ pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
 }
 
 fn setup_udp_socket(port: u16) -> UdpSocket {
-    let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(127, 0, 0, 1)), port);
+    let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(0, 0, 0, 0)), port);
 
     return UdpSocket::bind(address).expect(&format!("Could not bind to port {}", port));
 }
