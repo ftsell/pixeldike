@@ -24,5 +24,6 @@ build:cargo:
     - cargo build --release
 
   artifacts:
+    expire_in: 1 week
     paths:
       - target/release
