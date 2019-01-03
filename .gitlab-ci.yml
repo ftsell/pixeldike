@@ -23,6 +23,9 @@ build:cargo:
   script:
     - rustc --version && cargo --version
     - cargo build --release
+  
+  cache:
+    - target/release/deps
 
   artifacts:
     expire_in: 1 week
@@ -35,8 +38,8 @@ deploy:
   stage: deploy
   
   variables:
-    path: '/opt/ftsell-pixelflut'
+    target: '/opt/ftsell-pixelflut/pixelflut'
     service: 'ftsell-pixelflut'
 
   script:
-    - rsync -r target/release/ $path
+    - rsync -r target/release/pixelflut $target
