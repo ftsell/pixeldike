@@ -25,7 +25,8 @@ build:cargo:
     - cargo build --release
   
   cache:
-    - target/release/deps
+    paths:
+      - target/release/deps
 
   artifacts:
     expire_in: 1 week
