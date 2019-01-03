@@ -23,6 +23,10 @@ build:cargo:
   script:
     - rustc --version && cargo --version
     - cargo build --release
+    
+  cache:
+    paths:
+      - deps
 
   artifacts:
     expire_in: 1 week
