@@ -37,7 +37,14 @@ deploy:
   tags:
     - shell
   stage: deploy
-  
+
+  only:
+    - master@ftsell/pixelflut
+    - web
+    - triggers
+    - schedules
+
+
   variables:
     target: '/opt/ftsell-pixelflut/pixelflut'
     service: 'ftsell-pixelflut'
