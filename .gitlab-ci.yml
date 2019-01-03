@@ -18,6 +18,7 @@ build:cargo:
   image: "rust:latest"
   tags: 
     - docker
+  stage: build
   
   script:
     - rustc --version && cargo --version
@@ -31,6 +32,7 @@ build:cargo:
 deploy:
   tags:
     - shell
+  stage: deploy
 
   script:
     - pwd
