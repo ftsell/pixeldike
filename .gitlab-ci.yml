@@ -16,7 +16,8 @@
 # Use cargo to build project
 build:cargo:
   image: "rust:latest"
-  tags: docker
+  tags: 
+    - docker
   
   script:
     - rustc --version && cargo --version
