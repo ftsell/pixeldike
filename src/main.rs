@@ -20,7 +20,7 @@ fn main() {
         ]));
     println!("done");
 
-    let websocket_handler = websocket_server::start(WEBSOCKET_PORT);
+    let websocket_handler = websocket_server::start(map.clone(),WEBSOCKET_PORT);
     let udp_handler = udp_server::start(map.clone(), UDP_PORT);
 
     udp_handler.join().unwrap();
