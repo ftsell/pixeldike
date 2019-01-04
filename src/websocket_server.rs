@@ -1,17 +1,17 @@
 extern crate websocket;
 
+use self::websocket::server::upgrade::sync::Buffer;
+use self::websocket::server::upgrade::WsUpgrade;
 use std::net::*;
 use std::thread;
 use std::thread::JoinHandle;
-use self::websocket::server::upgrade::sync::Buffer;
-use self::websocket::server::upgrade::WsUpgrade;
 use websocket::sync::Server;
 use websocket::OwnedMessage;
 
 pub fn start(port: u16) -> JoinHandle<()> {
     print!("Starting websocket server...");
     // Bind to port as websocket server
-    let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(127, 0, 0, 1)), port);
+    let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(0, 0, 0, 0)), port);
     let server = Server::bind(address).unwrap();
     println!("done");
 
@@ -25,6 +25,7 @@ pub fn start(port: u16) -> JoinHandle<()> {
 
 fn handle_request(request: WsUpgrade<TcpStream, Option<Buffer>>) {
     thread::spawn(move || {
+        println!("New websocket connection");
         if !request.protocols().contains(&"rust-websocket".to_string()) {
             request.reject().unwrap();
             return;
