@@ -11,6 +11,9 @@ use self::websocket::server::upgrade::WsUpgrade;
 use self::websocket::sync::Server;
 use self::websocket::OwnedMessage;
 
+use crate::X_SIZE;
+use crate::Y_SIZE;
+
 pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
     print!("Starting websocket server...");
     // Bind to port as websocket server
@@ -28,18 +31,18 @@ pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
 
 fn handle_request(map: Arc<Mutex<Vec<Vec<String>>>>, request: WsUpgrade<TcpStream, Option<Buffer>>) {
     thread::spawn(move || {
-        if !request.protocols().contains(&"rust-websocket".to_string()) {
+        if !request.protocols().contains(&"pixelflut-websocket".to_string()) {
             request.reject().unwrap();
             return;
         }
-        let mut client = request.use_protocol("rust-websocket").accept().unwrap();
+        let mut client = request.use_protocol("pixelflut-websocket").accept().unwrap();
 
         let ip = client.peer_addr().unwrap();
         println!("Connection from {}", ip);
 
         // Execute the main update-loop
         loop {
-            let mut msg = String::new();
+            let mut msg = String::from(format!("SIZE {} {};", X_SIZE, Y_SIZE));
 
             // Capsule for map locking
             {
