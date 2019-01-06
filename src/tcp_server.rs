@@ -37,7 +37,7 @@ fn loop_server(socket: TcpListener, map: Arc<Mutex<Vec<Vec<String>>>>) {
 }
 
 fn handle_client(mut stream: TcpStream, addr: SocketAddr, map: Arc<Mutex<Vec<Vec<String>>>>) -> JoinHandle<()> {
-    println!("New client: {:?}", addr);
+    println!("New PX TCP client: {:?}", addr);
 
     thread::spawn(move || {
         loop {

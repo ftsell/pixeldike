@@ -37,8 +37,8 @@ fn handle_request(map: Arc<Mutex<Vec<Vec<String>>>>, request: WsUpgrade<TcpStrea
         }
         let mut client = request.use_protocol("pixelflut-websocket").accept().unwrap();
 
-        let ip = client.peer_addr().unwrap();
-        println!("Connection from {}", ip);
+        let ip = client.peer_addr();
+        println!("New websocket client: {:?}", ip);
 
         // Execute the main update-loop
         loop {
@@ -57,7 +57,7 @@ fn handle_request(map: Arc<Mutex<Vec<Vec<String>>>>, request: WsUpgrade<TcpStrea
             }
 
             client.send_message(&OwnedMessage::Text(msg))
-                .expect(format!("Error sending new state to {}", ip).as_str());
+                .expect(format!("Error sending new state to {:?}", ip).as_str());
 
             // Wait 100ms until another update is sent
             thread::sleep(time::Duration::from_millis(100));
