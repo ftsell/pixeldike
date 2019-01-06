@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 websocket = "0.22.1"
+argparse = "0.2.2"
