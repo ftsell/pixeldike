@@ -6,6 +6,7 @@ use argparse::{ArgumentParser, StoreTrue, StoreFalse};
 
 mod udp_server;
 mod tcp_server;
+mod command_handler;
 mod websocket_server;
 
 const COMMAND_PORT: u16 = 1234;
