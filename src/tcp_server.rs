@@ -42,7 +42,6 @@ fn handle_client(mut stream: TcpStream, addr: SocketAddr, map: Arc<Mutex<Vec<Vec
     thread::spawn(move || {
         loop {
             if let Ok(msg) = receive_msg(&mut stream) {
-                println!("{}", msg);
                 if let Ok(cmd) = command_handler::parse_message(msg) {
                     let answer = match cmd {
                         Command::SIZE => command_handler::cmd_size(),
