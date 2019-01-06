@@ -23,24 +23,25 @@ pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
         if msg.is_err() {
             println!("Error: {}", msg.unwrap_err())
         } else {
-            let (src, msg) = msg.unwrap();
-            let cmd = parse_message(msg);
+            let map = map.clone();
+            thread::spawn(move || {
+                let (_src, msg) = msg.unwrap();
+                let cmd = parse_message(msg);
 
-            if cmd.is_err() {
-                let err_msg = cmd.err().unwrap();
-                println!("Error: {}", &err_msg);
-                send_msg(&socket, &src, &err_msg);
-            } else {
-                let cmd = cmd.unwrap();
+                if cmd.is_err() {
+                    let err_msg = cmd.err().unwrap();
+                    println!("Error: {}", &err_msg);
+                } else {
+                    let cmd = cmd.unwrap();
 
-                let answer = match cmd {
-                    Command::SIZE => cmd_size(),
-                    Command::PX(x, y, color) => cmd_px(&map, x, y, color),
-                };
+                    let answer = match cmd {
+                        Command::SIZE => cmd_size(),
+                        Command::PX(x, y, color) => cmd_px(&map, x, y, color),
+                    };
 
-                println!("{}", answer);
-                send_msg(&socket, &src, &answer);
-            }
+                    //println!("{}", answer);
+                }
+            });
         }
     })
 }
@@ -107,11 +108,6 @@ fn parse_message(msg: String) -> Result<Command, String> {
     return Err(String::from(
         "Could not parse message. It is neither a SIZE nor PX command",
     ));
-}
-
-fn send_msg(socket: &UdpSocket, dst: &SocketAddr, msg: &String) {
-    let buf = msg.as_bytes();
-    socket.send_to(buf, &dst).is_ok();
 }
 
 fn cmd_size() -> String {
