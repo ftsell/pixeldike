@@ -13,7 +13,7 @@ pub enum Command {
 pub fn parse_message(msg: String) -> Result<Command, String> {
     if msg.eq(&String::from("SIZE")) {
         return Ok(Command::SIZE);
-    } else if msg[..2].eq(&String::from("PX")) {
+    } else if msg.starts_with("PX") {
         // Define iterator over all fields in command and ignore PX part at the beginning
         let mut msg_iterator = msg.split_whitespace();
         msg_iterator.next();

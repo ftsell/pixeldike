@@ -42,6 +42,7 @@ fn handle_client(mut stream: TcpStream, addr: SocketAddr, map: Arc<Mutex<Vec<Vec
     thread::spawn(move || {
         loop {
             if let Ok(msg) = receive_msg(&mut stream) {
+                println!("{}", msg);
                 if let Ok(cmd) = command_handler::parse_message(msg) {
                     let answer = match cmd {
                         Command::SIZE => command_handler::cmd_size(),
@@ -51,6 +52,9 @@ fn handle_client(mut stream: TcpStream, addr: SocketAddr, map: Arc<Mutex<Vec<Vec
                     send_msg(&mut stream, &answer).unwrap();
 
                 }
+            } else {
+                println!("PX client disconnected: {:?}", addr);
+                break;
             }
         }
     })
@@ -59,8 +63,13 @@ fn handle_client(mut stream: TcpStream, addr: SocketAddr, map: Arc<Mutex<Vec<Vec
 fn receive_msg(stream: &mut TcpStream) -> Result<String, String> {
     // Receive bytes from input stream
     let mut buf = [0; 19];
-    let received = stream.read(&mut buf);
-    if let Ok(acm) = received {
+    let acm = stream.read(&mut buf);
+    if let Ok(acm) = acm {
+
+        // If we return from read without reading any bytes at all the stream must be closed
+        if acm == 0 {
+            return Err("Stream close".to_string());
+        }
 
         // Decode input bytes as UTF-8
         let msg = String::from_utf8(buf[..acm].to_vec());
@@ -73,7 +82,7 @@ fn receive_msg(stream: &mut TcpStream) -> Result<String, String> {
         }
 
     } else {
-        return Err(received.unwrap_err().to_string());
+        return Err(acm.unwrap_err().to_string());
     }
 }
 
