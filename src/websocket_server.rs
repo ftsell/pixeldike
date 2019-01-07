@@ -49,9 +49,12 @@ fn start_update_loop(tx: spmc::Sender<String>, map: Vec<Vec<Arc<Mutex<String>>>>
                         msg += format!("PX {} {} {};", x, y, entry).as_mut_str()
                     }
                 }
-            }
 
-            tx.send(msg).expect("Could not distribute update to websocket threads");
+                // Send each column separately
+                tx.send(msg).expect("Could not distribute update to websocket threads");
+                msg = String::new();
+
+            }
         }
     })
 }
@@ -80,7 +83,7 @@ fn handle_client(update_rx: spmc::Receiver<String>,
 
                 // Send it on
                 if let Err(e) = client.send_message(&OwnedMessage::Text(msg)) {
-                    println!("WS: Client {:?} disconnected", ip);
+                    println!("WS: Client error for {:?}: {}", ip, e);
                     break;
                 }
 
