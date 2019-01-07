@@ -16,19 +16,12 @@ const X_SIZE: usize = 200;
 const Y_SIZE: usize = 100;
 const BACKGROUND_COLOR: &str = "FFFFFFFF";
 
+
 fn main() {
-    print!("Generating empty canvas...");
-    let map: Vec<Vec<Arc<Mutex<String>>>> =
-        vec![vec![
-            Arc::new(Mutex::new(String::from(BACKGROUND_COLOR)));
-            Y_SIZE];
-             X_SIZE];
-
-    println!("done");
-
     let mut tcp = true;
     parse_arguments(&mut tcp);
 
+    let map = generate_map();
 
     let websocket_handler = websocket_server::start(map.clone(), WEBSOCKET_PORT);
     let command_handler;
@@ -40,6 +33,23 @@ fn main() {
 
     command_handler.join().unwrap();
     websocket_handler.join().unwrap();
+}
+
+
+fn generate_map() -> Vec<Vec<Arc<Mutex<String>>>> {
+    print!("Generating empty canvas...");
+    let mut map: Vec<Vec<Arc<Mutex<String>>>> = Vec::new();
+
+    // Fill map with background color
+    for x in 0..X_SIZE {
+        map.push(Vec::new());
+        for y in 0..Y_SIZE {
+            map[x].push(Arc::new(Mutex::new(BACKGROUND_COLOR.to_string())));
+        }
+    }
+
+    println!("done");
+    return map;
 }
 
 
