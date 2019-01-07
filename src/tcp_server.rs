@@ -16,7 +16,7 @@ pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
 
     thread::spawn(move || {
         let (tx, rx) = mpsc::channel::<(usize, [u8;19])>();
-        let input_handler = start_input_handler(map, rx);
+        let _input_handler = start_input_handler(map, rx);
         loop_server(socket, tx);
     })
 }
