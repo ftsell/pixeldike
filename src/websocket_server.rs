@@ -14,7 +14,7 @@ use self::websocket::OwnedMessage;
 use crate::X_SIZE;
 use crate::Y_SIZE;
 
-pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
+pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
     print!("Starting websocket server...");
     // Bind to port as websocket server
     let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(0, 0, 0, 0)), port);
@@ -29,7 +29,7 @@ pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
     })
 }
 
-fn handle_request(map: Arc<Mutex<Vec<Vec<String>>>>, request: WsUpgrade<TcpStream, Option<Buffer>>) {
+fn handle_request(map: Vec<Vec<Arc<Mutex<String>>>>, request: WsUpgrade<TcpStream, Option<Buffer>>) {
     thread::spawn(move || {
         if !request.protocols().contains(&"pixelflut-websocket".to_string()) {
             request.reject().unwrap();
@@ -44,15 +44,19 @@ fn handle_request(map: Arc<Mutex<Vec<Vec<String>>>>, request: WsUpgrade<TcpStrea
         loop {
             let mut msg = String::from(format!("SIZE {} {};", X_SIZE, Y_SIZE));
 
-            // Capsule for map locking
-            {
-                let map = map.lock().unwrap();
+            // Iterate over ever pixel in the map and append it to the msg
+            for (x, column) in map.iter().enumerate() {
+                for (y, row) in column.iter().enumerate() {
 
-                // Iterate over ever pixel in the map and append it to the msg
-                for (x, column) in map.iter().enumerate() {
-                    for (y, row) in column.iter().enumerate() {
-                        msg += format!("PX {} {} {};", x, y, row).as_mut_str()
+                    // Retrieve entry from map
+                    let mutex: &Arc<Mutex<String>> = map.get(x).unwrap().get(y).unwrap();
+
+                    // Capsule for mutex locking
+                    {
+                        let entry = mutex.lock().unwrap();
+                        msg += format!("PX {} {} {};", x, y, entry).as_mut_str()
                     }
+
                 }
             }
 

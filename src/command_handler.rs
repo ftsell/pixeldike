@@ -53,7 +53,7 @@ pub fn cmd_size() -> String {
     format!("SIZE {} {}", X_SIZE, Y_SIZE)
 }
 
-pub fn cmd_px(map: &Arc<Mutex<Vec<Vec<String>>>>, x: usize, y: usize, color: String) -> String {
+pub fn cmd_px(map: &Vec<Vec<Arc<Mutex<String>>>>, x: usize, y: usize, color: String) -> String {
     let answer = format!("PX {} {} {}", x, y, &color);
 
     // Check that coordinates are inside the grid
@@ -67,15 +67,14 @@ pub fn cmd_px(map: &Arc<Mutex<Vec<Vec<String>>>>, x: usize, y: usize, color: Str
         );
     }
 
-    // Lock map mutex for modification
-    {
-        let mut mutex = map.lock().unwrap();
-        // Retrieve mutable slices in order to modify the element in place
-        let column: &mut Vec<String> = mutex.get_mut(x).unwrap();
-        let elem: &mut String = column.get_mut(y).unwrap();
+    // Retrieve entry from map
+    let mutex: &Arc<Mutex<String>> = map.get(x).unwrap().get(y).unwrap();
 
+    // Lock mutex for modification
+    {
+        let mut entry = mutex.lock().unwrap();
         // Overwrite the contained value of this element
-        *elem = color;
+        *entry = color;
     }
 
     answer

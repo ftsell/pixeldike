@@ -8,7 +8,7 @@ use crate::command_handler;
 use crate::command_handler::Command;
 
 
-pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
+pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
     print!("Starting Udp PX server...");
     let socket = setup_udp_socket(port);
     println!("done");

@@ -9,7 +9,7 @@ use crate::command_handler;
 use self::command_handler::Command;
 
 
-pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
+pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
     print!("Starting TCP PX server...");
     let socket = setup_socket(port);
     println!("done");
@@ -26,7 +26,7 @@ fn setup_socket(port: u16) -> TcpListener {
     TcpListener::bind(address).expect("Could not bind TCP socket")
 }
 
-fn start_input_handler(map: Arc<Mutex<Vec<Vec<String>>>>, rx: mpsc::Receiver<(usize, [u8;19])>) -> JoinHandle<()> {
+fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>, rx: mpsc::Receiver<(usize, [u8;19])>) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
             // Receive input from other channels

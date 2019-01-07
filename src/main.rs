@@ -18,23 +18,23 @@ const BACKGROUND_COLOR: &str = "FFFFFFFF";
 
 fn main() {
     print!("Generating empty canvas...");
-    let map: Arc<Mutex<Vec<Vec<String>>>> =
-        Arc::new(Mutex::new(vec![
-            vec![String::from(BACKGROUND_COLOR); Y_SIZE];
-            X_SIZE
-        ]));
+    let map: Vec<Vec<Arc<Mutex<String>>>> =
+        vec![vec![
+            Arc::new(Mutex::new(String::from(BACKGROUND_COLOR)));
+            Y_SIZE];
+             X_SIZE];
+
     println!("done");
 
     let mut tcp = true;
     parse_arguments(&mut tcp);
 
 
-    let websocket_handler = websocket_server::start(map.clone(),WEBSOCKET_PORT);
+    let websocket_handler = websocket_server::start(map.clone(), WEBSOCKET_PORT);
     let command_handler;
     if tcp {
-        command_handler = tcp_server::start(map.clone(),COMMAND_PORT);
-    }
-    else {
+        command_handler = tcp_server::start(map.clone(), COMMAND_PORT);
+    } else {
         command_handler = udp_server::start(map.clone(), COMMAND_PORT);
     }
 
