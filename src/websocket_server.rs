@@ -60,7 +60,7 @@ fn handle_request(map: Arc<Mutex<Vec<Vec<String>>>>, request: WsUpgrade<TcpStrea
                 .expect(format!("Error sending new state to {:?}", ip).as_str());
 
             // Wait 100ms until another update is sent
-            thread::sleep(time::Duration::from_millis(100));
+            thread::sleep(time::Duration::from_secs(2));
         }
     });
 }
