@@ -43,7 +43,7 @@ fn generate_map() -> Vec<Vec<Arc<Mutex<String>>>> {
     // Fill map with background color
     for x in 0..X_SIZE {
         map.push(Vec::new());
-        for y in 0..Y_SIZE {
+        for _y in 0..Y_SIZE {
             map[x].push(Arc::new(Mutex::new(BACKGROUND_COLOR.to_string())));
         }
     }

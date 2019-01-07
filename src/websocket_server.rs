@@ -51,7 +51,7 @@ fn start_update_loop(tx: spmc::Sender<String>, map: Vec<Vec<Arc<Mutex<String>>>>
                 }
             }
 
-            tx.send(msg);
+            tx.send(msg).expect("Could not distribute update to websocket threads");
         }
     })
 }

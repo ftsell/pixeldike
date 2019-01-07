@@ -2,7 +2,7 @@ use std::thread::JoinHandle;
 use std::sync::{Mutex, Arc, mpsc};
 use std::thread;
 use std::net::*;
-use std::io::{Read, Write};
+use std::io::{Write, BufReader, BufRead};
 
 
 use crate::command_handler;
@@ -15,7 +15,7 @@ pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
     println!("done");
 
     thread::spawn(move || {
-        let (tx, rx) = mpsc::channel::<(usize, String)>();
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
         let _input_handler = start_input_handler(map, rx);
         loop_server(socket, tx);
     })
@@ -26,28 +26,33 @@ fn setup_socket(port: u16) -> TcpListener {
     TcpListener::bind(address).expect("Could not bind TCP socket")
 }
 
-fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>, rx: mpsc::Receiver<(usize, String)>) -> JoinHandle<()> {
+fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>, rx: mpsc::Receiver<Vec<u8>>) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
             // Receive input from other channels
-            let (acm, msg) = rx.recv().expect("All senders to input_handler have closed");
+            let  buf= rx.recv().expect("All senders to input_handler have closed");
+            // Decode buffer into string
+            if let Ok(msg) = String::from_utf8(buf) {
 
-            // Parse command from string
-            if let Ok(cmd) = command_handler::parse_message(msg) {
+                // Parse command from string
+                if let Ok(cmd) = command_handler::parse_message(msg) {
 
-                // Execute correct command
-                let answer = match cmd {
-                    Command::SIZE => command_handler::cmd_size(),
-                    Command::PX(x, y, color) => command_handler::cmd_px(&map, x, y, color)
-                };
+                    // Execute correct command
+                    let _answer = match cmd {
+                        Command::SIZE => command_handler::cmd_size(),
+                        Command::PX(x, y, color) => command_handler::cmd_px(&map, x, y, color)
+                    };
 
-                //println!("{}", answer);
+                    //println!("{}", _answer);
+
+                }
+
             }
         }
     })
 }
 
-fn loop_server(socket: TcpListener, tx: mpsc::Sender<(usize, String)>) {
+fn loop_server(socket: TcpListener, tx: mpsc::Sender<Vec<u8>>) {
     loop {
         match socket.accept() {
             Ok((stream, addr)) => {
@@ -58,13 +63,14 @@ fn loop_server(socket: TcpListener, tx: mpsc::Sender<(usize, String)>) {
     }
 }
 
-fn handle_client(mut stream: TcpStream, addr: SocketAddr, tx: mpsc::Sender<(usize, String)>) -> JoinHandle<()> {
+fn handle_client(stream: TcpStream, addr: SocketAddr, tx: mpsc::Sender<Vec<u8>>) -> JoinHandle<()> {
     println!("New PX TCP client: {:?}", addr);
+    let mut reader = BufReader::new(stream);
 
     thread::spawn(move || {
         loop {
-            if let Ok(msg) = receive_msg(&mut stream) {
-                tx.send(msg).expect("Could not send received byte to input_handler");
+            if let Ok(msg) = receive_msg(&mut reader) {
+                tx.send(msg).expect("Could not send received string to input_handler");
             } else {
                 println!("Error receiving from PX client {:?}", addr);
                 break;
@@ -73,10 +79,10 @@ fn handle_client(mut stream: TcpStream, addr: SocketAddr, tx: mpsc::Sender<(usiz
     })
 }
 
-fn receive_msg(stream: &mut TcpStream) -> Result<(usize, String), String> {
+fn receive_msg(reader: &mut BufReader<TcpStream>) -> Result<Vec<u8>, String> {
     // Receive bytes from input stream
-    let mut buf = String::new();
-    let acm = stream.read_to_string(&mut buf);
+    let mut buf = Vec::new();
+    let acm = reader.read_until(";".as_bytes()[0], &mut buf);
     if let Ok(acm) = acm {
 
         // If read() returns without having read any bytes, the stream seems to be closed
@@ -84,7 +90,7 @@ fn receive_msg(stream: &mut TcpStream) -> Result<(usize, String), String> {
             return Err("Stream closed".to_string());
         }
 
-        return Ok((acm, buf));
+        return Ok(buf);
     } else {
         return Err(acm.unwrap_err().to_string());
     }
