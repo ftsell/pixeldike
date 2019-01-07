@@ -76,7 +76,7 @@ fn handle_client(update_rx: spmc::Receiver<String>,
 
             // Try to receive a new message from either receiver
             if let Ok(msg) = forward_rx.try_recv()
-                .or(input_rx.try_recv()) {
+                .or(update_rx.try_recv()) {
 
                 // Send it on
                 client.send_message(&OwnedMessage::Text(msg))

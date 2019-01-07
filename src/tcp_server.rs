@@ -4,7 +4,7 @@ use std::thread::JoinHandle;
 use std::sync::{Mutex, Arc, mpsc};
 use std::thread;
 use std::net::*;
-use std::io::{Write, BufReader, BufRead};
+use std::io::{BufReader, BufRead};
 
 
 use crate::command_handler;
@@ -39,7 +39,7 @@ fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>,
             if let Ok(msg) = String::from_utf8(buf) {
 
                 // Parse command from string
-                if let Ok(cmd) = command_handler::parse_message(msg) {
+                if let Ok(cmd) = command_handler::parse_message(msg.clone()) {
 
                     // Execute correct command
                     let _answer = match cmd {
@@ -50,7 +50,7 @@ fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>,
                     //println!("{}", _answer);
 
                     // Forward pixel command
-                    forward_tx.send(msg);
+                    forward_tx.send(msg).expect("Could not forward PX command to websockets");
 
                 }
 
@@ -101,8 +101,4 @@ fn receive_msg(reader: &mut BufReader<TcpStream>) -> Result<Vec<u8>, String> {
     } else {
         return Err(acm.unwrap_err().to_string());
     }
-}
-
-fn send_msg(stream: &mut TcpStream, msg: &String) -> Result<usize, std::io::Error> {
-    stream.write(msg.as_bytes())
 }
