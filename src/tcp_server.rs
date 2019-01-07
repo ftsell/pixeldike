@@ -1,3 +1,5 @@
+extern crate spmc;
+
 use std::thread::JoinHandle;
 use std::sync::{Mutex, Arc, mpsc};
 use std::thread;
@@ -9,14 +11,14 @@ use crate::command_handler;
 use self::command_handler::Command;
 
 
-pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
+pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16, forward_tx: spmc::Sender<String>) -> JoinHandle<()> {
     print!("Starting TCP PX server...");
     let socket = setup_socket(port);
     println!("done");
 
     thread::spawn(move || {
         let (tx, rx) = mpsc::channel::<Vec<u8>>();
-        let _input_handler = start_input_handler(map, rx);
+        let _input_handler = start_input_handler(map, rx, forward_tx);
         loop_server(socket, tx);
     })
 }
@@ -26,11 +28,13 @@ fn setup_socket(port: u16) -> TcpListener {
     TcpListener::bind(address).expect("Could not bind TCP socket")
 }
 
-fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>, rx: mpsc::Receiver<Vec<u8>>) -> JoinHandle<()> {
+fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>,
+                       input_rx: mpsc::Receiver<Vec<u8>>,
+                       forward_tx: spmc::Sender<String>) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
             // Receive input from other channels
-            let  buf= rx.recv().expect("All senders to input_handler have closed");
+            let  buf= input_rx.recv().expect("All senders to input_handler have closed");
             // Decode buffer into string
             if let Ok(msg) = String::from_utf8(buf) {
 
@@ -44,6 +48,9 @@ fn start_input_handler(map: Vec<Vec<Arc<Mutex<String>>>>, rx: mpsc::Receiver<Vec
                     };
 
                     //println!("{}", _answer);
+
+                    // Forward pixel command
+                    forward_tx.send(msg);
 
                 }
 

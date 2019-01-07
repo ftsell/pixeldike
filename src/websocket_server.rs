@@ -14,19 +14,19 @@ use self::websocket::OwnedMessage;
 use crate::X_SIZE;
 use crate::Y_SIZE;
 
-pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
+pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16, forward_rx: spmc::Receiver<String>) -> JoinHandle<()> {
     print!("Starting websocket server...");
     // Bind to port as websocket server
     let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(0, 0, 0, 0)), port);
     let server = Server::bind(address).unwrap();
-    let (tx, rx) = spmc::channel();
+    let (update_tx, update_rx) = spmc::channel();
     println!("done");
 
     // Initiate request handling
-    let _update_handler = start_update_loop(tx, map.clone());
+    let _update_handler = start_update_loop(update_tx, map.clone());
     thread::spawn(move || {
         for request in server.filter_map(Result::ok) {
-            handle_client(rx.clone(), request);
+            handle_client(update_rx.clone(), forward_rx.clone(), request);
         }
     })
 }
@@ -35,7 +35,7 @@ fn start_update_loop(tx: spmc::Sender<String>, map: Vec<Vec<Arc<Mutex<String>>>>
     thread::spawn(move || {
         loop {
             // Sleep between full updates
-            thread::sleep(time::Duration::from_millis(500));
+            thread::sleep(time::Duration::from_secs(10));
 
             // Construct update message
             let mut msg = String::from(format!("SIZE {} {};", X_SIZE, Y_SIZE));
@@ -56,7 +56,9 @@ fn start_update_loop(tx: spmc::Sender<String>, map: Vec<Vec<Arc<Mutex<String>>>>
     })
 }
 
-fn handle_client(rx: spmc::Receiver<String>, request: WsUpgrade<TcpStream, Option<Buffer>>) {
+fn handle_client(update_rx: spmc::Receiver<String>,
+                 forward_rx: spmc::Receiver<String>,
+                 request: WsUpgrade<TcpStream, Option<Buffer>>) {
     thread::spawn(move || {
         if !request.protocols().contains(&"pixelflut-websocket".to_string()) {
             request.reject().unwrap();
@@ -69,9 +71,18 @@ fn handle_client(rx: spmc::Receiver<String>, request: WsUpgrade<TcpStream, Optio
 
         // Execute the main update-loop
         loop {
-            let msg = rx.recv().expect("Cannot receive message from websocket update loop");
-            client.send_message(&OwnedMessage::Text(msg))
-                .expect(&format!("Cannot send update to websocket client: {:?}", ip).to_string());
+            // Sleep between iterations
+            thread::sleep(time::Duration::from_millis(50));
+
+            // Try to receive a new message from either receiver
+            if let Ok(msg) = forward_rx.try_recv()
+                .or(input_rx.try_recv()) {
+
+                // Send it on
+                client.send_message(&OwnedMessage::Text(msg))
+                    .expect(&format!("Cannot send update to websocket client: {:?}", ip).to_string());
+
+            }
         }
     });
 }

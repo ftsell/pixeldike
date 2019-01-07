@@ -1,7 +1,7 @@
 extern crate argparse;
+extern crate spmc;
 
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use argparse::{ArgumentParser, StoreTrue, StoreFalse};
 
 mod udp_server;
@@ -22,11 +22,13 @@ fn main() {
     parse_arguments(&mut tcp);
 
     let map = generate_map();
+    let (tx, rx) = spmc::channel::<String>();
 
-    let websocket_handler = websocket_server::start(map.clone(), WEBSOCKET_PORT);
+    let websocket_handler = websocket_server::start(map.clone(), WEBSOCKET_PORT, rx);
+
     let command_handler;
     if tcp {
-        command_handler = tcp_server::start(map.clone(), COMMAND_PORT);
+        command_handler = tcp_server::start(map.clone(), COMMAND_PORT, tx);
     } else {
         command_handler = udp_server::start(map.clone(), COMMAND_PORT);
     }
