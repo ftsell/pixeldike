@@ -12,7 +12,7 @@ use self::command_handler::Command;
 
 
 pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16, forward_tx: spmc::Sender<String>) -> JoinHandle<()> {
-    print!("Starting TCP PX server...");
+    print!("Starting TCP PX server on port {}...", &port);
     let socket = setup_socket(port);
     println!("done");
 
@@ -76,11 +76,12 @@ fn handle_client(stream: TcpStream, addr: SocketAddr, tx: mpsc::Sender<Vec<u8>>)
 
     thread::spawn(move || {
         loop {
-            if let Ok(msg) = receive_msg(&mut reader) {
-                tx.send(msg).expect("Could not send received string to input_handler");
-            } else {
-                println!("Error receiving from PX client {:?}", addr);
-                break;
+            match receive_msg(&mut reader) {
+                Ok(msg) => tx.send(msg).expect("Could not send received string to input_handler"),
+                Err(e) => {
+                    println!("Error receiving from PX client {:?}: {}", addr, e);
+                    break;
+                }
             }
         }
     })
@@ -94,7 +95,7 @@ fn receive_msg(reader: &mut BufReader<TcpStream>) -> Result<Vec<u8>, String> {
 
         // If read() returns without having read any bytes, the stream seems to be closed
         if acm == 0 {
-            return Err("Stream closed".to_string());
+            return Err("Received 0 bytes from peer".to_string());
         }
 
         return Ok(buf);

@@ -15,7 +15,7 @@ use crate::X_SIZE;
 use crate::Y_SIZE;
 
 pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16, forward_rx: spmc::Receiver<String>) -> JoinHandle<()> {
-    print!("Starting websocket server...");
+    print!("Starting websocket server on port {}...", &port);
     // Bind to port as websocket server
     let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(0, 0, 0, 0)), port);
     let server = Server::bind(address).unwrap();
@@ -67,7 +67,7 @@ fn handle_client(update_rx: spmc::Receiver<String>,
         let mut client = request.use_protocol("pixelflut-websocket").accept().unwrap();
 
         let ip = client.peer_addr();
-        println!("New websocket client: {:?}", ip);
+        println!("WS: New Client: {:?}", ip);
 
         // Execute the main update-loop
         loop {
@@ -75,12 +75,14 @@ fn handle_client(update_rx: spmc::Receiver<String>,
             thread::sleep(time::Duration::from_millis(50));
 
             // Try to receive a new message from either receiver
-            if let Ok(msg) = forward_rx.try_recv()
-                .or(update_rx.try_recv()) {
+            if let Ok(msg) = update_rx.try_recv()
+                .or(forward_rx.try_recv()) {
 
                 // Send it on
-                client.send_message(&OwnedMessage::Text(msg))
-                    .expect(&format!("Cannot send update to websocket client: {:?}", ip).to_string());
+                if let Err(e) = client.send_message(&OwnedMessage::Text(msg)) {
+                    println!("WS: Client {:?} disconnected", ip);
+                    break;
+                }
 
             }
         }
