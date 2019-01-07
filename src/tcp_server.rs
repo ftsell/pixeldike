@@ -1,6 +1,5 @@
 use std::thread::JoinHandle;
-use std::sync::Mutex;
-use std::sync::Arc;
+use std::sync::{Mutex, Arc, mpsc};
 use std::thread;
 use std::net::*;
 use std::io::{Read, Write};
@@ -16,7 +15,9 @@ pub fn start(map: Arc<Mutex<Vec<Vec<String>>>>, port: u16) -> JoinHandle<()> {
     println!("done");
 
     thread::spawn(move || {
-        loop_server(socket, map);
+        let (tx, rx) = mpsc::channel::<(usize, [u8;19])>();
+        let input_handler = start_input_handler(map, rx);
+        loop_server(socket, tx);
     })
 }
 
@@ -25,32 +26,50 @@ fn setup_socket(port: u16) -> TcpListener {
     TcpListener::bind(address).expect("Could not bind TCP socket")
 }
 
-fn loop_server(socket: TcpListener, map: Arc<Mutex<Vec<Vec<String>>>>) {
+fn start_input_handler(map: Arc<Mutex<Vec<Vec<String>>>>, rx: mpsc::Receiver<(usize, [u8;19])>) -> JoinHandle<()> {
+    thread::spawn(move || {
+        loop {
+            // Receive input from other channels
+            let (acm, buf) = rx.recv().expect("All senders to input_handler have closed");
+
+            // Convert input to string
+            if let Ok(msg) = String::from_utf8(buf[..acm].to_vec()) {
+
+                // Parse command from string
+                if let Ok(cmd) = command_handler::parse_message(msg) {
+
+                    // Execute correct command
+                    let answer = match cmd {
+                        Command::SIZE => command_handler::cmd_size(),
+                        Command::PX(x, y, color) => command_handler::cmd_px(&map, x, y, color)
+                    };
+
+                    println!("{}", answer);
+
+                }
+            }
+        }
+    })
+}
+
+fn loop_server(socket: TcpListener, tx: mpsc::Sender<(usize, [u8;19])>) {
     loop {
         match socket.accept() {
             Ok((stream, addr)) => {
-                handle_client(stream, addr, map.clone());
+                handle_client(stream, addr, tx.clone());
             },
             Err(e) => println!("Error: Couldn't get client: {:?}", e)
         }
     }
 }
 
-fn handle_client(mut stream: TcpStream, addr: SocketAddr, map: Arc<Mutex<Vec<Vec<String>>>>) -> JoinHandle<()> {
+fn handle_client(mut stream: TcpStream, addr: SocketAddr, tx: mpsc::Sender<(usize, [u8;19])>) -> JoinHandle<()> {
     println!("New PX TCP client: {:?}", addr);
 
     thread::spawn(move || {
         loop {
             if let Ok(msg) = receive_msg(&mut stream) {
-                if let Ok(cmd) = command_handler::parse_message(msg) {
-                    let answer = match cmd {
-                        Command::SIZE => command_handler::cmd_size(),
-                        Command::PX(x, y, color) => command_handler::cmd_px(&map, x, y, color)
-                    };
-
-                    send_msg(&mut stream, &answer).unwrap();
-
-                }
+                tx.send(msg).expect("Could not send received byte to input_handler");
             } else {
                 println!("PX client disconnected: {:?}", addr);
                 break;
@@ -59,26 +78,18 @@ fn handle_client(mut stream: TcpStream, addr: SocketAddr, map: Arc<Mutex<Vec<Vec
     })
 }
 
-fn receive_msg(stream: &mut TcpStream) -> Result<String, String> {
+fn receive_msg(stream: &mut TcpStream) -> Result<(usize, [u8;19]), String> {
     // Receive bytes from input stream
     let mut buf = [0; 19];
     let acm = stream.read(&mut buf);
     if let Ok(acm) = acm {
 
-        // If we return from read without reading any bytes at all the stream must be closed
+        // If read() returns without having read any bytes, the stream seems to be closed
         if acm == 0 {
             return Err("Stream close".to_string());
         }
 
-        // Decode input bytes as UTF-8
-        let msg = String::from_utf8(buf[..acm].to_vec());
-        if let Ok(msg) = msg {
-
-            return Ok(msg);
-
-        } else {
-            return Err(msg.unwrap_err().to_string());
-        }
+        return Ok((acm, buf));
 
     } else {
         return Err(acm.unwrap_err().to_string());
