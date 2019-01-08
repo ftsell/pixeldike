@@ -8,7 +8,7 @@ use std::time;
 use std::sync::{Arc, Mutex};
 use self::websocket::server::upgrade::sync::Buffer;
 use self::websocket::server::upgrade::WsUpgrade;
-use self::websocket::sync::Server;
+use self::websocket::sync::{Server, Client};
 use self::websocket::OwnedMessage;
 
 use crate::X_SIZE;
@@ -19,53 +19,18 @@ pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16, forward_rx: spmc::Rec
     // Bind to port as websocket server
     let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(0, 0, 0, 0)), port);
     let server = Server::bind(address).unwrap();
-    let (update_tx, update_rx) = spmc::channel();
     println!("done");
 
     // Initiate request handling
-    let _update_handler = start_update_loop(update_tx, map.clone());
     thread::spawn(move || {
         for request in server.filter_map(Result::ok) {
-            handle_client(update_rx.clone(), forward_rx.clone(), request);
+            handle_client(forward_rx.clone(), map.clone(), request);
         }
     })
 }
 
-fn start_update_loop(tx: spmc::Sender<String>, map: Vec<Vec<Arc<Mutex<String>>>>) -> JoinHandle<()> {
-    thread::spawn(move || {
-        loop {
-            // Sleep between full updates
-            thread::sleep(time::Duration::from_secs(10));
-            println!("Distributing full canvas");
-
-            // Send canvas size first
-            let mut msg = String::from(format!("SIZE {} {};", X_SIZE, Y_SIZE));
-
-            // Iterate over ever pixel in the map and generate a message for it
-            for (x, column) in map.iter().enumerate() {
-                for (y, row) in column.iter().enumerate() {
-
-                    // Capsule for mutex locking
-                    {
-                        let entry = row.lock().unwrap();
-                        msg += format!("PX {} {} {};", x, y, entry).as_mut_str();
-                    }
-
-                    // Send the message if it is above a certain threshold
-                    if msg.len() > 500 {
-                        tx.send(msg).expect("Could not distribute update to websocket threads");
-                        msg = String::new();
-                        thread::sleep(time::Duration::from_millis(1));
-                    }
-                }
-
-            }
-        }
-    })
-}
-
-fn handle_client(update_rx: spmc::Receiver<String>,
-                 forward_rx: spmc::Receiver<String>,
+fn handle_client(forward_rx: spmc::Receiver<String>,
+                 map: Vec<Vec<Arc<Mutex<String>>>>,
                  request: WsUpgrade<TcpStream, Option<Buffer>>) {
     thread::spawn(move || {
         if !request.protocols().contains(&"pixelflut-websocket".to_string()) {
@@ -77,22 +42,59 @@ fn handle_client(update_rx: spmc::Receiver<String>,
         let ip = client.peer_addr();
         println!("WS: New Client: {:?}", ip);
 
+        // Send size information first
+        let msg = format!("SIZE {} {};", X_SIZE, Y_SIZE);
+        send_msg(&mut client, msg);
+
+        // Store last update time
+        let mut last_update = time::Instant::now() - time::Duration::from_secs(600);
+
         // Execute the main update-loop
         loop {
             // Sleep between iterations
             thread::sleep(time::Duration::from_millis(50));
 
-            // Try to receive a new message from either receiver
-            if let Ok(msg) = update_rx.try_recv()
-                .or(forward_rx.try_recv()) {
-
+            // Try to receive a new message from forward receiver
+            if let Ok(msg) = forward_rx.try_recv() {
                 // Send it on
-                if let Err(e) = client.send_message(&OwnedMessage::Text(msg)) {
-                    println!("WS: Client error for {:?}: {}", ip, e);
-                    break;
-                }
-
+                send_msg(&mut client, msg);
             }
+
+            // Send a full update if enough time has elapsed
+            if last_update.elapsed().as_secs() >= 30 {
+                send_full_update(&mut client, &map);
+                last_update = time::Instant::now();
+            }
+
         }
     });
+}
+
+fn send_full_update(client: &mut Client<TcpStream>, map: &Vec<Vec<Arc<Mutex<String>>>>) {
+    let mut msg = String::new();
+
+    // Iterate over ever pixel in the map and generate a message for it
+    for (x, column) in map.iter().enumerate() {
+        for (y, row) in column.iter().enumerate() {
+
+            // Capsule for mutex locking
+            {
+                let entry = row.lock().unwrap();
+                msg += format!("PX {} {} {};", x, y, entry).as_mut_str();
+            }
+
+            // Send the message if it is above a certain threshold
+            if msg.len() > 100 {
+                send_msg(client, msg);
+                msg = String::new();
+                thread::sleep(time::Duration::from_micros(1));
+            }
+        }
+
+    }
+}
+
+fn send_msg(client: &mut Client<TcpStream>, msg: String) {
+    client.send_message(&OwnedMessage::Text(msg))
+        .expect("WS: Error sending message");
 }
