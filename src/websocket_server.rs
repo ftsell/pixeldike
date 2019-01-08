@@ -84,10 +84,10 @@ fn send_full_update(client: &mut Client<TcpStream>, map: &Vec<Vec<Arc<Mutex<Stri
             }
 
             // Send the message if it is above a certain threshold
-            if msg.len() > 100 {
+            if msg.len() > 1000 {
                 send_msg(client, msg);
                 msg = String::new();
-                thread::sleep(time::Duration::from_millis(2));
+                thread::sleep(time::Duration::from_millis(10));
             }
         }
 
