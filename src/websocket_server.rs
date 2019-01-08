@@ -36,23 +36,28 @@ fn start_update_loop(tx: spmc::Sender<String>, map: Vec<Vec<Arc<Mutex<String>>>>
         loop {
             // Sleep between full updates
             thread::sleep(time::Duration::from_secs(10));
+            println!("Distributing full canvas");
 
-            // Construct update message
+            // Send canvas size first
             let mut msg = String::from(format!("SIZE {} {};", X_SIZE, Y_SIZE));
-            // Iterate over ever pixel in the map and append it to the msg
+
+            // Iterate over ever pixel in the map and generate a message for it
             for (x, column) in map.iter().enumerate() {
                 for (y, row) in column.iter().enumerate() {
 
                     // Capsule for mutex locking
                     {
                         let entry = row.lock().unwrap();
-                        msg += format!("PX {} {} {};", x, y, entry).as_mut_str()
+                        msg += format!("PX {} {} {};", x, y, entry).as_mut_str();
+                    }
+
+                    // Send the message if it is above a certain threshold
+                    if msg.len() > 500 {
+                        tx.send(msg).expect("Could not distribute update to websocket threads");
+                        msg = String::new();
+                        thread::sleep(time::Duration::from_millis(1));
                     }
                 }
-
-                // Send each column separately
-                tx.send(msg).expect("Could not distribute update to websocket threads");
-                msg = String::new();
 
             }
         }
