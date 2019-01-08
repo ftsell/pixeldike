@@ -11,7 +11,7 @@ pub enum Command {
 }
 
 
-pub fn parse_message(msg: String) -> Result<Command, String> {
+pub fn parse_message(msg: &String) -> Result<Command, String> {
     if msg.ends_with(";") {
         let msg = msg.get(RangeTo {end: msg.len()-1}).unwrap();
 

@@ -1,5 +1,4 @@
 extern crate websocket;
-extern crate spmc;
 
 use std::net::*;
 use std::thread;
@@ -14,7 +13,7 @@ use self::websocket::OwnedMessage;
 use crate::X_SIZE;
 use crate::Y_SIZE;
 
-pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16, forward_rx: spmc::Receiver<String>) -> JoinHandle<()> {
+pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
     print!("Starting websocket server on port {}...", &port);
     // Bind to port as websocket server
     let address = SocketAddr::new(IpAddr::from(Ipv4Addr::new(0, 0, 0, 0)), port);
@@ -24,13 +23,12 @@ pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16, forward_rx: spmc::Rec
     // Initiate request handling
     thread::spawn(move || {
         for request in server.filter_map(Result::ok) {
-            handle_client(forward_rx.clone(), map.clone(), request);
+            handle_client(map.clone(), request);
         }
     })
 }
 
-fn handle_client(forward_rx: spmc::Receiver<String>,
-                 map: Vec<Vec<Arc<Mutex<String>>>>,
+fn handle_client(map: Vec<Vec<Arc<Mutex<String>>>>,
                  request: WsUpgrade<TcpStream, Option<Buffer>>) {
     thread::spawn(move || {
         if !request.protocols().contains(&"pixelflut-websocket".to_string()) {
@@ -47,23 +45,17 @@ fn handle_client(forward_rx: spmc::Receiver<String>,
         send_msg(&mut client, msg);
 
         // Store last update time
-        let mut last_update = time::Instant::now() - time::Duration::from_secs(1);
+        let mut last_update = time::Instant::now() - time::Duration::from_secs(999);
 
         // Execute the main update-loop
         loop {
             // Sleep between iterations
             thread::sleep(time::Duration::from_millis(10));
 
-            // Try to receive a new message from forward receiver
-            if let Ok(msg) = forward_rx.try_recv() {
-                // Send it on
-                send_msg(&mut client, msg);
-            }
-
             // Send a full update if enough time has elapsed
-            if last_update.elapsed().as_secs() >= 30 {
-                send_full_update(&mut client, &map);
+            if last_update.elapsed().as_secs() >= 5 {
                 last_update = time::Instant::now();
+                send_full_update(&mut client, &map);
             }
 
         }
@@ -84,7 +76,7 @@ fn send_full_update(client: &mut Client<TcpStream>, map: &Vec<Vec<Arc<Mutex<Stri
             }
 
             // Send the message if it is above a certain threshold
-            if msg.len() > 5000 {
+            if msg.len() > 10000 {
                 send_msg(client, msg);
                 msg = String::new();
                 thread::sleep(time::Duration::from_millis(10));

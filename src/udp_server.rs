@@ -22,7 +22,7 @@ pub fn start(map: Vec<Vec<Arc<Mutex<String>>>>, port: u16) -> JoinHandle<()> {
             let map = map.clone();
             thread::spawn(move || {
                 let (_src, msg) = msg.unwrap();
-                let cmd = command_handler::parse_message(msg);
+                let cmd = command_handler::parse_message(&msg);
 
                 if cmd.is_err() {
                     let err_msg = cmd.err().unwrap();
