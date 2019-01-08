@@ -87,11 +87,15 @@ fn send_full_update(client: &mut Client<TcpStream>, map: &Vec<Vec<Arc<Mutex<Stri
             if msg.len() > 100 {
                 send_msg(client, msg);
                 msg = String::new();
-                thread::sleep(time::Duration::from_millis(1));
+                thread::sleep(time::Duration::from_millis(2));
             }
         }
 
     }
+
+    // Send rest of message
+    send_msg(client, msg);
+
 }
 
 fn send_msg(client: &mut Client<TcpStream>, msg: String) {
