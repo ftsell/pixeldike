@@ -47,12 +47,12 @@ fn handle_client(forward_rx: spmc::Receiver<String>,
         send_msg(&mut client, msg);
 
         // Store last update time
-        let mut last_update = time::Instant::now() - time::Duration::from_secs(600);
+        let mut last_update = time::Instant::now() - time::Duration::from_secs(1);
 
         // Execute the main update-loop
         loop {
             // Sleep between iterations
-            thread::sleep(time::Duration::from_millis(50));
+            thread::sleep(time::Duration::from_millis(10));
 
             // Try to receive a new message from forward receiver
             if let Ok(msg) = forward_rx.try_recv() {
@@ -84,7 +84,7 @@ fn send_full_update(client: &mut Client<TcpStream>, map: &Vec<Vec<Arc<Mutex<Stri
             }
 
             // Send the message if it is above a certain threshold
-            if msg.len() > 1000 {
+            if msg.len() > 5000 {
                 send_msg(client, msg);
                 msg = String::new();
                 thread::sleep(time::Duration::from_millis(10));
