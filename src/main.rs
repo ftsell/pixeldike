@@ -12,8 +12,8 @@ mod websocket_server;
 const COMMAND_PORT: u16 = 1234;
 const WEBSOCKET_PORT: u16 = 1235;
 
-const X_SIZE: usize = 800;
-const Y_SIZE: usize = 600;
+const X_SIZE: usize = 400;
+const Y_SIZE: usize = 300;
 const BACKGROUND_COLOR: &str = "FFFFFFFF";
 
 
