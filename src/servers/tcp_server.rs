@@ -39,12 +39,22 @@ impl TcpServer {
 
         let lines_handler = lines(reader)
             .for_each(move |line| {
-                arc_self.handle_message(&line, &mut writer)
+                arc_self.handle_message(&line)
                     .map_err(|e| {
                         let mut msg = e.to_string();
                         msg += "\n";
 
                         writer.write_all(msg.as_bytes()).unwrap_or_default();
+                    })
+                    .map(|answer| {
+                        match answer {
+                            Some(mut v) => {
+                                v += "\n";
+                                writer.write_all(v.as_bytes()).unwrap_or_default();
+                                ()
+                            }
+                            _ => ()
+                        }
                     });
 
                 Ok(())
@@ -79,46 +89,20 @@ impl PxServer for TcpServer {
         tokio::spawn(server);
     }
 
-    fn cmd_get_size(&self, answer_channel: &mut Write) -> Result<(), Error> {
+    fn cmd_get_size(&self) -> Result<Option<String>, String> {
         let mut size = self.map.get_size();
         size += "\n";
 
-        answer_channel.write_all(size.as_bytes()).unwrap_or_default();
-
-        Ok(())
+        Ok(Some(size))
     }
 
-    fn cmd_get_px(&self, answer_channel: &mut Write, x: usize, y: usize) -> Result<(), Error> {
-        self.map.get_pixel(x, y).and_then(|mut color| {
-            color += "\n";
-            answer_channel.write_all(color.as_bytes()).unwrap_or_default();
-
-            Ok(())
-        });
-
-        Ok(())
+    fn cmd_get_px(&self, x: usize, y: usize) -> Result<Option<String>, String> {
+        self.map.get_pixel(x, y)
+            .map(|v| {Some(v)})
     }
 
-    fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<(), Error> {
-        Ok(self.map.set_pixel(x, y, color).unwrap())
+    fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<Option<String>, String> {
+        self.map.set_pixel(x, y, color)
+            .map(|_| {None})
     }
 }
-
-
-/*
-fn handle_incoming(sock: TcpStream) -> Spawn {
-    // Split up the reading and writing parts of the
-    // socket.
-    let (reader, writer) = sock.split();
-
-    // ... after which we'll print what happened.
-    let handle_conn = bytes_copied.map(|amt| {
-        println!("wrote {:?} bytes", amt)
-    }).map_err(|err| {
-        eprintln!("IO error {:?}", err)
-    });
-
-    // Spawn the future as a concurrent task.
-    tokio::spawn(handle_conn)
-}
-*/

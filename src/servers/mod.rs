@@ -1,11 +1,12 @@
-use std::ops::RangeTo;
+extern crate futures;
+
 use std::io::{Write, Error, ErrorKind};
+use self::futures::Future;
 
 pub mod tcp_server;
 
 
 pub trait PxServer {
-
     /// Schedule appropriate handler with tokio
     fn start(self);
 
@@ -17,11 +18,12 @@ pub trait PxServer {
     /// The answer channel should be passed down to the correct command_handler so that it
     /// can directly respond if needed.
     ///
-    fn handle_message(&self, msg: &String, answer_channel: &mut Write) -> Result<(), Error> {
+    fn handle_message(&self, msg: &String) -> std::io::Result<Option<String>> {
         // TODO Make handle_message return the answer and send it from the calling task with tokio
         // Check  if the command is a SIZE command
         if msg.eq(&String::from("SIZE")) {
-            return self.cmd_get_size(answer_channel);
+            return self.cmd_get_size()
+                .map_err(map_cmd_error_type);
         }
 
         // Check if it is a PX command
@@ -53,7 +55,8 @@ pub trait PxServer {
 
             // If not color is present at all -> GET_PX command
             if color.is_none() {
-                return self.cmd_get_px(answer_channel, x.unwrap(), y.unwrap());
+                return self.cmd_get_px(x.unwrap(), y.unwrap())
+                    .map_err(map_cmd_error_type);
             }
 
             // Extract color parameter with default transparency value
@@ -77,17 +80,26 @@ pub trait PxServer {
             }
 
             // If all checks passed -> Set the pixel
-            return self.cmd_set_px( x.unwrap(), y.unwrap(), color);
+            return self.cmd_set_px(x.unwrap(), y.unwrap(), color)
+                .map_err(map_cmd_error_type);
         }
 
         return Err(Error::new(ErrorKind::InvalidInput,
                               "Unknown command"));
     }
 
-    fn cmd_get_size(&self, answer_channel: &mut Write) -> Result<(), Error>;
+    fn cmd_get_size(&self) -> Result<Option<String>, String>;
 
-    fn cmd_get_px(&self, answer_channel: &mut Write, x: usize, y: usize) -> Result<(), Error>;
+    fn cmd_get_px(&self, x: usize, y: usize) -> Result<Option<String>, String>;
 
-    fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<(), Error>;
+    fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<Option<String>, String>;
+}
 
+
+/// Map an error error produced by cmd_*() to an [`Error`]
+///
+/// [`Error`]: /std/io/struct.Error.html
+fn map_cmd_error_type(e: String) -> Error {
+    Error::new(ErrorKind::Other,
+               e)
 }

@@ -1,6 +1,6 @@
 [package]
 name = "pixelflut"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Finn Sell <dev@finn-thorben.me>"]
 edition = "2018"
 
@@ -9,5 +9,3 @@ websocket = "^0.22.1"
 argparse = "^0.2.2"
 tokio = "^0.1.14"
 futures = "^0.1.25"
-
-#rtsp = { git = "https://github.com/sgodwincs/rtsp-rs.git" }
