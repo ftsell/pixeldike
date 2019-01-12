@@ -8,7 +8,7 @@ pub mod tcp_server;
 
 pub trait PxServer {
     /// Schedule appropriate handler with tokio
-    fn start(self);
+    fn start(self, port: u16);
 
     /// Handle an incoming string message with the following steps:
     ///

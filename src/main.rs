@@ -29,7 +29,7 @@ fn main() {
         let map = pixmap::Pixmap::new(X_SIZE, Y_SIZE, BACKGROUND_COLOR.to_string());
 
         if tcp {
-            servers::tcp_server::TcpServer::new(map.clone(), COMMAND_PORT).start();
+            servers::tcp_server::TcpServer::new(map.clone()).start(COMMAND_PORT);
         }
 
         Ok(())

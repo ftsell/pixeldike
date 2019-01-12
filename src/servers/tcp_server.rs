@@ -13,33 +13,27 @@ use std::io::{Read, Write, BufReader, BufRead, Error};
 use std::sync::Arc;
 
 
+#[derive(Clone)]
 pub struct TcpServer {
-    map: Pixmap,
-    listener: TcpListener,
+    map: Pixmap
 }
 
 
 impl TcpServer {
-    pub fn new(map: Pixmap, port: u16) -> TcpServer {
-        // Bind the server socket
-        let addr = format!("0.0.0.0:{}", port).parse().unwrap();
-        let listener = TcpListener::bind(&addr)
-            .expect(format!("TCP: Could not bind socket on port {}", port).as_str());
-
+    pub fn new(map: Pixmap) -> TcpServer {
         TcpServer {
-            map,
-            listener,
+            map
         }
     }
 
-    fn handle_incoming(arc_self: Arc<Self>, sock: TcpStream) {
+    fn handle_incoming(self, sock: TcpStream) {
         // Split up the reading and writing parts of the socket
         let (reader, mut writer) = sock.split();
         let reader = BufReader::new(reader);
 
         let lines_handler = lines(reader)
             .for_each(move |line| {
-                arc_self.handle_message(&line)
+                self.handle_message(&line)
                     .map_err(|e| {
                         let mut msg = e.to_string();
                         msg += "\n";
@@ -68,21 +62,19 @@ impl TcpServer {
 }
 
 impl PxServer for TcpServer {
-    fn start(self) -> () {
+    fn start(self, port: u16) {
         println!("Starting TCP Server");
 
-        let addr = format!("0.0.0.0:{}", 1235).parse().unwrap();
+        // Bind the server socket
+        let addr = format!("0.0.0.0:{}", port).parse().unwrap();
         let listener = TcpListener::bind(&addr)
             .expect(format!("TCP: Could not bind socket on port {}", 1235).as_str());
-
-        let arc_self = Arc::new(self);
 
         // Pull out a stream of sockets for incoming connections
         let server = listener.incoming()
             .map_err(|e| eprintln!("TCP: Accept new connection failed: {:?}", e))
             .for_each(move |sock| {
-                TcpServer::handle_incoming(arc_self.clone(), sock);
-
+                TcpServer::handle_incoming(self.clone(), sock);
                 Ok(())
             });
 
@@ -90,10 +82,7 @@ impl PxServer for TcpServer {
     }
 
     fn cmd_get_size(&self) -> Result<Option<String>, String> {
-        let mut size = self.map.get_size();
-        size += "\n";
-
-        Ok(Some(size))
+        Ok(Some(self.map.get_size()))
     }
 
     fn cmd_get_px(&self, x: usize, y: usize) -> Result<Option<String>, String> {
