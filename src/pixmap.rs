@@ -68,7 +68,7 @@ impl Pixmap {
 
             // Lock mutex for reading
             {
-                let mut entry = mutex.lock().unwrap();
+                let entry = mutex.lock().unwrap();
                 // Overwrite the contained value of this element
                 color = (*entry).clone();
             }

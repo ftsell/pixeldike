@@ -1,7 +1,6 @@
 extern crate futures;
 
-use std::io::{Write, Error, ErrorKind};
-use self::futures::Future;
+use std::io::{Error, ErrorKind};
 
 pub mod tcp_server;
 

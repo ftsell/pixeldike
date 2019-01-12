@@ -5,12 +5,10 @@ use crate::pixmap::Pixmap;
 use crate::servers::PxServer;
 
 use self::tokio::prelude::*;
-use self::tokio::io::{lines, write_all};
+use self::tokio::io::{lines};
 use self::tokio::net::{TcpListener, TcpStream};
-use self::futures::lazy;
 
-use std::io::{Read, Write, BufReader, BufRead, Error};
-use std::sync::Arc;
+use std::io::{BufReader};
 
 
 #[derive(Clone)]
@@ -31,33 +29,26 @@ impl TcpServer {
         let (reader, mut writer) = sock.split();
         let reader = BufReader::new(reader);
 
-        let lines_handler = lines(reader)
-            .for_each(move |line| {
+        // Construct message chain
+        let fut = lines(reader)
+            .and_then(move |line| -> std::io::Result<Option<String>> {
                 self.handle_message(&line)
-                    .map_err(|e| {
-                        let mut msg = e.to_string();
-                        msg += "\n";
-
-                        writer.write_all(msg.as_bytes()).unwrap_or_default();
-                    })
-                    .map(|answer| {
-                        match answer {
-                            Some(mut v) => {
-                                v += "\n";
-                                writer.write_all(v.as_bytes()).unwrap_or_default();
-                                ()
-                            }
-                            _ => ()
-                        }
-                    });
+            })
+            .or_else(|e| -> Result<Option<String>, ()> {
+                eprintln!("{}", e.to_string());
+                Ok(Some(e.to_string()))
+            })
+            .filter_map(|some_answer| {some_answer})
+            .for_each(move |mut answer| {
+                answer += "\n";
+                writer.write_all(answer.as_bytes())
+                    .map_err(|e| {eprintln!("[TCP] Could not send answer: {}", e)})
+                    .unwrap();
 
                 Ok(())
-            })
-            .map_err(|e| {
-                eprintln!("TCP: Could not handle client: {:?}", e);
             });
 
-        tokio::spawn(lines_handler);
+        tokio::spawn(fut);
     }
 }
 
@@ -87,11 +78,11 @@ impl PxServer for TcpServer {
 
     fn cmd_get_px(&self, x: usize, y: usize) -> Result<Option<String>, String> {
         self.map.get_pixel(x, y)
-            .map(|v| {Some(v)})
+            .map(|v| { Some(v) })
     }
 
     fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<Option<String>, String> {
         self.map.set_pixel(x, y, color)
-            .map(|_| {None})
+            .map(|_| { None })
     }
 }
