@@ -21,7 +21,8 @@ const BACKGROUND_COLOR: &str = "FFFFFFFF";
 
 fn main() {
     let mut tcp = true;
-    parse_arguments(&mut tcp);
+    let mut udp = true;
+    parse_arguments(&mut tcp, &mut udp);
 
     //let websocket_handler = websocket_server::start(map.clone(), WEBSOCKET_PORT);
 
@@ -32,18 +33,23 @@ fn main() {
             servers::tcp_server::TcpServer::new(map.clone()).start(COMMAND_PORT);
         }
 
+        if udp {
+            servers::udp_server::UdpServer::new(map.clone()).start(COMMAND_PORT + 1);
+        }
+
         Ok(())
     }));
 }
 
 
-fn parse_arguments(tcp: &mut bool) {
+fn parse_arguments(tcp: &mut bool, udp: &mut bool) {
     let mut parser = ArgumentParser::new();
     parser.set_description("Pixelflut - Pixel drawing game for programmers");
 
     parser.refer(tcp)
-        .add_option(&["--tcp"], StoreTrue, "Use connection based TCP for command input (recommended)")
-        .add_option(&["--udp"], StoreFalse, "Use UDP for command input");
+        .add_option(&["--tcp"], StoreTrue, "Use connection based TCP for command input (recommended)");
 
     parser.parse_args_or_exit();
+
+    *udp = true; // TODO Enable argparse for udp
 }

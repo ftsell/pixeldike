@@ -3,6 +3,7 @@ extern crate futures;
 use std::io::{Error, ErrorKind};
 
 pub mod tcp_server;
+pub mod udp_server;
 
 
 pub trait PxServer {

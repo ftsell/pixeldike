@@ -54,18 +54,18 @@ impl TcpServer {
 
 impl PxServer for TcpServer {
     fn start(self, port: u16) {
-        println!("Starting TCP Server");
+        println!("Starting TCP Server on port {}", port);
 
         // Bind the server socket
         let addr = format!("0.0.0.0:{}", port).parse().unwrap();
         let listener = TcpListener::bind(&addr)
-            .expect(format!("TCP: Could not bind socket on port {}", 1235).as_str());
+            .expect(format!("[TCP]: Could not bind socket on port {}", port).as_str());
 
         // Pull out a stream of sockets for incoming connections
         let server = listener.incoming()
-            .map_err(|e| eprintln!("TCP: Accept new connection failed: {:?}", e))
+            .map_err(|e| eprintln!("[TCP]: Accept new connection failed: {:?}", e))
             .for_each(move |sock| {
-                TcpServer::handle_incoming(self.clone(), sock);
+                self.clone().handle_incoming(sock);
                 Ok(())
             });
 
