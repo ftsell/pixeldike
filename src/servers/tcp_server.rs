@@ -24,9 +24,9 @@ impl TcpServer {
         }
     }
 
-    fn handle_incoming(self, sock: TcpStream) {
+    fn handle_incoming(self, incoming: TcpStream) {
         // Split up the reading and writing parts of the socket
-        let (reader, mut writer) = sock.split();
+        let (reader, mut writer) = incoming.split();
         let reader = BufReader::new(reader);
 
         // Construct message chain
@@ -48,6 +48,7 @@ impl TcpServer {
                 Ok(())
             });
 
+        // Schedule message handling for this client
         tokio::spawn(fut);
     }
 }

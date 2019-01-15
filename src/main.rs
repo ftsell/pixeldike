@@ -1,12 +1,13 @@
 extern crate argparse;
 extern crate futures;
+extern crate tokio;
 
 use argparse::{ArgumentParser, StoreTrue, StoreFalse};
 use futures::{lazy};
+use tokio::runtime::Runtime;
 
 mod pixmap;
 mod servers;
-mod websocket_server;
 
 use crate::servers::PxServer;
 
@@ -24,8 +25,6 @@ fn main() {
     let mut udp = true;
     parse_arguments(&mut tcp, &mut udp);
 
-    //let websocket_handler = websocket_server::start(map.clone(), WEBSOCKET_PORT);
-
     tokio::run(lazy(move || {
         let map = pixmap::Pixmap::new(X_SIZE, Y_SIZE, BACKGROUND_COLOR.to_string());
 
@@ -35,6 +34,10 @@ fn main() {
 
         if udp {
             servers::udp_server::UdpServer::new(map.clone()).start(COMMAND_PORT + 1);
+        }
+
+        if true {
+            servers::websocket_server::WsServer::new(map.clone()).start(COMMAND_PORT + 2);
         }
 
         Ok(())
