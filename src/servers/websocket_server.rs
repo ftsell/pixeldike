@@ -47,9 +47,7 @@ impl WsServer {
             // Only take new messages as long as we haven't received a "close"-message
             .take_while(|m| Ok(!m.is_close()))
 
-            .map_err(|e| { eprintln!("[WS] Receiving error: {}", e) })
-
-            // Process correct answer for msg
+            // Process message and convert answer to correct type
             .and_then(move |owned_msg: OwnedMessage| {
                 Ok(match owned_msg {
                     OwnedMessage::Ping(b) => Some(OwnedMessage::Pong(b)),
@@ -65,10 +63,16 @@ impl WsServer {
             })
             .filter_map(|v| { v })
 
-            .for_each(|answer| {
-                println!("{:?}", answer);
+            // Forward answer to client
+            .forward(sink)
+            .map_err(|e| { eprintln!("[WS] Error: {}", e) })
+
+            // Send a proper "close"-message once the stream finishes
+            .and_then(|(m, sink)| {
+                sink.send(OwnedMessage::Close(None));
                 Ok(())
             });
+
 
         tokio::spawn(answer_fut);
     }
