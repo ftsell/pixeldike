@@ -1,6 +1,8 @@
 use std::sync::{Mutex, Arc};
+use std::ops::RangeInclusive;
 
 
+#[derive(Clone)]
 pub struct Pixmap {
     map: Vec<Vec<Arc<Mutex<String>>>>,
     pub x_size: usize,
@@ -27,8 +29,8 @@ impl Pixmap {
         };
     }
 
-    fn check_coordinates_in_map(&self, x: usize, y: usize) -> Result<(), String> {
-        if x >= self.x_size || y >= self.y_size {
+    fn check_coordinates_in_map(&self, x: &usize, y: &usize) -> Result<(), String> {
+        if x >= &self.x_size || y >= &self.y_size {
             return Err(format!("Coordinates {},{} not inside grid: 0-{},0-{}",
                                x,
                                y,
@@ -42,7 +44,7 @@ impl Pixmap {
 
     pub fn set_pixel(&self, x: usize, y: usize, color: String) -> Result<(), String> {
         // Make sure that coordinates are valid
-        self.check_coordinates_in_map(x, y).and_then(|()| {
+        self.check_coordinates_in_map(&x, &y).and_then(|()| {
 
             // Retrieve entry from map
             let mutex: &Arc<Mutex<String>> = self.map.get(x).unwrap().get(y).unwrap();
@@ -60,7 +62,7 @@ impl Pixmap {
 
     pub fn get_pixel(&self, x: usize, y: usize) -> Result<String, String> {
         // Make sure that coordinates are valid
-        self.check_coordinates_in_map(x, y).and_then(|()| {
+        self.check_coordinates_in_map(&x, &y).and_then(|()| {
 
             let color ;
             // Retrieve entry from map
@@ -81,21 +83,36 @@ impl Pixmap {
     pub fn get_size(&self) -> String {
         format!("{} {}", self.x_size, self.y_size)
     }
-}
+
+    pub fn get_state(&self, mut x: RangeInclusive<usize>, mut y: RangeInclusive<usize>) -> Result<String, String> {
+        self.check_coordinates_in_map(&x.start(), &y.start())
+            .and(self.check_coordinates_in_map(&x.end(), &y.end()))
+            .and_then(|()| {
+
+                let mut result = String::new();
+
+                // Retrieve color from every pixel
+                for ix in x {
+                    for iy in y.clone() {
+
+                        let color ;
+                        // Extract entry from map
+                        let mutex: &Arc<Mutex<String>> = self.map.get(ix).unwrap().get(iy).unwrap();
+
+                        // Lock mutex for reading
+                        {
+                            let entry = mutex.lock().unwrap();
+                            // Overwrite the contained value of this element
+                            color = (*entry).clone();
+                        }
+
+                        result += &(color + "\n");
+
+                    }
+                }
 
 
-impl Clone for Pixmap {
-    fn clone(&self) -> Self {
-        Pixmap {
-            map: self.map.clone(),
-            x_size: self.x_size,
-            y_size: self.y_size,
-        }
-    }
-
-    fn clone_from(&mut self, source: &Self) {
-        self.map = source.map.clone();
-        self.x_size = source.x_size;
-        self.y_size = source.y_size;
+                Ok(result)
+            })
     }
 }

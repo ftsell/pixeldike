@@ -21,6 +21,7 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use self::websocket::client::r#async::Framed;
 use self::websocket::r#async::MessageCodec;
+use std::ops::RangeInclusive;
 
 
 const SUB_PROTO: &str = "pixelflut";
@@ -133,11 +134,16 @@ impl PxServer for WsServer {
 
     fn cmd_get_px(&self, x: usize, y: usize) -> Result<Option<String>, String> {
         self.map.get_pixel(x, y)
-            .map(|v| { Some(v) })
+            .map(Some)
     }
 
     fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<Option<String>, String> {
         self.map.set_pixel(x, y, color)
             .map(|_| { None })
+    }
+
+    fn cmd_get_state(&self, x: RangeInclusive<usize>, y: RangeInclusive<usize>) -> Result<Option<String>, String> {
+        return self.map.get_state(x, y)
+            .map(Some)
     }
 }

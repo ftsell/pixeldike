@@ -1,6 +1,7 @@
 extern crate futures;
 
 use std::io::{Error, ErrorKind};
+use std::ops::{RangeInclusive};
 
 pub mod tcp_server;
 pub mod udp_server;
@@ -85,6 +86,48 @@ pub trait PxServer {
                 .map_err(map_cmd_error_type);
         }
 
+        // Check if it is a STATE command
+        else if msg.starts_with("STATE") {
+            // Define iterator over all fields in command and ignore PX part at the beginning
+            let mut msg_iterator = msg.split_whitespace();
+            msg_iterator.next();
+
+            // Extract values from command
+            let x_start = msg_iterator.next();
+            let x_end = msg_iterator.next();
+            let y_start = msg_iterator.next();
+            let y_end = msg_iterator.next();
+
+            // Check that all parameters could be read
+            if x_start.is_none() || x_end.is_none() || y_start.is_none() || y_end.is_none() {
+                return Err(Error::new(ErrorKind::InvalidData,
+                                      "Incorrect number of arguments. \
+                                      Expected X_START X_END Y_START Y_END"));
+            }
+
+            // Parse parameters to correct type
+            let x_start = x_start.unwrap().parse::<usize>();
+            let x_end = x_end.unwrap().parse::<usize>();
+            let y_start = y_start.unwrap().parse::<usize>();
+            let y_end = y_end.unwrap().parse::<usize>();
+
+            // Check that parsing was successful
+            if x_start.is_err() || x_end.is_err() || y_start.is_err() || y_end.is_err() {
+                return Err(Error::new(ErrorKind::InvalidData,
+                                      "Arguments could not be parsed as ranges"));
+            }
+
+            // Form ranges from parameters
+            let x = RangeInclusive::new(x_start.unwrap(), x_end.unwrap());
+            let y = RangeInclusive::new(y_start.unwrap(), y_end.unwrap());
+
+            // Check that start and end of ranges are valid
+
+            // If all checks passed -> execute command
+            return self.cmd_get_state(x, y)
+                .map_err(map_cmd_error_type);
+        }
+
         return Err(Error::new(ErrorKind::InvalidInput,
                               "Unknown command"));
     }
@@ -94,6 +137,8 @@ pub trait PxServer {
     fn cmd_get_px(&self, x: usize, y: usize) -> Result<Option<String>, String>;
 
     fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<Option<String>, String>;
+
+    fn cmd_get_state(&self, x: RangeInclusive<usize>, y: RangeInclusive<usize>) -> Result<Option<String>, String>;
 }
 
 

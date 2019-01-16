@@ -11,6 +11,7 @@ use self::tokio::codec::{LinesCodec};
 
 use std::io::{BufReader};
 use std::sync::{Arc, Mutex};
+use std::ops::RangeInclusive;
 
 
 #[derive(Clone)]
@@ -74,11 +75,16 @@ impl PxServer for UdpServer {
 
     fn cmd_get_px(&self, x: usize, y: usize) -> Result<Option<String>, String> {
         self.map.get_pixel(x, y)
-            .map(|v| { Some(v) })
+            .map(Some)
     }
 
     fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<Option<String>, String> {
         self.map.set_pixel(x, y, color)
             .map(|_| { None })
+    }
+
+    fn cmd_get_state(&self, x: RangeInclusive<usize>, y: RangeInclusive<usize>) -> Result<Option<String>, String> {
+        self.map.get_state(x, y)
+            .map(Some)
     }
 }
