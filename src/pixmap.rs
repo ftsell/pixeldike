@@ -33,7 +33,7 @@ impl Pixmap {
                 "Coordinates {},{} not inside grid: 0-{},0-{}",
                 x, y, self.x_size, self.y_size
             )
-            .to_string());
+                .to_string());
         }
 
         Ok(())
@@ -83,31 +83,31 @@ impl Pixmap {
         x: RangeInclusive<usize>,
         y: RangeInclusive<usize>,
     ) -> Result<String, String> {
-        self.check_coordinates_in_map(&x.start(), &y.start())
-            .and(self.check_coordinates_in_map(&x.end(), &y.end()))
-            .and_then(|()| {
-                let mut result = format!("STATE {} {} {} {},", &x.start(), &x.end(), &y.start(), &y.end());
+        if x.end() > &self.x_size || y.end() > &self.y_size {
+            Err("Range is larger than map".to_string())
+        } else {
+            let mut result = format!("STATE {} {} {} {},", &x.start(), &x.end(), &y.start(), &y.end());
 
-                // Retrieve color from every pixel
-                for ix in x {
-                    for iy in y.clone() {
-                        let color;
-                        // Extract entry from map
-                        let mutex: &Arc<Mutex<String>> = self.map.get(ix).unwrap().get(iy).unwrap();
+            // Retrieve color from every pixel
+            for ix in x {
+                for iy in y.clone() {
+                    let color;
+                    // Extract entry from map
+                    let mutex: &Arc<Mutex<String>> = self.map.get(ix).unwrap().get(iy).unwrap();
 
-                        // Lock mutex for reading
-                        {
-                            let entry = mutex.lock().unwrap();
-                            // Overwrite the contained value of this element
-                            color = (*entry).clone();
-                        }
-
-                        result += &(color + ",");
+                    // Lock mutex for reading
+                    {
+                        let entry = mutex.lock().unwrap();
+                        // Overwrite the contained value of this element
+                        color = (*entry).clone();
                     }
-                }
 
-                result += "\n";
-                Ok(result)
-            })
+                    result += &(color + ",");
+                }
+            }
+
+            result += "\n";
+            Ok(result)
+        }
     }
 }
