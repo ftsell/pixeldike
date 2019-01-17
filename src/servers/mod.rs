@@ -1,12 +1,11 @@
 extern crate futures;
 
 use std::io::{Error, ErrorKind};
-use std::ops::{RangeInclusive};
+use std::ops::RangeInclusive;
 
 pub mod tcp_server;
 pub mod udp_server;
 pub mod websocket_server;
-
 
 pub trait PxServer {
     /// Schedule appropriate handler with tokio
@@ -24,13 +23,10 @@ pub trait PxServer {
         // TODO Make handle_message return the answer and send it from the calling task with tokio
         // Check  if the command is a SIZE command
         if msg.eq(&String::from("SIZE")) {
-            return self.cmd_get_size()
-                .map_err(map_cmd_error_type);
+            return self.cmd_get_size().map_err(map_cmd_error_type);
         }
-
         // Check if it is a PX command
         else if msg.starts_with("PX") {
-
             // Define iterator over all fields in command and ignore PX part at the beginning
             let mut msg_iterator = msg.split_whitespace();
             msg_iterator.next();
@@ -42,8 +38,10 @@ pub trait PxServer {
 
             // Check that necessary parameters could be read
             if x.is_none() || y.is_none() {
-                return Err(Error::new(ErrorKind::InvalidData,
-                                      "Could not read X Y parameters"));
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Could not read X Y parameters",
+                ));
             }
 
             let x = x.unwrap().parse::<usize>();
@@ -51,13 +49,16 @@ pub trait PxServer {
 
             // Check that X and Y could be parsed
             if x.is_err() || y.is_err() {
-                return Err(Error::new(ErrorKind::InvalidData,
-                                      "Could not parse coordinates from X and Y parameters"));
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Could not parse coordinates from X and Y parameters",
+                ));
             }
 
             // If not color is present at all -> GET_PX command
             if color.is_none() {
-                return self.cmd_get_px(x.unwrap(), y.unwrap())
+                return self
+                    .cmd_get_px(x.unwrap(), y.unwrap())
                     .map_err(map_cmd_error_type);
             }
 
@@ -68,24 +69,26 @@ pub trait PxServer {
                 } else if color.unwrap().len() == 8 {
                     color.unwrap().to_string()
                 } else {
-                    return Err(Error::new(ErrorKind::InvalidData,
-                                          "Color parameter has incorrect length"));
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Color parameter has incorrect length",
+                    ));
                 }
-            }.to_uppercase();
+            }
+            .to_uppercase();
 
             // Check that color is valid HEX
             for i in color.chars() {
                 if !i.is_ascii_hexdigit() {
-                    return Err(Error::new(ErrorKind::InvalidData,
-                                          "Color is not HEX"));
+                    return Err(Error::new(ErrorKind::InvalidData, "Color is not HEX"));
                 }
             }
 
             // If all checks passed -> Set the pixel
-            return self.cmd_set_px(x.unwrap(), y.unwrap(), color)
+            return self
+                .cmd_set_px(x.unwrap(), y.unwrap(), color)
                 .map_err(map_cmd_error_type);
         }
-
         // Check if it is a STATE command
         else if msg.starts_with("STATE") {
             // Define iterator over all fields in command and ignore PX part at the beginning
@@ -100,9 +103,11 @@ pub trait PxServer {
 
             // Check that all parameters could be read
             if x_start.is_none() || x_end.is_none() || y_start.is_none() || y_end.is_none() {
-                return Err(Error::new(ErrorKind::InvalidData,
-                                      "Incorrect number of arguments. \
-                                      Expected X_START X_END Y_START Y_END"));
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Incorrect number of arguments. \
+                     Expected X_START X_END Y_START Y_END",
+                ));
             }
 
             // Parse parameters to correct type
@@ -113,8 +118,10 @@ pub trait PxServer {
 
             // Check that parsing was successful
             if x_start.is_err() || x_end.is_err() || y_start.is_err() || y_end.is_err() {
-                return Err(Error::new(ErrorKind::InvalidData,
-                                      "Arguments could not be parsed as ranges"));
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Arguments could not be parsed as ranges",
+                ));
             }
 
             // Form ranges from parameters
@@ -124,12 +131,10 @@ pub trait PxServer {
             // Check that start and end of ranges are valid
 
             // If all checks passed -> execute command
-            return self.cmd_get_state(x, y)
-                .map_err(map_cmd_error_type);
+            return self.cmd_get_state(x, y).map_err(map_cmd_error_type);
         }
 
-        return Err(Error::new(ErrorKind::InvalidInput,
-                              "Unknown command"));
+        return Err(Error::new(ErrorKind::InvalidInput, "Unknown command"));
     }
 
     fn cmd_get_size(&self) -> Result<Option<String>, String>;
@@ -138,14 +143,16 @@ pub trait PxServer {
 
     fn cmd_set_px(&self, x: usize, y: usize, color: String) -> Result<Option<String>, String>;
 
-    fn cmd_get_state(&self, x: RangeInclusive<usize>, y: RangeInclusive<usize>) -> Result<Option<String>, String>;
+    fn cmd_get_state(
+        &self,
+        x: RangeInclusive<usize>,
+        y: RangeInclusive<usize>,
+    ) -> Result<Option<String>, String>;
 }
-
 
 /// Map an error error produced by cmd_*() to an [`Error`]
 ///
 /// [`Error`]: /std/io/struct.Error.html
 fn map_cmd_error_type(e: String) -> Error {
-    Error::new(ErrorKind::Other,
-               e)
+    Error::new(ErrorKind::Other, e)
 }

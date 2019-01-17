@@ -1,6 +1,5 @@
-use std::sync::{Mutex, Arc};
 use std::ops::RangeInclusive;
-
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct Pixmap {
@@ -8,7 +7,6 @@ pub struct Pixmap {
     pub x_size: usize,
     pub y_size: usize,
 }
-
 
 impl Pixmap {
     pub fn new(x_size: usize, y_size: usize, color: String) -> Pixmap {
@@ -31,12 +29,11 @@ impl Pixmap {
 
     fn check_coordinates_in_map(&self, x: &usize, y: &usize) -> Result<(), String> {
         if x >= &self.x_size || y >= &self.y_size {
-            return Err(format!("Coordinates {},{} not inside grid: 0-{},0-{}",
-                               x,
-                               y,
-                               self.x_size,
-                               self.y_size
-            ).to_string());
+            return Err(format!(
+                "Coordinates {},{} not inside grid: 0-{},0-{}",
+                x, y, self.x_size, self.y_size
+            )
+            .to_string());
         }
 
         Ok(())
@@ -45,7 +42,6 @@ impl Pixmap {
     pub fn set_pixel(&self, x: usize, y: usize, color: String) -> Result<(), String> {
         // Make sure that coordinates are valid
         self.check_coordinates_in_map(&x, &y).and_then(|()| {
-
             // Retrieve entry from map
             let mutex: &Arc<Mutex<String>> = self.map.get(x).unwrap().get(y).unwrap();
 
@@ -63,8 +59,7 @@ impl Pixmap {
     pub fn get_pixel(&self, x: usize, y: usize) -> Result<String, String> {
         // Make sure that coordinates are valid
         self.check_coordinates_in_map(&x, &y).and_then(|()| {
-
-            let color ;
+            let color;
             // Retrieve entry from map
             let mutex: &Arc<Mutex<String>> = self.map.get(x).unwrap().get(y).unwrap();
 
@@ -76,7 +71,6 @@ impl Pixmap {
             }
 
             Ok(color)
-
         })
     }
 
@@ -84,18 +78,20 @@ impl Pixmap {
         format!("{} {}", self.x_size, self.y_size)
     }
 
-    pub fn get_state(&self, mut x: RangeInclusive<usize>, mut y: RangeInclusive<usize>) -> Result<String, String> {
+    pub fn get_state(
+        &self,
+        x: RangeInclusive<usize>,
+        y: RangeInclusive<usize>,
+    ) -> Result<String, String> {
         self.check_coordinates_in_map(&x.start(), &y.start())
             .and(self.check_coordinates_in_map(&x.end(), &y.end()))
             .and_then(|()| {
-
                 let mut result = String::new();
 
                 // Retrieve color from every pixel
                 for ix in x {
                     for iy in y.clone() {
-
-                        let color ;
+                        let color;
                         // Extract entry from map
                         let mutex: &Arc<Mutex<String>> = self.map.get(ix).unwrap().get(iy).unwrap();
 
@@ -107,10 +103,8 @@ impl Pixmap {
                         }
 
                         result += &(color + "\n");
-
                     }
                 }
-
 
                 Ok(result)
             })
