@@ -83,31 +83,30 @@ impl Pixmap {
         x: RangeInclusive<usize>,
         y: RangeInclusive<usize>,
     ) -> Result<String, String> {
-        if x.end() > &self.x_size || y.end() > &self.y_size {
-            Err("Range is larger than map".to_string())
-        } else {
-            let mut result = format!("STATE {} {} {} {},", &x.start(), &x.end(), &y.start(), &y.end());
+        self.check_coordinates_in_map(&x.end(), &y.end())
+            .and_then(|()| {
+                let mut result = format!("STATE {} {} {} {},", &x.start(), &x.end(), &y.start(), &y.end());
 
-            // Retrieve color from every pixel
-            for ix in x {
-                for iy in y.clone() {
-                    let color;
-                    // Extract entry from map
-                    let mutex: &Arc<Mutex<String>> = self.map.get(ix).unwrap().get(iy).unwrap();
+                // Retrieve color from every pixel
+                for ix in x {
+                    for iy in y.clone() {
+                        let color;
+                        // Extract entry from map
+                        let mutex: &Arc<Mutex<String>> = self.map.get(ix).unwrap().get(iy).unwrap();
 
-                    // Lock mutex for reading
-                    {
-                        let entry = mutex.lock().unwrap();
-                        // Overwrite the contained value of this element
-                        color = (*entry).clone();
+                        // Lock mutex for reading
+                        {
+                            let entry = mutex.lock().unwrap();
+                            // Overwrite the contained value of this element
+                            color = (*entry).clone();
+                        }
+
+                        result += &(color + ",");
                     }
-
-                    result += &(color + ",");
                 }
-            }
 
-            result += "\n";
-            Ok(result)
-        }
+                result += "\n";
+                Ok(result)
+            })
     }
 }
