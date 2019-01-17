@@ -70,12 +70,12 @@ impl Pixmap {
                 color = (*entry).clone();
             }
 
-            Ok(color)
+            Ok(format!("PX {} {} {}\n", x, y, color))
         })
     }
 
     pub fn get_size(&self) -> String {
-        format!("{} {}", self.x_size, self.y_size)
+        format!("SIZE {} {}\n", self.x_size, self.y_size)
     }
 
     pub fn get_state(
