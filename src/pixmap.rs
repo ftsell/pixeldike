@@ -86,7 +86,7 @@ impl Pixmap {
         self.check_coordinates_in_map(&x.start(), &y.start())
             .and(self.check_coordinates_in_map(&x.end(), &y.end()))
             .and_then(|()| {
-                let mut result = String::new();
+                let mut result = format!("STATE {} {} {} {}\n", &x.start(), &x.end(), &y.start(), &y.end());
 
                 // Retrieve color from every pixel
                 for ix in x {
