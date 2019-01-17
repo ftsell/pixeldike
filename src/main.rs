@@ -72,7 +72,7 @@ fn parse_arguments() -> Args {
 
         parser
             .refer(&mut args.ws)
-            .add_option(&["--udp"], StoreTrue, "Enable Websocket PX server");
+            .add_option(&["--ws"], StoreTrue, "Enable Websocket PX server");
 
         parser.parse_args_or_exit();
     }
