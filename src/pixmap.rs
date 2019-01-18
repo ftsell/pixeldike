@@ -1,6 +1,8 @@
 use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
+const MAX_STATE_SIZE: usize = 200*200;
+
 #[derive(Clone)]
 pub struct Pixmap {
     map: Vec<Vec<Arc<Mutex<String>>>>,
@@ -84,6 +86,15 @@ impl Pixmap {
         y: RangeInclusive<usize>,
     ) -> Result<String, String> {
         self.check_coordinates_in_map(&x.end(), &y.end())
+            .and_then(|()| {
+                // Check that not too many data points were requested
+                let size = (x.end() + 2 - x.start()) * (y.end() + 2 - y.start());
+                if size > MAX_STATE_SIZE {
+                    Err(format!("Requested too many data points. Maximum is {}", MAX_STATE_SIZE))
+                } else {
+                    Ok(())
+                }
+            })
             .and_then(|()| {
                 let mut result = format!("STATE {} {} {} {},", &x.start(), &x.end(), &y.start(), &y.end());
 
