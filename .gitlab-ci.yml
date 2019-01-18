@@ -21,17 +21,15 @@ build:cargo:
   stage: build
   
   script:
+    - cd backend
     - rustc --version && cargo --version
     - cargo build --release
-  
-  cache:
-    paths:
-      - target/release/deps
 
   artifacts:
     expire_in: 1 week
     paths:
-      - target/release
+      - backend/target/release
+
 
 deploy:
   tags:
@@ -44,12 +42,11 @@ deploy:
     - triggers
     - schedules
 
-
   variables:
     target: '/opt/ftsell-pixelflut/pixelflut'
     service: 'ftsell-pixelflut'
 
   script:
-    - rsync -r target/release/pixelflut $target
+    - rsync -r backend/target/release/pixelflut $target
     - chgrp ftsell-pixelflut $target
     - sudo /bin/systemctl restart ftsell-pixelflut.service
