@@ -1,0 +1,10 @@
+[package]
+name = "frontend-rust"
+version = "0.1.0"
+authors = ["Finn Sell <dev@finn-thorben.me>"]
+edition = "2018"
+
+[dependencies]
+dns-lookup = "1.0.0"
+clap = "2.32.0"
+azul = "0.1.0"
