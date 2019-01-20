@@ -20,7 +20,8 @@ pub trait PxServer {
     /// can directly respond if needed.
     ///
     fn handle_message(&self, msg: &String) -> std::io::Result<Option<String>> {
-        // TODO Make handle_message return the answer and send it from the calling task with tokio
+        let msg = msg.to_uppercase();
+
         // Check  if the command is a SIZE command
         if msg.eq(&String::from("SIZE")) {
             return self.cmd_get_size().map_err(map_cmd_error_type);
@@ -75,7 +76,7 @@ pub trait PxServer {
                     ));
                 }
             }
-            .to_uppercase();
+                .to_uppercase();
 
             // Check that color is valid HEX
             for i in color.chars() {
@@ -89,6 +90,7 @@ pub trait PxServer {
                 .cmd_set_px(x.unwrap(), y.unwrap(), color)
                 .map_err(map_cmd_error_type);
         }
+
         // Check if it is a STATE command
         else if msg.starts_with("STATE") {
             // Define iterator over all fields in command and ignore PX part at the beginning
@@ -134,6 +136,12 @@ pub trait PxServer {
             return self.cmd_get_state(x, y).map_err(map_cmd_error_type);
         }
 
+        // Check if it is HELP command
+        else if msg.starts_with("HELP") {
+            return self.cmd_help(&msg.replace("HELP ", ""))
+                .map_err(map_cmd_error_type);
+        }
+
         return Err(Error::new(ErrorKind::InvalidInput, "Unknown command"));
     }
 
@@ -148,6 +156,53 @@ pub trait PxServer {
         x: RangeInclusive<usize>,
         y: RangeInclusive<usize>,
     ) -> Result<Option<String>, String>;
+
+    fn cmd_help(&self, subcommand: &String) -> Result<Option<String>, String> {
+        return if subcommand == "SIZE" {
+            Ok(Some(format!("Syntax: 'SIZE'\n\n\
+            \
+            Retreive the current canvas size in the format 'SIZE $width $height'.\n\
+            The current response is '{}'",
+                            self.cmd_get_size().unwrap().unwrap().replace("\n", ""))
+                .to_string()))
+        } else if subcommand == "PX" {
+            Ok(Some("Syntax: 'PX $x $x [$rgb | $rgba]'\n\n\
+            \
+            You can retrieve or set the pixel color at the specified position.\n\
+            If no color is specified you will GET an answer containing the color at the specified \
+            position.\nIf a color is specified you will SET the color at the specified position\n\n\
+            \
+            $x : X position on the canvas.\n\
+            $y: Y position on the canvas.\n\
+            $rgb : color in HEX-encoded rgb format (000000 - FFFFFF)\n\
+            $rgba: color in HEX-encoded rgba format (00000000 - FFFFFFFF)".to_string()))
+        } else if subcommand == "STATE" {
+            Ok(Some("Syntax: 'STATE $x_start $x_end $y_start $y_end'\n\n\
+            \
+            Receive color state in bulk in a specially encoded format. The bulk is specified \
+            using the X and Y ranges specified by $x/y_start and $x/y_end.\n\
+            The response is in the format 'STATE $x_start $x_end $y_start $y_end,$color1,$color2,...' \
+            where $colorN denotes the color at the nth pixel in HEX-encoded RGBA format.\n\
+            The list is ordered by columns and then rows.\n\n\
+            \
+            $x_start : Start coordinate of width range\n\
+            $x_end : End coordinate of width range\n\
+            $y_start: Start coordinate of height range\n\
+            $y_end: End coordinate of height range".to_string()))
+        } else {
+            Ok(Some("pixelflut - a pixel drawing game for programmers inspired by \
+            reddits r/place.\n\n\
+            \
+            Available subcommands are:\n\
+            HELP - This help message\n\
+            SIZE - Get the current canvas size\n\
+            PX - Get or set one specific pixel\n\
+            STATE - Get multiple pixels in a specific format\n\n\
+            \
+            All commands end with a newline character (\\n). \
+            More help is available with 'HELP $subcommand'.".to_string()))
+        };
+    }
 }
 
 /// Map an error error produced by cmd_*() to an [`Error`]
