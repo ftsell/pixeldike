@@ -5,10 +5,12 @@ extern crate tokio;
 use argparse::{ArgumentParser, StoreTrue};
 use futures::lazy;
 
+mod color;
 mod pixmap;
-mod servers;
+mod network;
+//mod servers;
 
-use crate::servers::PxServer;
+use crate::color::color_from_rgba;
 
 const TCP_PORT: u16 = 1234;
 const UDP_PORT: u16 = 1234;
@@ -22,24 +24,11 @@ fn main() {
     let args = parse_arguments();
 
     tokio::run(lazy(move || {
-        let map = pixmap::Pixmap::new(X_SIZE, Y_SIZE, BACKGROUND_COLOR.to_string());
-
-        if args.tcp {
-            servers::tcp_server::TcpServer::new(map.clone()).start(TCP_PORT);
-        }
-
-        if args.udp {
-            servers::udp_server::UdpServer::new(map.clone()).start(UDP_PORT);
-        }
-
-        if args.ws {
-            servers::websocket_server::WsServer::new(map.clone()).start(WEBSOCKET_PORT);
-        }
-
-        if !args.tcp && !args.udp && !args.ws {
-            eprintln!("Not starting anything because no server spceified");
-            eprintln!("pixelflut --help for more info");
-        }
+        let mut map = pixmap::Pixmap::new(
+            X_SIZE,
+            Y_SIZE,
+            color_from_rgba(0, 0, 255, 0),
+        );
 
         Ok(())
     }));
