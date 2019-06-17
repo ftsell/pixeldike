@@ -1,10 +1,11 @@
 import socket
+import base64
 
 
 class Client():
-    sock = None     # type: socket.socket
-    x_size = 0      # type: int
-    y_size = 0      # type: int
+    sock = None  # type: socket.socket
+    x_size = 0  # type: int
+    y_size = 0  # type: int
 
     def __init__(self):
         self.sock = socket.socket()
@@ -36,3 +37,24 @@ class Client():
         # PX $X $X $COLOR
 
         return response.split(" ")[3]
+
+    def receive_binary(self) -> list:
+        """
+        Returns a list of 8-bit integer values.
+        Each value being one color channel.
+        3 values representing one pixel
+        """
+        self.sock.send(b"BINARY\n")
+
+        response = b''
+        while len(response) == 0 or response[-1] != 10:     # 10 is \n
+            response += self.sock.recv(1024)
+        response = response[:-1]        # remove \n
+
+        bytes = base64.b64decode(response)
+
+        result = list()
+        for byte in bytes:
+            result.append(int(byte))
+
+        return result
