@@ -15,6 +15,9 @@ use crate::network::protocol::Command;
 use crate::network::px_server::PxServer;
 use crate::network::tcp_server::TcpServer;
 use std::sync::Arc;
+use std::{thread, time};
+use futures::stream::Stream;
+use crate::pixmap::Pixmap;
 
 const BACKGROUND_COLOR: Color = 0x000000_u32;      // Black
 
@@ -37,10 +40,25 @@ fn main() {
         if args.tcp == 0 && args.udp == 0 && args.ws == 0 {
             println!("Not starting anything because no ports were specified.\n\
             Add --help for more info.")
+        } else {
+            schedule_pixmap_snapshots(10, map.clone());
         }
 
         Ok(())
     }));
+}
+
+fn schedule_pixmap_snapshots(frequency: u16, map: Arc<Pixmap>) {
+    let sleep_duration = time::Duration::from_millis((1000 / frequency) as u64);
+
+    let background_task = tokio::timer::Interval::new_interval(sleep_duration)
+        .map_err(|e| eprintln!("{}", e.to_string()))
+        .for_each(move |_| {
+            map.create_snapshot();
+            Ok(())
+        });
+
+    tokio::spawn(background_task);
 }
 
 struct Args {

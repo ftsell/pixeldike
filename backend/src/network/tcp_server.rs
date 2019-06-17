@@ -1,4 +1,4 @@
-use crate::network::protocol::Command;
+use crate::network::protocol::{Command, Response};
 use crate::network::px_server::PxServer;
 use crate::pixmap::Pixmap;
 use futures::stream::Stream;
@@ -32,10 +32,17 @@ impl TcpServer {
             // Execute command
             .and_then(move |command| self.handle_command(command))
             // Since errors get returned to the user, we pretend they are a correct response
-            .or_else(move |e| Ok(e))
+            .or_else(move |e| Ok(Response::String(e)))
+            // Transform response into sendable bytes
+            .map(move |response| {
+                match response {
+                    Response::String(s) => s.into_bytes(),
+                    Response::Binary(b) => b
+                }
+            })
             // Write-back answer
             .and_then(move |response| {
-                writer.write_all(response.as_bytes())
+                writer.write_all(&response)
                     .map_err(|e| eprintln!("[TCP] Could not send answer: {}", e))
             })
 
@@ -90,5 +97,10 @@ impl PxServer for TcpServer {
     fn set_px(&self, x: usize, y: usize, color: u32) -> Result<String, String> {
         self.map.set_pixel(x, y, color)
             .and(self.get_px(x, y))
+    }
+
+    fn binary(&self) -> Result<Vec<u8>, String> {
+        let snapshot = self.map.snapshot.read().unwrap();
+        return Ok(snapshot.clone());
     }
 }

@@ -1,4 +1,4 @@
-use crate::network::protocol::Command;
+use crate::network::protocol::{Command, Response};
 use crate::color::Color;
 
 pub trait PxServer {
@@ -10,13 +10,23 @@ pub trait PxServer {
     ///
     /// Handle a command received from an arbitrary source and return its result
     ///
-    fn handle_command(&self, command: Command) -> Result<String, String> {
+    fn handle_command(&self, command: Command) -> Result<Response, String> {
         match command {
-            Command::Help() => Ok(self.get_help()),
-            Command::HelpSubcommand(subcommand) => self.get_help_subcommand(&subcommand),
-            Command::Size() => Ok(self.get_size()),
-            Command::GetPx(x, y) => self.get_px(x, y),
+            Command::Help() => Ok(Response::String(self.get_help())),
+
+            Command::HelpSubcommand(subcommand) => self.get_help_subcommand(&subcommand)
+                .map(|response| Response::String(response)),
+
+            Command::Size() => Ok(Response::String(self.get_size())),
+
+            Command::GetPx(x, y) => self.get_px(x, y)
+                .map(|response| Response::String(response)),
+
             Command::SetPx(x, y, color) => self.set_px(x, y, color)
+                .map(|response| Response::String(response)),
+
+            Command::Binary() => self.binary()
+                .map(|response| Response::Binary(response))
         }
     }
 
@@ -59,6 +69,15 @@ pub trait PxServer {
             $y: Y position on the canvas.\n\
             $rgb : color in HEX-encoded rgb format (000000 - FFFFFF)\n".to_string()),
 
+            "binary" => Ok("Syntax: 'BINARY'\n\n\
+            \
+            You can retrieve pixel data in bulk by issuing the BINARY command\n\
+            The response will hold $sizex * $sizey 24-bit values.\
+            These are to be interpreted as 3 8-bit color channels for red, green and blue.\n\
+            The data will be ordered from left-to-right, top-to-bottom.\n\
+            There will be no stop mark or special character apart from \\n at the response's end \
+            (outside the base64).".to_string()),
+
             _ => Err(format!("Unknown subcommand {}\n\n{}", subcommand, self.get_help()))
         }
     }
@@ -68,4 +87,6 @@ pub trait PxServer {
     fn get_px(&self, x: usize, y: usize) -> Result<String, String>;
 
     fn set_px(&self, x: usize, y: usize, color: Color) -> Result<String, String>;
+
+    fn binary(&self) -> Result<Vec<u8>, String>;
 }

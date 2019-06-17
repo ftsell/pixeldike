@@ -30,6 +30,16 @@ pub enum Command {
     /// `SetPx(x, y, color)` sets a new color to the pixel at position x and y
     ///
     SetPx(usize, usize, Color),
+
+    ///
+    /// `Binary()` gets the whole canvas as bulk binary data
+    ///
+    Binary(),
+}
+
+pub enum Response {
+    String(String),
+    Binary(Vec<u8>)
 }
 
 impl Command {
@@ -94,6 +104,8 @@ impl Command {
                     color_from_rgba(*r.unwrap(), *g.unwrap(), *b.unwrap()),
                 ));
             }
+        } else if parts[0] == "binary" {
+            return Ok(Command::Binary());
         }
 
         return Ok(Command::Help());
