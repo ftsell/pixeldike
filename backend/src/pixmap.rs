@@ -1,10 +1,11 @@
 use crate::color::Color;
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 pub struct Pixmap {
     map: Vec<Vec<Mutex<Color>>>,
     pub x_size: usize,
     pub y_size: usize,
+    pub snapshot: RwLock<Vec<u8>>
 }
 
 impl Pixmap {
@@ -19,11 +20,16 @@ impl Pixmap {
             }
         }
 
-        return Pixmap {
+        let map = Pixmap {
             map,
             x_size,
             y_size,
+            snapshot: RwLock::new(Vec::new())
         };
+
+        map.create_snapshot();
+
+        return map;
     }
 
     pub fn get_pixel(&self, x: usize, y: usize) -> Result<Color, String> {
@@ -52,5 +58,17 @@ impl Pixmap {
                 },
             },
         }
+    }
+
+    pub fn create_snapshot(&self) {
+        let result: Vec<u8> = Vec::new();
+
+        for ix in 0..self.x_size {
+            for iy in 0..self.y_size {
+                let color = self.map[ix][iy].lock().unwrap();
+            }
+        }
+
+        let mut snapshot = self.snapshot.write().unwrap();
     }
 }
