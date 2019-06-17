@@ -3,23 +3,18 @@ extern crate futures;
 extern crate hex;
 extern crate tokio;
 
-use argparse::{ArgumentParser, StoreTrue};
+use argparse::{ArgumentParser, StoreTrue, Store};
 use futures::lazy;
 
 mod color;
 mod network;
 mod pixmap;
-//mod servers;
 
 use crate::color::{color_from_rgba, Color};
 use crate::network::protocol::Command;
 use crate::network::px_server::PxServer;
 use crate::network::tcp_server::TcpServer;
 use std::sync::Arc;
-
-const TCP_PORT: u16 = 1234;
-const UDP_PORT: u16 = 1234;
-const WEBSOCKET_PORT: u16 = 1235;
 
 const X_SIZE: usize = 800;
 const Y_SIZE: usize = 600;
@@ -35,24 +30,31 @@ fn main() {
             BACKGROUND_COLOR,
         ));
 
-        let mut tcp_server = TcpServer::new(map.clone());
-        tcp_server.start(&"127.0.0.1".to_string(), 1234);
+        if args.tcp != 0 {
+            let mut tcp_server = TcpServer::new(map.clone());
+            tcp_server.start(&"127.0.0.1".to_string(), args.tcp);
+        }
+
+        if args.tcp == 0 && args.udp == 0 && args.ws == 0 {
+            println!("Not starting anything because no ports were specified.\n\
+            Add --help for more info.")
+        }
 
         Ok(())
     }));
 }
 
 struct Args {
-    tcp: bool,
-    udp: bool,
-    ws: bool,
+    tcp: u16,
+    udp: u16,
+    ws: u16,
 }
 
 fn parse_arguments() -> Args {
     let mut args = Args {
-        tcp: false,
-        udp: false,
-        ws: false,
+        tcp: 0,
+        udp: 0,
+        ws: 0,
     };
 
     {
@@ -61,15 +63,15 @@ fn parse_arguments() -> Args {
 
         parser
             .refer(&mut args.tcp)
-            .add_option(&["--tcp"], StoreTrue, "Enable TCP PX server");
+            .add_option(&["--tcp"], Store, "Enable TCP PX server on port");
 
         parser
             .refer(&mut args.udp)
-            .add_option(&["--udp"], StoreTrue, "Enable UDP PX server");
+            .add_option(&["--udp"], Store, "Enable UDP PX server");
 
         parser
             .refer(&mut args.ws)
-            .add_option(&["--ws"], StoreTrue, "Enable Websocket PX server");
+            .add_option(&["--ws"], Store, "Enable Websocket PX server");
 
         parser.parse_args_or_exit();
     }
