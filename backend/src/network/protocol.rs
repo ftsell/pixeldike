@@ -83,16 +83,15 @@ impl Command {
                 let r = color.get(0);
                 let g = color.get(1);
                 let b = color.get(2);
-                let a = color.get(3).or(Some(&(0xFF as u8)));
 
-                if r.is_none() || g.is_none() || b.is_none() || a.is_none() {
+                if r.is_none() || g.is_none() || b.is_none() {
                     return Err("Color parameter has incorect length".to_string());
                 }
 
                 return Ok(Command::SetPx(
                     x.unwrap(),
                     y.unwrap(),
-                    color_from_rgba(*r.unwrap(), *g.unwrap(), *b.unwrap(), *a.unwrap()),
+                    color_from_rgba(*r.unwrap(), *g.unwrap(), *b.unwrap()),
                 ));
             }
         }
