@@ -37,11 +37,6 @@ pub enum Command {
     Binary(),
 }
 
-pub enum Response {
-    String(String),
-    Binary(Vec<u8>)
-}
-
 impl Command {
     ///
     /// Parse the given input string into a valid command if possible

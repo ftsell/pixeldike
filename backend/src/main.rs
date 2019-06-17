@@ -2,6 +2,7 @@ extern crate argparse;
 extern crate futures;
 extern crate hex;
 extern crate tokio;
+extern crate base64;
 
 use argparse::{ArgumentParser, StoreTrue, Store};
 use futures::lazy;
