@@ -11,7 +11,7 @@ mod network;
 mod pixmap;
 //mod servers;
 
-use crate::color::color_from_rgba;
+use crate::color::{color_from_rgba, Color};
 use crate::network::protocol::Command;
 use crate::network::px_server::PxServer;
 use crate::network::tcp_server::TcpServer;
@@ -23,7 +23,7 @@ const WEBSOCKET_PORT: u16 = 1235;
 
 const X_SIZE: usize = 800;
 const Y_SIZE: usize = 600;
-const BACKGROUND_COLOR: u32 = 255;      // Black with no transparency
+const BACKGROUND_COLOR: Color = 0x000000FF_u32;      // Black with no transparency
 
 fn main() {
     let args = parse_arguments();

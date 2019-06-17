@@ -1,4 +1,5 @@
 use crate::network::protocol::Command;
+use crate::color::Color;
 
 pub trait PxServer {
     ///
@@ -13,7 +14,9 @@ pub trait PxServer {
         match command {
             Command::Help() => Ok(self.get_help()),
             Command::HelpSubcommand(subcommand) => self.get_help_subcommand(&subcommand),
-            _ => Err("none".to_string()),
+            Command::Size() => Ok(self.get_size()),
+            Command::GetPx(x, y) => self.get_px(x, y),
+            Command::SetPx(x, y, color) => self.set_px(x, y, color)
         }
     }
 
@@ -62,4 +65,8 @@ pub trait PxServer {
     }
 
     fn get_size(&self) -> String;
+
+    fn get_px(&self, x: usize, y: usize) -> Result<String, String>;
+
+    fn set_px(&self, x: usize, y: usize, color: Color) -> Result<String, String>;
 }

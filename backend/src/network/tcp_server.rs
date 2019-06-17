@@ -6,6 +6,8 @@ use std::io::{BufReader, Write};
 use std::sync::Arc;
 use tokio::io::{lines, AsyncRead, ReadHalf};
 use tokio::net::{TcpListener, TcpStream};
+use hex::encode;
+use std::convert::TryInto;
 
 #[derive(Clone)]
 pub struct TcpServer {
@@ -17,7 +19,7 @@ impl TcpServer {
         TcpServer { map }
     }
 
-    pub fn handle_connection(self, sock: TcpStream) {
+    pub fn handle_connection(mut self, sock: TcpStream) {
         let (reader, mut writer) = sock.split();
         let reader = BufReader::new(reader);
 
@@ -68,5 +70,26 @@ impl PxServer for TcpServer {
 
     fn get_size(&self) -> String {
         format!("SIZE {} {}", self.map.x_size, self.map.y_size)
+    }
+
+    fn get_px(&self, x: usize, y: usize) -> Result<String, String> {
+        match self.map.get_pixel(x, y) {
+            Err(e) => Err(e),
+            Ok(value) => {
+                // Split up the color value so that it gets formatted correctly
+                let mut colors: Vec<u8> = Vec::new();
+                colors.push((((value >> 24) & 0xFF_u32) as u32).try_into().unwrap());
+                colors.push((((value >> 16) & 0xFF_u32) as u32).try_into().unwrap());
+                colors.push((((value >> 8) & 0xFF_u32) as u32).try_into().unwrap());
+                colors.push((((value >> 0) & 0xFF_u32) as u32).try_into().unwrap());
+
+                Ok(format!("PX {} {} {}\n", x, y, encode(colors)).to_uppercase())
+            }
+        }
+    }
+
+    fn set_px(&self, x: usize, y: usize, color: u32) -> Result<String, String> {
+        self.map.set_pixel(x, y, color)
+            .and(self.get_px(x, y))
     }
 }
