@@ -26,11 +26,7 @@ class Client():
         self.sock.send(f"PX {x} {y} {color}\n".encode("ASCII"))
         response = self.sock.recv(256).decode("ASCII")
 
-        if len(color) == 6 and response != f"PX {x} {y} {color}FF\n":
-            escaped = response.replace("\n", "\\n")
-            print(f"Error while setting pixel. Received Response: {escaped}")
-
-        elif len(color) == 8 and response != f"PX {x} {y} {color}\n":
+        if response != f"PX {x} {y} {color}\n":
             escaped = response.replace("\n", "\\n")
             print(f"Error while setting pixel. Received Response: {escaped}")
 
