@@ -23,7 +23,7 @@ const WEBSOCKET_PORT: u16 = 1235;
 
 const X_SIZE: usize = 800;
 const Y_SIZE: usize = 600;
-const BACKGROUND_COLOR: &str = "FFFFFFFF";
+const BACKGROUND_COLOR: u32 = 255;      // Black with no transparency
 
 fn main() {
     let args = parse_arguments();
@@ -32,7 +32,7 @@ fn main() {
         let mut map = Arc::new(pixmap::Pixmap::new(
             X_SIZE,
             Y_SIZE,
-            color_from_rgba(0, 0, 255, 0),
+            BACKGROUND_COLOR,
         ));
 
         let mut tcp_server = TcpServer::new(map.clone());
