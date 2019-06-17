@@ -12,6 +12,11 @@ pub enum Command {
     Help(),
 
     ///
+    /// `Help(subcommand)` informs the user about how a specific subcommand works
+    ///
+    HelpSubcommand(String),
+
+    ///
     /// `Size()` returns the canvas's size
     ///
     Size(),
@@ -36,7 +41,11 @@ impl Command {
         let parts: Vec<&str> = input.split(" ").collect();
 
         if parts[0] == "help" {
-            return Ok(Command::Help());
+            if parts.len() == 1 {
+                return Ok(Command::Help());
+            } else {
+                return Ok(Command::HelpSubcommand(parts[1].to_string()));
+            }
         } else if parts[0] == "size" {
             return Ok(Command::Size());
         } else if parts[0] == "px" {
