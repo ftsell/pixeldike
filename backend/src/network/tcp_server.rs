@@ -67,6 +67,6 @@ impl PxServer for TcpServer {
     }
 
     fn get_size(&self) -> String {
-        return "1 2\n".to_string();
+        format!("SIZE {} {}", self.map.x_size, self.map.y_size)
     }
 }
