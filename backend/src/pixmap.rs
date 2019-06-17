@@ -1,5 +1,6 @@
 use crate::color::Color;
 use std::sync::{Mutex, RwLock};
+use std::convert::TryInto;
 
 pub struct Pixmap {
     map: Vec<Vec<Mutex<Color>>>,
@@ -61,14 +62,20 @@ impl Pixmap {
     }
 
     pub fn create_snapshot(&self) {
-        let result: Vec<u8> = Vec::new();
+        let mut result: Vec<u8> = Vec::new();
 
         for ix in 0..self.x_size {
             for iy in 0..self.y_size {
                 let color = self.map[ix][iy].lock().unwrap();
+                result.push(((((*color).clone() >> 16) & 0xFF_u32) as u32).try_into().unwrap());
+                result.push(((((*color).clone() >> 8) & 0xFF_u32) as u32).try_into().unwrap());
+                result.push(((((*color).clone() >> 0) & 0xFF_u32) as u32).try_into().unwrap());
             }
         }
 
-        let mut snapshot = self.snapshot.write().unwrap();
+        {
+            let mut snapshot = self.snapshot.write().unwrap();
+            *snapshot = result;
+        }
     }
 }

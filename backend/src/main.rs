@@ -41,7 +41,7 @@ fn main() {
             println!("Not starting anything because no ports were specified.\n\
             Add --help for more info.")
         } else {
-            schedule_pixmap_snapshots(1, map.clone());
+            schedule_pixmap_snapshots(10, map.clone());
         }
 
         Ok(())
