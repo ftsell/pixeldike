@@ -78,7 +78,6 @@ impl PxServer for TcpServer {
             Ok(value) => {
                 // Split up the color value so that it gets formatted correctly
                 let mut colors: Vec<u8> = Vec::new();
-                colors.push((((value >> 24) & 0xFF_u32) as u32).try_into().unwrap());
                 colors.push((((value >> 16) & 0xFF_u32) as u32).try_into().unwrap());
                 colors.push((((value >> 8) & 0xFF_u32) as u32).try_into().unwrap());
                 colors.push((((value >> 0) & 0xFF_u32) as u32).try_into().unwrap());

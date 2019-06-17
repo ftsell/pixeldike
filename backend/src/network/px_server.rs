@@ -48,7 +48,7 @@ pub trait PxServer {
                 self.get_size().replace("\n", "")
             )),
 
-            "px" => Ok("Syntax: 'PX $x $x [$rgb | $rgba]'\n\n\
+            "px" => Ok("Syntax: 'PX $x $x [$rgb]'\n\n\
             \
             You can retrieve or set the pixel color at the specified position.\n\
             If no color is specified you will GET a response containing the color at the specified \
@@ -57,8 +57,7 @@ pub trait PxServer {
             \
             $x : X position on the canvas.\n\
             $y: Y position on the canvas.\n\
-            $rgb : color in HEX-encoded rgb format (000000 - FFFFFF)\n\
-            $rgba: color in HEX-encoded rgba format (00000000 - FFFFFFFF)\n".to_string()),
+            $rgb : color in HEX-encoded rgb format (000000 - FFFFFF)\n".to_string()),
 
             _ => Err(format!("Unknown subcommand {}\n\n{}", subcommand, self.get_help()))
         }

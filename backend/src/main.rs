@@ -16,7 +16,7 @@ use crate::network::px_server::PxServer;
 use crate::network::tcp_server::TcpServer;
 use std::sync::Arc;
 
-const BACKGROUND_COLOR: Color = 0x000000FF_u32;      // Black with no transparency
+const BACKGROUND_COLOR: Color = 0x000000_u32;      // Black
 
 fn main() {
     let args = parse_arguments();
@@ -31,7 +31,7 @@ fn main() {
 
         if args.tcp != 0 {
             let mut tcp_server = TcpServer::new(map.clone());
-            tcp_server.start(&"127.0.0.1".to_string(), args.tcp);
+            tcp_server.start(&"0.0.0.0".to_string(), args.tcp);
         }
 
         if args.tcp == 0 && args.udp == 0 && args.ws == 0 {
