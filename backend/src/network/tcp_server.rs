@@ -43,13 +43,13 @@ impl TcpServer {
 
 impl PxServer for TcpServer {
     fn start(self, listen_address: &String, port: u16) {
-        println!("Starting TCP Server on {}:{}", listen_address, port);
+        println!("[TCP] Starting Server on {}:{}", listen_address, port);
 
         // Bind the server socket
         let addr = format!("{}:{}", listen_address, port)
             .parse()
-            .expect("Could not construct address from listen_address and port");
-        let listener = TcpListener::bind(&addr).expect("Could not bind server socket");
+            .expect("[TCP] Could not construct address from listen_address and port");
+        let listener = TcpListener::bind(&addr).expect("[TCP] Could not bind server socket");
 
         // Construct server chain
         let server = listener
