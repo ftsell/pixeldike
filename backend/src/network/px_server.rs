@@ -70,7 +70,7 @@ pub trait PxServer {
             You can retrieve pixel data in bulk by issuing the BINARY command\n\
             The response will hold $sizex * $sizey base64 encoded 24-bit values.\
             These are to be interpreted as 3 8-bit color channels for red, green and blue.\n\
-            The data will be ordered from left-to-right, top-to-bottom.\n\
+            The data will be ordered from top-to-bottom left-to-right.\n\
             There will be no stop mark or special character apart from \\n at the response's end \
             (outside the base64).".to_string()),
 
