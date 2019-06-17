@@ -25,16 +25,19 @@ impl TcpServer {
         let msg_handler = lines(reader)
             // Since all responses are String types, the error needs to be mapped to String as well
             .map_err(|e| e.to_string())
+            // Parse command
             .and_then(move |line| Command::parse(&line))
+            // Execute command
             .and_then(move |command| self.handle_command(command))
             // Since errors get returned to the user, we pretend they are a correct response
             .or_else(move |e| Ok(e))
+            // Write-back answer
             .and_then(move |response| {
                 writer.write_all(response.as_bytes())
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| eprintln!("[TCP] Could not send answer: {}", e))
             })
-            .map_err(|e| eprintln!("[TCP] Could not send answer: {}", e))
 
+            // Sink stream
             .for_each(|()| Ok(()));
 
         tokio::spawn(msg_handler);
