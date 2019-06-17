@@ -6,7 +6,7 @@ pub struct Pixmap {
     map: Vec<Vec<Mutex<Color>>>,
     pub x_size: usize,
     pub y_size: usize,
-    pub snapshot: RwLock<Vec<u8>>
+    pub snapshot: RwLock<String>
 }
 
 impl Pixmap {
@@ -25,7 +25,7 @@ impl Pixmap {
             map,
             x_size,
             y_size,
-            snapshot: RwLock::new(Vec::new())
+            snapshot: RwLock::new(String::new())
         };
 
         map.create_snapshot();
@@ -72,6 +72,9 @@ impl Pixmap {
                 result.push(((((*color).clone() >> 0) & 0xFF_u32) as u32).try_into().unwrap());
             }
         }
+
+        let mut result = base64::encode(&result);
+        result += "\n";
 
         {
             let mut snapshot = self.snapshot.write().unwrap();
