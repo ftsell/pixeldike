@@ -1,16 +1,18 @@
 extern crate argparse;
 extern crate futures;
+extern crate hex;
 extern crate tokio;
 
 use argparse::{ArgumentParser, StoreTrue};
 use futures::lazy;
 
 mod color;
-mod pixmap;
 mod network;
+mod pixmap;
 //mod servers;
 
 use crate::color::color_from_rgba;
+use crate::network::protocol::Command;
 
 const TCP_PORT: u16 = 1234;
 const UDP_PORT: u16 = 1234;
@@ -24,11 +26,15 @@ fn main() {
     let args = parse_arguments();
 
     tokio::run(lazy(move || {
-        let mut map = pixmap::Pixmap::new(
-            X_SIZE,
-            Y_SIZE,
-            color_from_rgba(0, 0, 255, 0),
-        );
+        let mut map = pixmap::Pixmap::new(X_SIZE, Y_SIZE, color_from_rgba(0, 0, 255, 0));
+
+        let cmd: Command = Command::parse(&"px 1 2 000000".to_string()).unwrap();
+        match cmd {
+            Command::Help() => println!("help"),
+            Command::Size() => println!("size"),
+            Command::GetPx(a, b) => println!("getPx at {},{}", a, b),
+            Command::SetPx(a, b, c) => println!("setPx at {},{} to {}", a, b, c),
+        }
 
         Ok(())
     }));

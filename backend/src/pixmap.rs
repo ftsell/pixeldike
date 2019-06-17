@@ -1,4 +1,4 @@
-use crate::color::{Color};
+use crate::color::Color;
 
 pub struct Pixmap {
     map: Vec<Vec<Color>>,
@@ -16,7 +16,7 @@ impl Pixmap {
             for y in 0..y_size {
                 map[x].push(background_color.clone());
             }
-        };
+        }
 
         return Pixmap {
             map,
@@ -28,24 +28,20 @@ impl Pixmap {
     pub fn get_pixel(&self, x: usize, y: usize) -> Result<&u32, String> {
         match self.map.get(x) {
             None => Err(format!("X value {} is outside of map", x).to_string()),
-            Some(column) => {
-                match column.get(y) {
-                    None => Err(format!("Y value {} is outside of map", y).to_string()),
-                    Some(value) => Ok(value)
-                }
-            }
+            Some(column) => match column.get(y) {
+                None => Err(format!("Y value {} is outside of map", y).to_string()),
+                Some(value) => Ok(value),
+            },
         }
     }
 
     pub fn get_pixel_mut(&mut self, x: usize, y: usize) -> Result<&mut u32, String> {
         match self.map.get_mut(x) {
             None => Err(format!("X value {} is outside of map", x).to_string()),
-            Some(column) => {
-                match column.get_mut(y) {
-                    None => Err(format!("Y value {} is outside of map", y).to_string()),
-                    Some(value) => Ok(value)
-                }
-            }
+            Some(column) => match column.get_mut(y) {
+                None => Err(format!("Y value {} is outside of map", y).to_string()),
+                Some(value) => Ok(value),
+            },
         }
     }
 }
