@@ -51,10 +51,6 @@ class Client():
             response += self.sock.recv(1024)
         response = response[:-1]        # remove \n
 
+        return base64.b64decode(response)
+
         bytes = base64.b64decode(response)
-
-        result = list()
-        for byte in bytes:
-            result.append(int(byte))
-
-        return result
