@@ -28,12 +28,12 @@ build:cargo:
   artifacts:
     expire_in: 1 week
     paths:
-      - backend/target/release
+      - backend/target/release/pixelflut
 
 
 deploy:
   tags:
-    - shell
+    - host
   stage: deploy
 
   only:
@@ -43,10 +43,10 @@ deploy:
     - schedules
 
   variables:
-    target: '/opt/ftsell-pixelflut/pixelflut'
-    service: 'ftsell-pixelflut'
+    target: '/opt/pixelflut'
+    service: 'pixelflut.service'
 
   script:
     - rsync -r backend/target/release/pixelflut $target
-    - chgrp ftsell-pixelflut $target
-    - sudo /bin/systemctl restart ftsell-pixelflut.service
+    - chgrp pixelflut $target/pixelflut
+    - sudo /bin/systemctl restart $service
