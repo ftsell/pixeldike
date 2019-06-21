@@ -4,19 +4,17 @@ extern crate hex;
 extern crate tokio;
 extern crate base64;
 
-use argparse::{ArgumentParser, StoreTrue, Store};
-use futures::lazy;
-
 mod color;
 mod network;
 mod pixmap;
 
-use crate::color::{color_from_rgba, Color};
-use crate::network::protocol::Command;
+use argparse::{ArgumentParser, Store};
+use futures::lazy;
+use crate::color::{Color};
 use crate::network::px_server::PxServer;
 use crate::network::tcp_server::TcpServer;
 use std::sync::Arc;
-use std::{thread, time};
+use std::{time};
 use futures::stream::Stream;
 use crate::pixmap::Pixmap;
 
@@ -27,14 +25,14 @@ fn main() {
 
     tokio::run(lazy(move || {
         println!("Creating empty canvas of size {}x{}", args.x_size, args.y_size);
-        let mut map = Arc::new(pixmap::Pixmap::new(
+        let map = Arc::new(pixmap::Pixmap::new(
             args.x_size,
             args.y_size,
             BACKGROUND_COLOR,
         ));
 
         if args.tcp != 0 {
-            let mut tcp_server = TcpServer::new(map.clone());
+            let tcp_server = TcpServer::new(map.clone());
             tcp_server.start(&"0.0.0.0".to_string(), args.tcp);
         }
 
@@ -42,7 +40,7 @@ fn main() {
             println!("Not starting anything because no ports were specified.\n\
             Add --help for more info.")
         } else {
-            schedule_pixmap_snapshots(5, map.clone());
+            schedule_pixmap_snapshots(3, map.clone());
         }
 
         Ok(())

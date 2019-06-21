@@ -16,7 +16,7 @@ impl Pixmap {
         // Fill the map with background color
         for x in 0..x_size {
             map.push(Vec::new());
-            for y in 0..y_size {
+            for _y in 0..y_size {
                 map[x].push(Mutex::new(background_color.clone()));
             }
         }

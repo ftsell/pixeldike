@@ -4,7 +4,7 @@ use crate::pixmap::Pixmap;
 use futures::stream::Stream;
 use std::io::{BufReader, Write};
 use std::sync::Arc;
-use tokio::io::{lines, AsyncRead, ReadHalf};
+use tokio::io::{lines, AsyncRead};
 use tokio::net::{TcpListener, TcpStream};
 use hex::encode;
 use std::convert::TryInto;
@@ -19,7 +19,7 @@ impl TcpServer {
         TcpServer { map }
     }
 
-    pub fn handle_connection(mut self, sock: TcpStream) {
+    pub fn handle_connection(self, sock: TcpStream) {
         let (reader, mut writer) = sock.split();
         let reader = BufReader::new(reader);
 

@@ -1,7 +1,5 @@
 use crate::color::{color_from_rgba, Color};
 use hex::FromHex;
-use std::fs::read;
-use std::ops::Range;
 
 pub type ParseError = String;
 
