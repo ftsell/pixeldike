@@ -1,12 +1,14 @@
 use crate::color::Color;
-use std::sync::{Mutex, RwLock};
+use base64::display::Base64Display;
 use std::convert::TryInto;
+use std::sync::{Mutex, RwLock};
+use websocket::url::form_urlencoded::Target;
 
 pub struct Pixmap {
     map: Vec<Vec<Mutex<Color>>>,
     pub x_size: usize,
     pub y_size: usize,
-    pub snapshot: RwLock<String>
+    pub snapshot: RwLock<String>,
 }
 
 impl Pixmap {
@@ -25,7 +27,7 @@ impl Pixmap {
             map,
             x_size,
             y_size,
-            snapshot: RwLock::new(String::new())
+            snapshot: RwLock::new(String::new()),
         };
 
         map.create_snapshot();
@@ -42,7 +44,7 @@ impl Pixmap {
                     // Lock mutex for reading
                     let mutex = value.lock().unwrap();
                     return Ok((*mutex).clone());
-                },
+                }
             },
         }
     }
@@ -56,7 +58,7 @@ impl Pixmap {
                     let mut mutex = value.lock().unwrap();
                     (*mutex) = color;
                     Ok(())
-                },
+                }
             },
         }
     }
@@ -67,18 +69,30 @@ impl Pixmap {
         for ix in 0..self.x_size {
             for iy in 0..self.y_size {
                 let color = self.map[ix][iy].lock().unwrap();
-                result.push(((((*color).clone() >> 16) & 0xFF_u32) as u32).try_into().unwrap());
-                result.push(((((*color).clone() >> 8) & 0xFF_u32) as u32).try_into().unwrap());
-                result.push(((((*color).clone() >> 0) & 0xFF_u32) as u32).try_into().unwrap());
+                result.push(
+                    ((((*color).clone() >> 16) & 0xFF_u32) as u32)
+                        .try_into()
+                        .unwrap(),
+                );
+                result.push(
+                    ((((*color).clone() >> 8) & 0xFF_u32) as u32)
+                        .try_into()
+                        .unwrap(),
+                );
+                result.push(
+                    ((((*color).clone() >> 0) & 0xFF_u32) as u32)
+                        .try_into()
+                        .unwrap(),
+                );
             }
         }
 
-        let mut result = base64::encode(&result);
-        result += "\n";
+        let mut result_str = base64::encode(&result);
+        result_str += "\n";
 
         {
             let mut snapshot = self.snapshot.write().unwrap();
-            *snapshot = result;
+            *snapshot = result_str;
         }
     }
 }

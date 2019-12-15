@@ -44,7 +44,7 @@ class Client():
         Each value being one color channel.
         3 values representing one pixel
         """
-        self.sock.send(b"BINARY\n")
+        self.sock.send(b"STATE\n")
 
         response = b''
         while len(response) == 0 or response[-1] != 10:     # 10 is \n

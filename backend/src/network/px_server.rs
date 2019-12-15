@@ -1,5 +1,5 @@
-use crate::network::protocol::{Command};
 use crate::color::Color;
+use crate::network::protocol::Command;
 
 pub trait PxServer {
     ///
@@ -22,7 +22,7 @@ pub trait PxServer {
 
             Command::SetPx(x, y, color) => self.set_px(x, y, color),
 
-            Command::Binary() => self.binary()
+            Command::Binary() => self.binary(),
         }
     }
 
@@ -65,14 +65,14 @@ pub trait PxServer {
             $y: Y position on the canvas.\n\
             $rgb : color in HEX-encoded rgb format (000000 - FFFFFF)\n".to_string()),
 
-            "binary" => Ok("Syntax: 'BINARY'\n\n\
+            "state" => Ok("Syntax: 'STATE'\n\n\
             \
             You can retrieve pixel data in bulk by issuing the BINARY command\n\
             The response will hold $sizex * $sizey base64 encoded 24-bit values.\
             These are to be interpreted as 3 8-bit color channels for red, green and blue.\n\
-            The data will be ordered from top-to-bottom left-to-right.\n\
+            The data will be ordered top-to-bottom left-to-right.\n\
             There will be no stop mark or special character apart from \\n at the response's end \
-            (outside the base64).".to_string()),
+            (outside the base64).\n".to_string()),
 
             _ => Err(format!("Unknown subcommand {}\n\n{}", subcommand, self.get_help()))
         }

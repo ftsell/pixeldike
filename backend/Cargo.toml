@@ -1,6 +1,6 @@
 [package]
 name = "pixelflut"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Finn Sell <dev@finn-thorben.me>"]
 edition = "2018"
 

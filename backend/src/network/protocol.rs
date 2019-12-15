@@ -97,7 +97,7 @@ impl Command {
                     color_from_rgba(*r.unwrap(), *g.unwrap(), *b.unwrap()),
                 ));
             }
-        } else if parts[0] == "binary" {
+        } else if parts[0] == "state" {
             return Ok(Command::Binary());
         }
 

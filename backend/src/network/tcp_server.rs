@@ -1,13 +1,13 @@
-use crate::network::protocol::{Command};
+use crate::network::protocol::Command;
 use crate::network::px_server::PxServer;
 use crate::pixmap::Pixmap;
 use futures::stream::Stream;
+use hex::encode;
+use std::convert::TryInto;
 use std::io::{BufReader, Write};
 use std::sync::Arc;
 use tokio::io::{lines, AsyncRead};
 use tokio::net::{TcpListener, TcpStream};
-use hex::encode;
-use std::convert::TryInto;
 
 #[derive(Clone)]
 pub struct TcpServer {
@@ -35,10 +35,10 @@ impl TcpServer {
             .or_else(move |e| Ok(e))
             // Write-back answer
             .and_then(move |response| {
-                writer.write_all(response.as_bytes())
+                writer
+                    .write_all(response.as_bytes())
                     .map_err(|e| eprintln!("[TCP] Could not send answer: {}", e))
             })
-
             // Sink stream
             .for_each(|()| Ok(()));
 
@@ -69,7 +69,7 @@ impl PxServer for TcpServer {
     }
 
     fn get_size(&self) -> String {
-        format!("SIZE {} {}", self.map.x_size, self.map.y_size)
+        format!("SIZE {} {}\n", self.map.x_size, self.map.y_size)
     }
 
     fn get_px(&self, x: usize, y: usize) -> Result<String, String> {
@@ -88,8 +88,7 @@ impl PxServer for TcpServer {
     }
 
     fn set_px(&self, x: usize, y: usize, color: u32) -> Result<String, String> {
-        self.map.set_pixel(x, y, color)
-            .and(self.get_px(x, y))
+        self.map.set_pixel(x, y, color).and(self.get_px(x, y))
     }
 
     fn binary(&self) -> Result<String, String> {
