@@ -1,8 +1,6 @@
 use crate::color::Color;
-use base64::display::Base64Display;
 use std::convert::TryInto;
 use std::sync::{Mutex, RwLock};
-use websocket::url::form_urlencoded::Target;
 
 pub struct Pixmap {
     map: Vec<Vec<Mutex<Color>>>,
