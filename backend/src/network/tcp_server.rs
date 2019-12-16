@@ -1,13 +1,16 @@
+use std::convert::TryInto;
+use std::io::{BufReader};
+use std::sync::Arc;
+
+use futures::stream::Stream;
+use hex::encode;
+use tokio::io::{lines, AsyncRead};
+use tokio::net::{TcpListener, TcpStream};
+
+use crate::network::patient_writer::write_patient;
 use crate::network::protocol::Command;
 use crate::network::px_server::PxServer;
 use crate::pixmap::Pixmap;
-use futures::stream::Stream;
-use hex::encode;
-use std::convert::TryInto;
-use std::io::{BufReader, Write};
-use std::sync::Arc;
-use tokio::io::{lines, AsyncRead};
-use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Clone)]
 pub struct TcpServer {
@@ -34,12 +37,9 @@ impl TcpServer {
             // Since errors get returned to the user, we pretend they are a correct response
             .or_else(move |e| Ok(e))
             // Write-back answer
-            .and_then(move |response| {
-                writer
-                    .write_all(response.as_bytes())
-                    .map_err(|e| eprintln!("[TCP] Could not send answer: {}", e))
-            })
-            // Sink stream
+            .and_then(move |response| write_patient(&mut writer, response.as_bytes()))
+            .map_err(|e| eprintln!("[TCP] Could not send answer: {}", e))
+            // Sink stream into void
             .for_each(|()| Ok(()));
 
         tokio::spawn(msg_handler);

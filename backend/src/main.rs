@@ -1,30 +1,33 @@
 extern crate argparse;
+extern crate base64;
 extern crate futures;
 extern crate hex;
 extern crate tokio;
-extern crate base64;
 
 mod color;
 mod network;
 mod pixmap;
 
-use argparse::{ArgumentParser, Store};
-use futures::lazy;
-use crate::color::{Color};
+use crate::color::Color;
 use crate::network::px_server::PxServer;
 use crate::network::tcp_server::TcpServer;
-use std::sync::Arc;
-use std::{time};
-use futures::stream::Stream;
 use crate::pixmap::Pixmap;
+use argparse::{ArgumentParser, Store};
+use futures::lazy;
+use futures::stream::Stream;
+use std::sync::Arc;
+use std::time;
 
-const BACKGROUND_COLOR: Color = 0x000000_u32;      // Black
+const BACKGROUND_COLOR: Color = 0x000000_u32; // Black
 
 fn main() {
     let args = parse_arguments();
 
     tokio::run(lazy(move || {
-        println!("Creating empty canvas of size {}x{}", args.x_size, args.y_size);
+        println!(
+            "Creating empty canvas of size {}x{}",
+            args.x_size, args.y_size
+        );
         let map = Arc::new(pixmap::Pixmap::new(
             args.x_size,
             args.y_size,
@@ -37,8 +40,10 @@ fn main() {
         }
 
         if args.tcp == 0 && args.udp == 0 && args.ws == 0 {
-            println!("Not starting anything because no ports were specified.\n\
-            Add --help for more info.")
+            println!(
+                "Not starting anything because no ports were specified.\n\
+                 Add --help for more info."
+            )
         } else {
             schedule_pixmap_snapshots(3, map.clone());
         }
@@ -65,7 +70,7 @@ struct Args {
     udp: u16,
     ws: u16,
     x_size: usize,
-    y_size: usize
+    y_size: usize,
 }
 
 fn parse_arguments() -> Args {
@@ -74,7 +79,7 @@ fn parse_arguments() -> Args {
         udp: 0,
         ws: 0,
         x_size: 800,
-        y_size: 600
+        y_size: 600,
     };
 
     {
@@ -93,13 +98,17 @@ fn parse_arguments() -> Args {
             .refer(&mut args.ws)
             .add_option(&["--ws"], Store, "Enable Websocket PX server");
 
-        parser
-            .refer(&mut args.x_size)
-            .add_option(&["-x"], Store, "Size of the canvas in X dimension");
+        parser.refer(&mut args.x_size).add_option(
+            &["-x"],
+            Store,
+            "Size of the canvas in X dimension",
+        );
 
-        parser
-            .refer(&mut args.y_size)
-            .add_option(&["-y"], Store, "Size of the canvas in Y dimension");
+        parser.refer(&mut args.y_size).add_option(
+            &["-y"],
+            Store,
+            "Size of the canvas in Y dimension",
+        );
 
         parser.parse_args_or_exit();
     }
