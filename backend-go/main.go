@@ -1,10 +1,30 @@
 package main
 
 import (
+	"fmt"
+	"github.com/akamensky/argparse"
+	"os"
 	"pixelflut.backend/network"
 	"pixelflut.backend/protocol"
 	"time"
 )
+
+var tcpPort *string
+var xSize uint
+var ySize uint
+
+func main() {
+	parseArguments()
+	pixmap := protocol.NewPixmap(xSize, ySize, protocol.Color{})
+	fmt.Printf("Initialized new pixmap of size %vx%v\n", xSize, ySize)
+	
+	if *tcpPort != "" {
+		network.Start(*tcpPort, pixmap)
+	}
+	
+	stateTicker := time.NewTicker(100 * time.Millisecond)
+	go pixmapStateWorker(stateTicker.C, pixmap)
+}
 
 func pixmapStateWorker(tick <-chan time.Time, pixmap *protocol.Pixmap) {
 	for {
@@ -13,11 +33,39 @@ func pixmapStateWorker(tick <-chan time.Time, pixmap *protocol.Pixmap) {
 	}
 }
 
-func main() {
-	pixmap := protocol.NewPixmap(800, 600, protocol.Color{})
+func parseArguments() {
+	parser := argparse.NewParser("pixelflut", "a pixel drawing game for programmers (server)")
 
-	stateTicker := time.NewTicker(100 * time.Millisecond)
-	go pixmapStateWorker(stateTicker.C, pixmap)
-
-	network.Start("8080", pixmap)
+	tcpPort = parser.String("t", "tcp", &argparse.Options{
+		Help: "Listen for TCP connections on the specified port",
+	})
+	xSizeInt := parser.Int("x", "xSize", &argparse.Options{
+		Required: true,
+		Help:     "Size of the canvas in x dimension",
+		Default:  800,
+	})
+	ySizeInt := parser.Int("y", "ySize", &argparse.Options{
+		Required: true,
+		Help:     "Size of the canvas in y dimension",
+		Default:  600,
+	})
+	
+	if err := parser.Parse(os.Args); err != nil {
+		fmt.Println(parser.Usage(err))
+		os.Exit(1)
+	}
+	
+	if *xSizeInt < 0 {
+		fmt.Println(parser.Usage("xSize cannot be smaller than 0"))
+		os.Exit(1)
+	} else {
+		xSize = uint(*xSizeInt)
+	}
+	
+	if *ySizeInt < 0 {
+		fmt.Println(parser.Usage("ySize cannot be smaller than 0"))
+		os.Exit(1)
+	} else {
+		ySize = uint(*ySizeInt)
+	}
 }
