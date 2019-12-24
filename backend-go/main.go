@@ -40,12 +40,12 @@ func parseArguments() {
 		Help: "Listen for TCP connections on the specified port",
 	})
 	xSizeInt := parser.Int("x", "xSize", &argparse.Options{
-		Required: true,
+		Required: false,
 		Help:     "Size of the canvas in x dimension",
 		Default:  800,
 	})
 	ySizeInt := parser.Int("y", "ySize", &argparse.Options{
-		Required: true,
+		Required: false,
 		Help:     "Size of the canvas in y dimension",
 		Default:  600,
 	})
