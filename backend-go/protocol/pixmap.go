@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -13,7 +14,7 @@ const (
 
 type Color [COLOR_BYTE_LENGTH]byte
 
-func ColorFromHexString(s string) (Color, error) {
+func colorFromHexString(s string) (Color, error) {
 	s = strings.ToLower(s)
 
 	buf := make([]byte, COLOR_BYTE_LENGTH)
@@ -29,17 +30,17 @@ func ColorFromHexString(s string) (Color, error) {
 	}
 }
 
-func ColorToHexString(color Color) string {
+func colorToHexString(color Color) string {
 	return strings.ToUpper(hex.EncodeToString(color[:]))
 }
 
 type Pixmap struct {
-	pixmap       []Color
-	pixmapLock   *sync.RWMutex
-	xSize        uint
-	ySize        uint
-	snapshotLock *sync.RWMutex
-	snapshot     string
+	pixmap                []Color
+	pixmapLock            *sync.RWMutex
+	xSize                 uint
+	ySize                 uint
+	stateCustomBinaryLock *sync.RWMutex
+	stateCustomBinary     string
 }
 
 func NewPixmap(xSize uint, ySize uint, backgroundColor Color) *Pixmap {
@@ -49,19 +50,19 @@ func NewPixmap(xSize uint, ySize uint, backgroundColor Color) *Pixmap {
 	result.pixmapLock = new(sync.RWMutex)
 	result.xSize = xSize
 	result.ySize = ySize
-	result.snapshotLock = new(sync.RWMutex)
-	result.snapshot = ""
+	result.stateCustomBinaryLock = new(sync.RWMutex)
+	result.stateCustomBinary = ""
 
 	for ix := uint(0); ix < xSize; ix++ {
 		for iy := uint(0); iy < ySize; iy++ {
-			_ = result.setPixel(ix, iy, backgroundColor)
+			_ = result.SetPixel(ix, iy, backgroundColor)
 		}
 	}
 
 	return result
 }
 
-func (p *Pixmap) setPixel(x uint, y uint, color Color) error {
+func (p *Pixmap) SetPixel(x uint, y uint, color Color) error {
 	if x >= 0 && x < p.xSize && y >= 0 && y < p.ySize {
 		i := y*p.xSize + x
 
@@ -75,7 +76,7 @@ func (p *Pixmap) setPixel(x uint, y uint, color Color) error {
 	}
 }
 
-func (p *Pixmap) getPixel(x, y uint) (Color, error) {
+func (p *Pixmap) GetPixel(x, y uint) (Color, error) {
 	if x >= 0 && x < p.xSize && y >= 0 && y < p.ySize {
 		i := y*p.xSize + x
 		var color Color
@@ -88,4 +89,28 @@ func (p *Pixmap) getPixel(x, y uint) (Color, error) {
 	} else {
 		return Color{}, errors.New("coordinates are not inside pixmap")
 	}
+}
+
+func (p *Pixmap) GetState() string {
+	state := ""
+	p.stateCustomBinaryLock.RLock()
+	state = p.stateCustomBinary
+	p.stateCustomBinaryLock.RUnlock()
+	return state
+}
+
+func (p *Pixmap) CalculateStateCustomBinary() {
+	resultBytes := make([]byte, p.xSize * p.ySize * 3)
+
+	p.pixmapLock.RLock()
+	for i, iColor := range p.pixmap {
+		resultBytes[i * 3] = iColor[0]
+		resultBytes[i * 3 + 1] = iColor[1]
+		resultBytes[i * 3 + 2] = iColor[2]
+	}
+	p.pixmapLock.RUnlock()
+
+	p.stateCustomBinaryLock.Lock()
+	p.stateCustomBinary = base64.StdEncoding.EncodeToString(resultBytes) + "\n"
+	p.stateCustomBinaryLock.Unlock()
 }

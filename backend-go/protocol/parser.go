@@ -12,7 +12,7 @@ const (
 	COMMAND_PX    = "px"
 	COMMAND_STATE = "state"
 
-	BINARY_ALG_CUSTOM = "custom_binary"
+	BINARY_ALG_CUSTOM_BASE64 = "custom64"
 )
 
 const (
@@ -45,7 +45,15 @@ const (
 		"$y	- Y position on the canvas counted from the top.\n" +
 		"$rgb	- HEX encoded rgb format without # symbol (000000 - FFFFFF).\n"
 
-	HELP_STATE = "" // TODO
+	HELP_STATE = "Syntax: 'STATE $algorithm\\n'\n" +
+		"\n" +
+		"Retrieves the complete canvas in a special encoding chosen by $algorithm.\n" +
+		"Currently implemented algorithms are:\n" +
+		"\n" +
+		BINARY_ALG_CUSTOM_BASE64 + ":\n" +
+		"Each pixel is encoded into 3 bytes for the color values red, green and blue.\n" +
+		"These bytes are then simply appended to each other in row-major-order.\n" +
+		"At the end, the bytes are base64 encoded.\n"
 )
 
 func ParseAndHandleInput(input string, pixmap *Pixmap) string {
@@ -83,12 +91,12 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 		{
 			// compatibility with old rust implementation
 			if len(parts) == 1 {
-				parts = append(parts, BINARY_ALG_CUSTOM)
+				parts = append(parts, BINARY_ALG_CUSTOM_BASE64)
 			}
 
-			switch parts[2] {
-			case BINARY_ALG_CUSTOM:
-				panic("implement custom binary state command")
+			switch parts[1] {
+			case BINARY_ALG_CUSTOM_BASE64:
+				return pixmap.GetState()
 			default:
 				return "Unknown algorithm. Send HELP STATE\\n for information about available ones.\n"
 			}
@@ -102,15 +110,15 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 					if y, err := strconv.ParseUint(parts[2], 10, 32); err == nil {
 
 						if (len(parts)) == 3 {
-							if color, err := pixmap.getPixel(uint(x), uint(y)); err == nil {
-								return fmt.Sprintf("PX %v %v %v\n", x, y, ColorToHexString(color))
+							if color, err := pixmap.GetPixel(uint(x), uint(y)); err == nil {
+								return fmt.Sprintf("PX %v %v %v\n", x, y, colorToHexString(color))
 							} else {
 								return fmt.Sprintf("%v\n", err.Error())
 							}
 						} else {
-							if color, err := ColorFromHexString(parts[3]); err == nil {
-								if err2 := pixmap.setPixel(uint(x), uint(y), color); err2 == nil {
-									return fmt.Sprintf("PX %v %v %v\n", x, y, ColorToHexString(color))
+							if color, err := colorFromHexString(parts[3]); err == nil {
+								if err2 := pixmap.SetPixel(uint(x), uint(y), color); err2 == nil {
+									return fmt.Sprintf("PX %v %v %v\n", x, y, colorToHexString(color))
 								} else {
 									return fmt.Sprintf("%v\n", err2.Error())
 								}
@@ -135,7 +143,4 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 	default:
 		return "Unknown command. Send HELP\\n for detailed usage information\n"
 	}
-
-	fmt.Printf("%v", input)
-	panic("this state should never be reachable")
 }

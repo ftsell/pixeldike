@@ -33,17 +33,7 @@ def get_new_pixbuf():
     print("Creating new pixbuf", end="")
     start = time.time()
 
-    reordered_pixels = []
-    # reorder pixels to be lefto-to-right top-to-bottom
-    for iy in range(0, client.y_size):
-        for ix in range(0, client.x_size):
-            pixel_index = (ix * client.y_size + iy) * 3
-
-            reordered_pixels.append(pixels[pixel_index])
-            reordered_pixels.append(pixels[pixel_index + 1])
-            reordered_pixels.append(pixels[pixel_index + 2])
-
-    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(reordered_pixels), GdkPixbuf.Colorspace.RGB, False, 8, client.x_size, client.y_size, client.x_size * 3)
+    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(pixels), GdkPixbuf.Colorspace.RGB, False, 8, client.x_size, client.y_size, client.x_size * 3)
 
     end = time.time()
     print(f"    [{end - start}s]")
