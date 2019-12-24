@@ -1,52 +1,32 @@
-# Optional: Install a C compiler, cmake and git into the container.
-# You will often need this when you (or any of your dependencies) depends on C code.
-#before_script:
-#- apt-get update -yqq
-#- apt-get install -yqq --no-install-recommends build-essential
+build_binary:
+    image: "golang"
+    tags:
+        - docker
+    stage: build
 
-# Use cargo to test the project
-#test:cargo:
-#  image: "rust:latest"
-#  tags: docker
-#
-#  script:
-#  - rustc --version && cargo --version      # Print version info for debugging
-#  - cargo test --all --verbose
-
-# Use cargo to build project
-build:cargo:
-  image: "rust:latest"
-  tags: 
-    - docker
-  stage: build
-  
-  script:
-    - cd backend
-    - rustc --version && cargo --version
-    - cargo build --release
-
-  artifacts:
-    expire_in: 1 week
-    paths:
-      - backend/target/release/pixelflut
-
+    before_script:
+        - "ln -s $(realpath ./backend-go) /go/src/pixelflut"
+    script:
+        - "go get pixelflut"
+        - "go build pixelflut"
+    artifacts:
+        expire_in: "1 week"
+        paths:
+            - "pixelflut"
 
 deploy:
-  tags:
-    - host
-  stage: deploy
+    tags:
+        - host
+    stage: deploy
+    only:
+        - master@ftsell/pixelflut
+        - web
+    
+    variables:
+        target: "/opt/pixelflut"
+        service: "pixelflut.service"
 
-  only:
-    - master@ftsell/pixelflut
-    - web
-    - triggers
-    - schedules
-
-  variables:
-    target: '/opt/pixelflut'
-    service: 'pixelflut.service'
-
-  script:
-    - rsync -r backend/target/release/pixelflut $target
-    - chgrp pixelflut $target/pixelflut
-    - sudo /bin/systemctl restart $service
+    script:
+        - "rsync -r pixelflut $target/"
+        - "chgrp pixelflut $target/pixelflut"
+        - "sudo /bin/systemctl restart $service"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"pixelflut.backend/protocol"
+	"pixelflut/protocol"
 )
 
 type TcpHandler struct {

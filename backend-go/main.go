@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/akamensky/argparse"
 	"os"
-	"pixelflut.backend/network"
-	"pixelflut.backend/protocol"
+	"pixelflut/network"
+	"pixelflut/protocol"
 	"time"
 )
 
