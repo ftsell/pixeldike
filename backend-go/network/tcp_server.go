@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"pixelflut/protocol"
+	"sync"
 )
 
 type TcpHandler struct {
@@ -47,7 +48,9 @@ func handleConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 	}
 }
 
-func Start(port string, pixmap *protocol.Pixmap) {
+func Start(port string, pixmap *protocol.Pixmap, waitGroup *sync.WaitGroup) {
+	defer waitGroup.Done()
+
 	if ln, err := net.Listen("tcp", net.JoinHostPort("", port)); err != nil {
 		fmt.Printf("[TCP] Could not start tcp listener on port %v: %v", port, err)
 		os.Exit(1)

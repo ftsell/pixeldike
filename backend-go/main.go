@@ -6,6 +6,7 @@ import (
 	"os"
 	"pixelflut/network"
 	"pixelflut/protocol"
+	"sync"
 	"time"
 )
 
@@ -17,16 +18,24 @@ func main() {
 	parseArguments()
 	pixmap := protocol.NewPixmap(xSize, ySize, protocol.Color{})
 	fmt.Printf("Initialized new pixmap of size %vx%v\n", xSize, ySize)
+
+	waitGroup := &sync.WaitGroup{}
 	
 	if *tcpPort != "" {
-		network.Start(*tcpPort, pixmap)
+		waitGroup.Add(1)
+		go network.Start(*tcpPort, pixmap, waitGroup)
 	}
 	
 	stateTicker := time.NewTicker(100 * time.Millisecond)
-	go pixmapStateWorker(stateTicker.C, pixmap)
+	waitGroup.Add(1)
+	go pixmapStateWorker(stateTicker.C, pixmap, waitGroup)
+
+	waitGroup.Wait()
 }
 
-func pixmapStateWorker(tick <-chan time.Time, pixmap *protocol.Pixmap) {
+func pixmapStateWorker(tick <-chan time.Time, pixmap *protocol.Pixmap, waitGroup *sync.WaitGroup) {
+	defer waitGroup.Done()
+
 	for {
 		<-tick
 		pixmap.CalculateStateCustomBinary()
