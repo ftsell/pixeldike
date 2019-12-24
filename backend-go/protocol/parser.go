@@ -45,7 +45,7 @@ const (
 		"$y	- Y position on the canvas counted from the top.\n" +
 		"$rgb	- HEX encoded rgb format without # symbol (000000 - FFFFFF).\n"
 
-	HELP_STATE = ""	// TODO
+	HELP_STATE = "" // TODO
 )
 
 func ParseAndHandleInput(input string, pixmap *Pixmap) string {
@@ -77,11 +77,11 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 		}
 
 	case COMMAND_SIZE:
-		return fmt.Sprintf("SIZE %s %s\n", pixmap.xSize, pixmap.ySize)
+		return fmt.Sprintf("SIZE %v %v\n", pixmap.xSize, pixmap.ySize)
 
 	case COMMAND_STATE:
 		{
-			// add compatibility to old Rust implementation
+			// compatibility with old rust implementation
 			if len(parts) == 1 {
 				parts = append(parts, BINARY_ALG_CUSTOM)
 			}
@@ -102,10 +102,19 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 					if y, err := strconv.ParseUint(parts[2], 10, 32); err == nil {
 
 						if (len(parts)) == 3 {
-							panic("implement getting a pixel")
+							if color, err := pixmap.getPixel(uint(x), uint(y)); err == nil {
+								return fmt.Sprintf("PX %v %v %v\n", x, y, ColorToHexString(color))
+							} else {
+								return fmt.Sprintf("%v\n", err.Error())
+							}
 						} else {
-							if color, err := ColorFromString(parts[3]); err == nil {
-								pixmap.setPixel(uint(x), uint(y), color)
+							if color, err := ColorFromHexString(parts[3]); err == nil {
+								if err2 := pixmap.setPixel(uint(x), uint(y), color); err2 == nil {
+									return fmt.Sprintf("PX %v %v %v\n", x, y, ColorToHexString(color))
+								} else {
+									return fmt.Sprintf("%v\n", err2.Error())
+								}
+
 							} else {
 								return fmt.Sprintf("Could not parse HEX string: %s\n", err)
 							}

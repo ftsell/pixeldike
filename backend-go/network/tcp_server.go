@@ -33,14 +33,16 @@ func handleConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 
 	for {
 		if input, err := readLine(connection); err != nil {
-			fmt.Printf("[TCP] Error: %v\n", err)
+			fmt.Printf("[TCP] Error reading: %v\n", err)
 			_ = connection.Close()
 			return
 		} else {
-			fmt.Printf("[TCP] Received: %v\n", input)
 			response := protocol.ParseAndHandleInput(input, pixmap)
-			fmt.Printf("[TCP] Response: %v\n", response)
-			connection.Write([]byte(response))
+			if numWritten, err := connection.Write([]byte(response)); err != nil {
+				fmt.Printf("[TCP] Error writing: %v\n", err)
+			} else if numWritten != len(response) {
+				fmt.Printf("[TCP] Wrote incorrect byte amount %v out of %v", numWritten, len(response))
+			}
 		}
 	}
 }
