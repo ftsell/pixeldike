@@ -1,0 +1,3 @@
+[submodule "frontend-js"]
+	path = frontend-js
+	url = git@git.oleb.it:ftsell/pixelflut-js.git
