@@ -30,7 +30,7 @@ func readLine(connection net.Conn) (string, error) {
 }
 
 func handleConnection(connection net.Conn, pixmap *protocol.Pixmap) {
-	fmt.Println("[TCP] New connection from", connection.RemoteAddr().String())
+	fmt.Println("[TCP] New connection from", connection.RemoteAddr())
 
 	for {
 		if input, err := readLine(connection); err != nil {
@@ -42,7 +42,7 @@ func handleConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 			if numWritten, err := connection.Write([]byte(response)); err != nil {
 				fmt.Printf("[TCP] Error writing: %v\n", err)
 			} else if numWritten != len(response) {
-				fmt.Printf("[TCP] Wrote incorrect byte amount %v out of %v", numWritten, len(response))
+				fmt.Printf("[TCP] Wrote incorrect byte amount: %v out of %v", numWritten, len(response))
 			}
 		}
 	}
