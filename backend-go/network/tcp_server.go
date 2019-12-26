@@ -14,8 +14,8 @@ type TcpHandler struct {
 }
 
 func readLine(connection net.Conn) (string, error) {
-	largeBuffer := make([]byte, 0)
-	smallBuffer := make([]byte, 128)
+	largeBuffer := make([]byte, 0, 512)
+	smallBuffer := make([]byte, 64)
 	for {
 		if _, err := connection.Read(smallBuffer); err != nil {
 			return "", err
