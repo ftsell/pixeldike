@@ -12,7 +12,8 @@ const (
 	COMMAND_PX    = "px"
 	COMMAND_STATE = "state"
 
-	BINARY_ALG_CUSTOM_BASE64 = "custom64"
+	BINARY_ALG_RGB_BASE64 = "rgb64"
+	BINARY_ALG_RGBA_BASE64 = "rgba64"
 )
 
 const (
@@ -46,12 +47,17 @@ const (
 		"$rgb	- HEX encoded rgb format without # symbol (000000 - FFFFFF).\n"
 
 	HELP_STATE = "Syntax: 'STATE $algorithm\\n'\n" +
+		"Response: 'STATE $algorithm $data\\n\n'" +
 		"\n" +
 		"Retrieves the complete canvas in a special encoding chosen by $algorithm.\n" +
 		"Currently implemented algorithms are:\n" +
 		"\n" +
-		BINARY_ALG_CUSTOM_BASE64 + ":\n" +
+		BINARY_ALG_RGB_BASE64 + ":\n" +
 		"Each pixel is encoded into 3 bytes for the color values red, green and blue.\n" +
+		"These bytes are then simply appended to each other in row-major-order.\n" +
+		"At the end, the bytes are base64 encoded.\n" +
+		BINARY_ALG_RGBA_BASE64 + ":\n" +
+		"Each pixel is encoded into 4 bytes for the color values red, green and blue and one always-zero alpha channel.\n" +
 		"These bytes are then simply appended to each other in row-major-order.\n" +
 		"At the end, the bytes are base64 encoded.\n"
 )
@@ -91,12 +97,14 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 		{
 			// compatibility with old rust implementation
 			if len(parts) == 1 {
-				parts = append(parts, BINARY_ALG_CUSTOM_BASE64)
+				parts = append(parts, BINARY_ALG_RGB_BASE64)
 			}
 
 			switch parts[1] {
-			case BINARY_ALG_CUSTOM_BASE64:
-				return pixmap.GetState()
+			case BINARY_ALG_RGB_BASE64:
+				return pixmap.GetStateRgbBase64()
+			case BINARY_ALG_RGBA_BASE64:
+				return pixmap.GetStateRgbaBase64()
 			default:
 				return "Unknown algorithm. Send HELP STATE\\n for information about available ones.\n"
 			}

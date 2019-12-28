@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 )
@@ -35,12 +36,13 @@ func colorToHexString(color Color) string {
 }
 
 type Pixmap struct {
-	pixmap                []Color
-	pixmapLock            *sync.RWMutex
-	xSize                 uint
-	ySize                 uint
-	stateCustomBinaryLock *sync.RWMutex
-	stateCustomBinary     string
+	pixmap          []Color
+	pixmapLock      *sync.RWMutex
+	xSize           uint
+	ySize           uint
+	stateLock       *sync.RWMutex
+	stateRgbBase64  string
+	stateRgbaBase64 string
 }
 
 func NewPixmap(xSize uint, ySize uint, backgroundColor Color) *Pixmap {
@@ -50,8 +52,8 @@ func NewPixmap(xSize uint, ySize uint, backgroundColor Color) *Pixmap {
 	result.pixmapLock = new(sync.RWMutex)
 	result.xSize = xSize
 	result.ySize = ySize
-	result.stateCustomBinaryLock = new(sync.RWMutex)
-	result.stateCustomBinary = ""
+	result.stateLock = new(sync.RWMutex)
+	result.stateRgbBase64 = ""
 
 	for ix := uint(0); ix < xSize; ix++ {
 		for iy := uint(0); iy < ySize; iy++ {
@@ -91,26 +93,37 @@ func (p *Pixmap) GetPixel(x, y uint) (Color, error) {
 	}
 }
 
-func (p *Pixmap) GetState() string {
-	state := ""
-	p.stateCustomBinaryLock.RLock()
-	state = p.stateCustomBinary
-	p.stateCustomBinaryLock.RUnlock()
-	return state
+func (p *Pixmap) GetStateRgbBase64() string {
+	p.stateLock.RLock()
+	defer p.stateLock.RUnlock()
+	return  p.stateRgbBase64
 }
 
-func (p *Pixmap) CalculateStateCustomBinary() {
-	resultBytes := make([]byte, p.xSize * p.ySize * 3)
+func (p *Pixmap) GetStateRgbaBase64() string {
+	p.stateLock.RLock();
+	defer p.stateLock.RUnlock();
+	return p.stateRgbaBase64;
+}
+
+func (p *Pixmap) CalculateStates() {
+	resultRgbBytes := make([]byte, p.xSize*p.ySize*3)
+	resultRgbaBytes := make([]byte, p.xSize*p.ySize*4)
 
 	p.pixmapLock.RLock()
 	for i, iColor := range p.pixmap {
-		resultBytes[i * 3] = iColor[0]
-		resultBytes[i * 3 + 1] = iColor[1]
-		resultBytes[i * 3 + 2] = iColor[2]
+		resultRgbBytes[i*3] = iColor[0]
+		resultRgbBytes[i*3+1] = iColor[1]
+		resultRgbBytes[i*3+2] = iColor[2]
+
+		resultRgbaBytes[i*4] = iColor[0]
+		resultRgbaBytes[i*4+1] = iColor[1]
+		resultRgbaBytes[i*4+2] = iColor[2]
+		resultRgbaBytes[i*4+3] = byte(uint(255))
 	}
 	p.pixmapLock.RUnlock()
 
-	p.stateCustomBinaryLock.Lock()
-	p.stateCustomBinary = base64.StdEncoding.EncodeToString(resultBytes) + "\n"
-	p.stateCustomBinaryLock.Unlock()
+	p.stateLock.Lock()
+	p.stateRgbBase64 = fmt.Sprintf("STATE %v %v\n", BINARY_ALG_RGB_BASE64, base64.StdEncoding.EncodeToString(resultRgbBytes))
+	p.stateRgbaBase64 = fmt.Sprintf("STATE %v %v\n", BINARY_ALG_RGBA_BASE64, base64.StdEncoding.EncodeToString(resultRgbaBytes))
+	p.stateLock.Unlock()
 }

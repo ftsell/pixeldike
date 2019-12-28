@@ -9,7 +9,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, GdkPixbuf, GLib, GObject
 
-from pixelflut_client import Client
+from pixelflut_client import Client, BinaryAlgorithms
 
 
 def parse_args():
@@ -26,7 +26,7 @@ def get_new_pixbuf():
 
     print("Receiving canvas", end="")
     start = time.time()
-    pixels = client.receive_binary()
+    pixels = client.receive_binary(BinaryAlgorithms.RgbBase64)
     end = time.time()
     print(f"     [{end - start}s]")
 

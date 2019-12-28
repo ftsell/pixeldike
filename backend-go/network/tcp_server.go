@@ -29,7 +29,7 @@ func readLine(connection net.Conn) (string, error) {
 	}
 }
 
-func handleConnection(connection net.Conn, pixmap *protocol.Pixmap) {
+func handleTcpConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 	fmt.Println("[TCP] New connection from", connection.RemoteAddr())
 
 	for {
@@ -48,7 +48,7 @@ func handleConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 	}
 }
 
-func Start(port string, pixmap *protocol.Pixmap, waitGroup *sync.WaitGroup) {
+func StartTcpServer(port string, pixmap *protocol.Pixmap, waitGroup *sync.WaitGroup) {
 	defer waitGroup.Done()
 
 	if ln, err := net.Listen("tcp", net.JoinHostPort("", port)); err != nil {
@@ -60,7 +60,7 @@ func Start(port string, pixmap *protocol.Pixmap, waitGroup *sync.WaitGroup) {
 			if conn, err := ln.Accept(); err != nil {
 				fmt.Printf("[TCP] Could not accept new connection: %v\n", err)
 			} else {
-				go handleConnection(conn, pixmap)
+				go handleTcpConnection(conn, pixmap)
 			}
 		}
 	}

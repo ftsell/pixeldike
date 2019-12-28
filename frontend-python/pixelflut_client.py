@@ -2,6 +2,11 @@ import socket
 import base64
 
 
+class BinaryAlgorithms:
+    RgbBase64 = "rgb64"
+    RgbaBase64 = "rgba64"
+
+
 class Client():
     sock = None  # type: socket.socket
     x_size = 0  # type: int
@@ -38,19 +43,18 @@ class Client():
 
         return response.split(" ")[3]
 
-    def receive_binary(self) -> list:
+    def receive_binary(self, algorithm: str) -> list:
         """
         Returns a list of 8-bit integer values.
         Each value being one color channel.
         3 values representing one pixel
         """
-        self.sock.send(b"STATE\n")
+        self.sock.send(f"STATE {algorithm}\n".encode("ASCII"))
 
         response = b''
         while len(response) == 0 or response[-1] != 10:     # 10 is \n
             response += self.sock.recv(1024)
         response = response[:-1]        # remove \n
+        response = response[len(f"STATE {algorithm}".encode("ASCII")):]
 
         return base64.b64decode(response)
-
-        bytes = base64.b64decode(response)
