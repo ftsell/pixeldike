@@ -12,6 +12,7 @@ import (
 
 var tcpPort *string
 var websocketPort *string
+var udpPort *string
 var xSize uint
 var ySize uint
 
@@ -30,9 +31,12 @@ func main() {
 		waitGroup.Add(1)
 		go network.StartWebsocketServer(*websocketPort, pixmap, waitGroup)
 	}
+	if *udpPort != "" {
+		waitGroup.Add(1)
+		go network.StartUdpServer(*udpPort, pixmap, waitGroup)
+	}
 
 	stateTicker := time.NewTicker(100 * time.Millisecond)
-	waitGroup.Add(1)
 	go pixmapStateWorker(stateTicker.C, pixmap, waitGroup)
 
 	waitGroup.Wait()
@@ -55,6 +59,9 @@ func parseArguments() {
 	})
 	websocketPort = parser.String("w", "websocket", &argparse.Options{
 		Help: "Listen for Websocket connections on the specified port",
+	})
+	udpPort = parser.String("u", "udp", &argparse.Options{
+		Help: "Listen fo UDP messages on the specified port",
 	})
 	xSizeInt := parser.Int("x", "xSize", &argparse.Options{
 		Required: false,

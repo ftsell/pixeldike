@@ -55,7 +55,9 @@ func StartTcpServer(port string, pixmap *protocol.Pixmap, waitGroup *sync.WaitGr
 		fmt.Printf("[TCP] Could not start tcp listener on port %v: %v", port, err)
 		os.Exit(1)
 	} else {
+		defer ln.Close()
 		fmt.Println("[TCP] Accepting connections on port", port)
+
 		for {
 			if conn, err := ln.Accept(); err != nil {
 				fmt.Printf("[TCP] Could not accept new connection: %v\n", err)
