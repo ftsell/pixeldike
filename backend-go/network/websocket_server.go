@@ -40,6 +40,7 @@ func handleWsConnection(conn *websocket.Conn, pixmap *protocol.Pixmap) {
 func handleHttpRequest(writer http.ResponseWriter, request *http.Request, pixmap *protocol.Pixmap) {
 	if !websocket.IsWebSocketUpgrade(request) {
 		writer.WriteHeader(http.StatusUpgradeRequired)
+		writer.Header().Set("Upgrade", "WS")
 		_, _ = writer.Write([]byte("upgrade to websocket required"))
 	} else {
 		if conn, err := upgrader.Upgrade(writer, request, nil); err != nil {
