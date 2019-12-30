@@ -18,7 +18,7 @@ var ySize uint
 
 func main() {
 	parseArguments()
-	pixmap := protocol.NewPixmap(xSize, ySize, protocol.Color{})
+	pixmap := protocol.NewPixmap(xSize, ySize, []byte {0, 0, 0})
 	fmt.Printf("Initialized new pixmap of size %vx%v\n", xSize, ySize)
 
 	waitGroup := &sync.WaitGroup{}

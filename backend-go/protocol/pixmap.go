@@ -2,41 +2,13 @@ package protocol
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 )
 
-const (
-	COLOR_BYTE_LENGTH = 3 // RGB channels with 1 byte each 0 - 255 (00 - FF)
-)
-
-type Color [COLOR_BYTE_LENGTH]byte
-
-func colorFromHexString(s string) (Color, error) {
-	s = strings.ToLower(s)
-
-	buf := make([]byte, COLOR_BYTE_LENGTH)
-	if _, err := hex.Decode(buf, []byte(s)); err == nil {
-		result := [COLOR_BYTE_LENGTH]byte{}
-		for i := range buf {
-			result[i] = buf[i]
-		}
-
-		return result, nil
-	} else {
-		return Color{}, err
-	}
-}
-
-func colorToHexString(color Color) string {
-	return strings.ToUpper(hex.EncodeToString(color[:]))
-}
-
 type Pixmap struct {
-	pixmap          []Color
+	pixmap          []byte
 	pixmapLock      *sync.RWMutex
 	xSize           uint
 	ySize           uint
@@ -45,10 +17,10 @@ type Pixmap struct {
 	stateRgbaBase64 string
 }
 
-func NewPixmap(xSize uint, ySize uint, backgroundColor Color) *Pixmap {
+func NewPixmap(xSize uint, ySize uint, backgroundColor []byte) *Pixmap {
 	result := new(Pixmap)
 
-	result.pixmap = make([]Color, xSize*ySize)
+	result.pixmap = make([]byte, xSize*ySize*ColorByteLength)
 	result.pixmapLock = new(sync.RWMutex)
 	result.xSize = xSize
 	result.ySize = ySize
@@ -64,12 +36,12 @@ func NewPixmap(xSize uint, ySize uint, backgroundColor Color) *Pixmap {
 	return result
 }
 
-func (p *Pixmap) SetPixel(x uint, y uint, color Color) error {
+func (p *Pixmap) SetPixel(x uint, y uint, color []byte) error {
 	if x >= 0 && x < p.xSize && y >= 0 && y < p.ySize {
-		i := y*p.xSize + x
+		i := (y*p.xSize + x) * ColorByteLength
 
 		p.pixmapLock.Lock()
-		p.pixmap[i] = color
+		copy(p.pixmap[i:i+3], color)
 		p.pixmapLock.Unlock()
 
 		return nil
@@ -78,31 +50,31 @@ func (p *Pixmap) SetPixel(x uint, y uint, color Color) error {
 	}
 }
 
-func (p *Pixmap) GetPixel(x, y uint) (Color, error) {
+func (p *Pixmap) GetPixel(x, y uint) ([]byte, error) {
 	if x >= 0 && x < p.xSize && y >= 0 && y < p.ySize {
-		i := y*p.xSize + x
-		var color Color
+		i := (y*p.xSize + x) * ColorByteLength
+		color := make([]byte, 3)
 
 		p.pixmapLock.RLock()
-		color = p.pixmap[i]
+		copy(color, p.pixmap[i:i+3])
 		p.pixmapLock.RUnlock()
 
 		return color, nil
 	} else {
-		return Color{}, errors.New("coordinates are not inside pixmap")
+		return nil, errors.New("coordinates are not inside pixmap")
 	}
 }
 
 func (p *Pixmap) GetStateRgbBase64() string {
 	p.stateLock.RLock()
 	defer p.stateLock.RUnlock()
-	return  p.stateRgbBase64
+	return p.stateRgbBase64
 }
 
 func (p *Pixmap) GetStateRgbaBase64() string {
-	p.stateLock.RLock();
-	defer p.stateLock.RUnlock();
-	return p.stateRgbaBase64;
+	p.stateLock.RLock()
+	defer p.stateLock.RUnlock()
+	return p.stateRgbaBase64
 }
 
 func (p *Pixmap) CalculateStates() {
@@ -110,15 +82,12 @@ func (p *Pixmap) CalculateStates() {
 	resultRgbaBytes := make([]byte, p.xSize*p.ySize*4)
 
 	p.pixmapLock.RLock()
-	for i, iColor := range p.pixmap {
-		resultRgbBytes[i*3] = iColor[0]
-		resultRgbBytes[i*3+1] = iColor[1]
-		resultRgbBytes[i*3+2] = iColor[2]
-
-		resultRgbaBytes[i*4] = iColor[0]
-		resultRgbaBytes[i*4+1] = iColor[1]
-		resultRgbaBytes[i*4+2] = iColor[2]
-		resultRgbaBytes[i*4+3] = byte(uint(255))
+	// we store the pixmap in RGB so that encoding is a simple copy
+	copy(resultRgbBytes, p.pixmap)
+	// for RGBA encoding we need to insert one alpha channel for every three bytes
+	for i := 0; i < len(p.pixmap); i += 3 {
+		copy(resultRgbaBytes[i:i+3], p.pixmap[i:i+3])
+		resultRgbaBytes[i+4] = byte(uint(255))
 	}
 	p.pixmapLock.RUnlock()
 

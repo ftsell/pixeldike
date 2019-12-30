@@ -12,7 +12,7 @@ const (
 	COMMAND_PX    = "px"
 	COMMAND_STATE = "state"
 
-	BINARY_ALG_RGB_BASE64 = "rgb64"
+	BINARY_ALG_RGB_BASE64  = "rgb64"
 	BINARY_ALG_RGBA_BASE64 = "rgba64"
 )
 
@@ -118,17 +118,26 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 					if y, err := strconv.ParseUint(parts[2], 10, 32); err == nil {
 
 						if (len(parts)) == 3 {
-							if color, err := pixmap.GetPixel(uint(x), uint(y)); err == nil {
-								return fmt.Sprintf("PX %v %v %v\n", x, y, colorToHexString(color))
+							if hexColor, err := pixmap.GetPixel(uint(x), uint(y)); err == nil {
+								if color, err := colorToHexString(hexColor); err == nil {
+									return fmt.Sprintf("PX %v %v %v\n", x, y, color)
+								} else {
+									fmt.Printf("Error during hex color encoding: %v\n", err)
+									return "There was an error during response encoding. See server logs\n"
+								}
 							} else {
 								return fmt.Sprintf("%v\n", err.Error())
 							}
 						} else {
 							if color, err := colorFromHexString(parts[3]); err == nil {
-								if err2 := pixmap.SetPixel(uint(x), uint(y), color); err2 == nil {
-									return fmt.Sprintf("PX %v %v %v\n", x, y, colorToHexString(color))
+								if err := pixmap.SetPixel(uint(x), uint(y), color); err == nil {
+									if hexColor, err := colorToHexString(color); err == nil {
+										return fmt.Sprintf("PX %v %v %v\n", x, y, hexColor)
+									} else {
+										return fmt.Sprintf("Could not decode your HEX color: %v", err)
+									}
 								} else {
-									return fmt.Sprintf("%v\n", err2.Error())
+									return fmt.Sprintf("%v\n", err.Error())
 								}
 
 							} else {
