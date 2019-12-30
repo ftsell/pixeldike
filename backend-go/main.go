@@ -13,13 +13,27 @@ import (
 var tcpPort *string
 var websocketPort *string
 var udpPort *string
+var snapshotFile *os.File
 var xSize uint
 var ySize uint
 
 func main() {
 	parseArguments()
-	pixmap := protocol.NewPixmap(xSize, ySize, []byte {0, 0, 0})
-	fmt.Printf("Initialized new pixmap of size %vx%v\n", xSize, ySize)
+
+	var pixmap *protocol.Pixmap
+	if *snapshotFile != (os.File{}) {
+		if pixmap2, err := protocol.NewPixmapFromSnapshot(snapshotFile, xSize, ySize); err != nil {
+			fmt.Printf("Could not read pixmap snapshot: %v\n", err)
+			fmt.Println("Initializing new pixmap instead")
+			pixmap = protocol.NewPixmap(xSize, ySize, []byte{0, 0, 0})
+		} else {
+			pixmap = pixmap2
+			fmt.Printf("Read pixmap from sneapshot.\n")
+		}
+	} else {
+		pixmap = protocol.NewPixmap(xSize, ySize, []byte{0, 0, 0})
+		fmt.Printf("Initialized new pixmap of size %vx%v\n", xSize, ySize)
+	}
 
 	waitGroup := &sync.WaitGroup{}
 
@@ -37,17 +51,29 @@ func main() {
 	}
 
 	stateTicker := time.NewTicker(100 * time.Millisecond)
-	go pixmapStateWorker(stateTicker.C, pixmap, waitGroup)
+	go pixmapStateWorker(stateTicker.C, pixmap)
+
+	if *snapshotFile != (os.File{}) {
+		snapshotTicker := time.NewTicker(10 * time.Second)
+		go pixmapFileSnapshotWorker(snapshotTicker.C, pixmap)
+	}
 
 	waitGroup.Wait()
 }
 
-func pixmapStateWorker(tick <-chan time.Time, pixmap *protocol.Pixmap, waitGroup *sync.WaitGroup) {
-	defer waitGroup.Done()
-
+func pixmapStateWorker(tick <-chan time.Time, pixmap *protocol.Pixmap) {
 	for {
 		<-tick
 		pixmap.CalculateStates()
+	}
+}
+
+func pixmapFileSnapshotWorker(tick <-chan time.Time, pixmap *protocol.Pixmap) {
+	for {
+		<-tick
+		if err := pixmap.WriteToFile(snapshotFile); err != nil {
+			fmt.Printf("Could not write snapshot to file: %v\n", err)
+		}
 	}
 }
 
@@ -63,6 +89,11 @@ func parseArguments() {
 	udpPort = parser.String("u", "udp", &argparse.Options{
 		Help: "Listen fo UDP messages on the specified port",
 	})
+
+	snapshotFile = parser.File("f", "file", os.O_RDWR|os.O_CREATE, 0640, &argparse.Options{
+		Help: "Use this file to periodically save the current canvas into nd load from this file at startup if it contains valid data",
+	})
+
 	xSizeInt := parser.Int("x", "xSize", &argparse.Options{
 		Required: false,
 		Help:     "Size of the canvas in x dimension",

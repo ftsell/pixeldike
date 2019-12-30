@@ -3,4 +3,5 @@
 **/.idea
 **/.pyenv
 **/__pycache__
+**/snapshot.pxmap
 

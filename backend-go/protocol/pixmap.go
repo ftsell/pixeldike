@@ -77,6 +77,24 @@ func (p *Pixmap) GetStateRgbaBase64() string {
 	return p.stateRgbaBase64
 }
 
+func (p *Pixmap) SetStateRgbBase64(state string) error {
+	p.stateLock.Lock()
+	p.pixmapLock.Lock()
+	defer p.stateLock.Unlock()
+	defer p.pixmapLock.Unlock()
+
+	if bytes, err := base64.StdEncoding.DecodeString(state); err != nil {
+		return err
+	} else {
+		if len(bytes) != len(p.pixmap) {
+			return errors.New(fmt.Sprintf("Decoded state has incorrect length. Should be %v not %v", len(p.pixmap), len(bytes)))
+		} else {
+			copy(p.pixmap, bytes)
+			return nil
+		}
+	}
+}
+
 func (p *Pixmap) CalculateStates() {
 	resultRgbBytes := make([]byte, p.xSize*p.ySize*3)
 	resultRgbaBytes := make([]byte, p.xSize*p.ySize*4)
