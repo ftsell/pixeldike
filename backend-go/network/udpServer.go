@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"pixelflut/protocol"
+	"pixelflut/util"
 	"sync"
 )
 
@@ -20,7 +21,7 @@ func StartUdpServer(port string, pixmap *protocol.Pixmap, waitGroup *sync.WaitGr
 		fmt.Printf("[UDP] Listening for datagram packets on port %v\n", port)
 
 		for {
-			if line, err := readLine(ln); err != nil {
+			if line, err := util.ReadLine(ln); err != nil {
 				fmt.Printf("[UDP] Could not receive packet: %v\n", err)
 			} else {
 				go protocol.ParseAndHandleInput(line, pixmap)

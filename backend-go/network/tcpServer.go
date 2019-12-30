@@ -1,11 +1,11 @@
 package network
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 	"os"
 	"pixelflut/protocol"
+	"pixelflut/util"
 	"sync"
 )
 
@@ -13,37 +13,22 @@ type TcpHandler struct {
 	pixmap *protocol.Pixmap
 }
 
-func readLine(connection net.Conn) (string, error) {
-	largeBuffer := make([]byte, 0, 512)
-	smallBuffer := make([]byte, 64)
-	for {
-		if _, err := connection.Read(smallBuffer); err != nil {
-			return "", err
-		} else {
-			if i := bytes.IndexRune(smallBuffer, '\n'); i == -1 {
-				largeBuffer = append(largeBuffer, smallBuffer...)
-			} else {
-				return string(append(largeBuffer, smallBuffer[:i]...)), nil
-			}
-		}
-	}
-}
-
 func handleTcpConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 	fmt.Println("[TCP] New connection from", connection.RemoteAddr())
 
 	for {
-		if input, err := readLine(connection); err != nil {
+		if input, err := util.ReadLine(connection); err != nil {
 			fmt.Printf("[TCP] Error reading: %v\n", err)
 			_ = connection.Close()
 			return
 		} else {
-			response := protocol.ParseAndHandleInput(input, pixmap)
-			if numWritten, err := connection.Write([]byte(response)); err != nil {
-				fmt.Printf("[TCP] Error writing: %v\n", err)
-			} else if numWritten != len(response) {
-				fmt.Printf("[TCP] Wrote incorrect byte amount: %v out of %v", numWritten, len(response))
-			}
+			go func() {response := protocol.ParseAndHandleInput(input, pixmap)
+				if numWritten, err := connection.Write([]byte(response)); err != nil {
+					fmt.Printf("[TCP] Error writing: %v\n", err)
+				} else if numWritten != len(response) {
+					fmt.Printf("[TCP] Wrote incorrect byte amount: %v out of %v", numWritten, len(response))
+				}
+			}()
 		}
 	}
 }
