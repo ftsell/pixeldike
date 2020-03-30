@@ -69,12 +69,12 @@ func parseArguments() {
 			"Creating a new pixmap is the default when no --file argument is given.",
 	})
 
-	xSizeInt := parser.Int("x", "argPixmapWidth", &argparse.Options{
+	xSizeInt := parser.Int("x", "width", &argparse.Options{
 		Required: false,
 		Help:     "Size of the canvas in x dimension",
 		Default:  800,
 	})
-	ySizeInt := parser.Int("y", "argPixmapHeight", &argparse.Options{
+	ySizeInt := parser.Int("y", "height", &argparse.Options{
 		Required: false,
 		Help:     "Size of the canvas in y dimension",
 		Default:  600,

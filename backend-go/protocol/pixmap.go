@@ -77,40 +77,27 @@ func (p *Pixmap) GetStateRgbaBase64() string {
 	return p.stateRgbaBase64
 }
 
-func (p *Pixmap) SetStateRgbBase64(state string) error {
-	p.stateLock.Lock()
-	p.pixmapLock.Lock()
-	defer p.stateLock.Unlock()
-	defer p.pixmapLock.Unlock()
-
-	if bytes, err := base64.StdEncoding.DecodeString(state); err != nil {
-		return err
-	} else {
-		if len(bytes) != len(p.pixmap) {
-			return errors.New(fmt.Sprintf("Decoded state has incorrect length. Should be %v not %v", len(p.pixmap), len(bytes)))
-		} else {
-			copy(p.pixmap, bytes)
-			return nil
-		}
-	}
-}
-
 func (p *Pixmap) CalculateStates() {
 	resultRgbBytes := make([]byte, p.xSize*p.ySize*3)
 	resultRgbaBytes := make([]byte, p.xSize*p.ySize*4)
 
-	p.pixmapLock.RLock()
-	// we store the pixmap in RGB so that encoding is a simple copy
-	copy(resultRgbBytes, p.pixmap)
-	// for RGBA encoding we need to insert one alpha channel for every three bytes
-	for i := 0; i < len(p.pixmap); i += 3 {
-		copy(resultRgbaBytes[i:i+3], p.pixmap[i:i+3])
-		resultRgbaBytes[i+4] = byte(uint(255))
+	{
+		p.pixmapLock.RLock()
+		defer p.pixmapLock.RUnlock()
+
+		// we already store the pixmap in RGB which means that encoding is a simple copy
+		copy(resultRgbBytes, p.pixmap)
+		// for RGBA encoding we need to insert one alpha channel for every three bytes
+		for i := uint(0); i < p.xSize * p.ySize; i += 1 {
+			srcI := i * 3
+			destI := i * 4
+			copy(resultRgbaBytes[destI:destI+3], p.pixmap[srcI:srcI+3])
+			resultRgbaBytes[destI+3] = byte(uint(255))
+		}
 	}
-	p.pixmapLock.RUnlock()
 
 	p.stateLock.Lock()
+	defer p.stateLock.Unlock()
 	p.stateRgbBase64 = fmt.Sprintf("STATE %v %v\n", BINARY_ALG_RGB_BASE64, base64.StdEncoding.EncodeToString(resultRgbBytes))
 	p.stateRgbaBase64 = fmt.Sprintf("STATE %v %v\n", BINARY_ALG_RGBA_BASE64, base64.StdEncoding.EncodeToString(resultRgbaBytes))
-	p.stateLock.Unlock()
 }
