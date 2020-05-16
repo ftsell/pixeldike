@@ -8,13 +8,14 @@ import (
 )
 
 type Pixmap struct {
-	pixmap          []byte
-	pixmapLock      *sync.RWMutex
-	xSize           uint
-	ySize           uint
-	stateLock       *sync.RWMutex
-	stateRgbBase64  string
-	stateRgbaBase64 string
+	pixmap                []byte
+	pixmapLock            *sync.RWMutex
+	xSize                 uint
+	ySize                 uint
+	stateLock             *sync.RWMutex
+	stateRgbBase64        string
+	stateRgbaBase64       string
+	stateRecentlyModified bool
 }
 
 func NewPixmap(xSize uint, ySize uint, backgroundColor []byte) *Pixmap {
@@ -26,6 +27,7 @@ func NewPixmap(xSize uint, ySize uint, backgroundColor []byte) *Pixmap {
 	result.ySize = ySize
 	result.stateLock = new(sync.RWMutex)
 	result.stateRgbBase64 = ""
+	result.stateRecentlyModified = false
 
 	for ix := uint(0); ix < xSize; ix++ {
 		for iy := uint(0); iy < ySize; iy++ {
@@ -42,6 +44,7 @@ func (p *Pixmap) SetPixel(x uint, y uint, color []byte) error {
 
 		p.pixmapLock.Lock()
 		copy(p.pixmap[i:i+3], color)
+		p.stateRecentlyModified = true
 		p.pixmapLock.Unlock()
 
 		return nil
@@ -78,6 +81,10 @@ func (p *Pixmap) GetStateRgbaBase64() string {
 }
 
 func (p *Pixmap) CalculateStates() {
+	if !p.stateRecentlyModified {
+		return
+	}
+
 	resultRgbBytes := make([]byte, p.xSize*p.ySize*3)
 	resultRgbaBytes := make([]byte, p.xSize*p.ySize*4)
 
@@ -88,7 +95,7 @@ func (p *Pixmap) CalculateStates() {
 		// we already store the pixmap in RGB which means that encoding is a simple copy
 		copy(resultRgbBytes, p.pixmap)
 		// for RGBA encoding we need to insert one alpha channel for every three bytes
-		for i := uint(0); i < p.xSize * p.ySize; i += 1 {
+		for i := uint(0); i < p.xSize*p.ySize; i += 1 {
 			srcI := i * 3
 			destI := i * 4
 			copy(resultRgbaBytes[destI:destI+3], p.pixmap[srcI:srcI+3])
@@ -100,4 +107,5 @@ func (p *Pixmap) CalculateStates() {
 	defer p.stateLock.Unlock()
 	p.stateRgbBase64 = fmt.Sprintf("STATE %v %v\n", BINARY_ALG_RGB_BASE64, base64.StdEncoding.EncodeToString(resultRgbBytes))
 	p.stateRgbaBase64 = fmt.Sprintf("STATE %v %v\n", BINARY_ALG_RGBA_BASE64, base64.StdEncoding.EncodeToString(resultRgbaBytes))
+	p.stateRecentlyModified = false
 }
