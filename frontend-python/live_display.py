@@ -3,6 +3,7 @@
 import argparse
 import time
 import threading
+import shutil
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -24,19 +25,16 @@ def parse_args():
 def get_new_pixbuf():
     global client
 
-    print("Receiving canvas", end="")
-    start = time.time()
+    receive_start = time.time()
     pixels = client.receive_binary(BinaryAlgorithms.RgbBase64)
-    end = time.time()
-    print(f"     [{end - start}s]")
+    receive_end = time.time()
 
-    print("Creating new pixbuf", end="")
-    start = time.time()
-
+    render_start = time.time()
     pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(pixels), GdkPixbuf.Colorspace.RGB, False, 8, client.x_size, client.y_size, client.x_size * 3)
+    render_end = time.time()
 
-    end = time.time()
-    print(f"    [{end - start}s]")
+    line = f"receiving: {receive_end - receive_start}s, rendering: {render_end - render_start}s, fps: {1 / ((receive_end - receive_start) + (render_end - render_start))}"
+    print(f"\033[K{line}\033[{len(line)}D", end='', flush=True)
 
     return pixbuf
 
@@ -72,4 +70,3 @@ if __name__ == "__main__":
 
     Gtk.main()
 
-    #update()
