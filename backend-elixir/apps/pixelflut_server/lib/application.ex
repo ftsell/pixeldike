@@ -10,6 +10,8 @@ defmodule PixelflutServer.Application do
     children = [
       # Starts a worker by calling: PixelflutServer.Worker.start_link(arg)
       # {PixelflutServer.Worker, arg},
+      {Task.Supervisor, name: PixelflutServer.Net.SocketSupervisor},
+      {PixelflutServer.Net.TcpServer, task_supervisor: PixelflutServer.Net.SocketSupervisor},
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -22,7 +22,7 @@ use Mix.Config
 #
 
 # Default values which are overwritten by import below
-config :pixelflut_server, tcp_port: nil
+config :pixelflut_server, tcp_port: 4321
 
 config :pixelflut_canvas, width: 800
 config :pixelflut_canvas, height: 600

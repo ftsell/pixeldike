@@ -1,3 +1,3 @@
 use Mix.Config
 
-config :pixelflut_server, port: 1234
+config :logger, level: :debug

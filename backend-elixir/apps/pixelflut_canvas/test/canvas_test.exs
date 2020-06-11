@@ -26,13 +26,14 @@ defmodule PixelflutCanvas.Test.CanvasTest do
     end
   end
 
-  property "getting and setting arbitrary pixel values works correctly", _ do
+  property "getting and setting arbitrary pixel values works correctly",
+      %{canvas_server: canvas_server} do
     check all r <- StreamData.positive_integer(),
               g <- StreamData.positive_integer(),
               b <- StreamData.positive_integer() do
-      c = Canvas.gen_canvas(2, 1)
-      c = Canvas.set_pixel(c, 0, 0, <<r, g, b>>)
-      assert Canvas.get_pixel(c, 0, 0) == <<r, g, b>>, "get_pixel did not return correct value"
+      PixelflutCanvas.CanvasClient.set_pixel(canvas_server, 0, 0, <<r, g, b>>)
+      assert PixelflutCanvas.CanvasClient.get_pixel(canvas_server, 0, 0) == <<r, g, b>>,
+             "get_pixel did not return correct value"
     end
   end
 
@@ -44,6 +45,7 @@ defmodule PixelflutCanvas.Test.CanvasTest do
     PixelflutCanvas.CanvasClient.set_pixel(canvas_server, 1, 1, <<0, 255, 255>>)
 
     PixelflutCanvas.CanvasClient.set_pixel(canvas_server, -1, 0, <<100, 100, 100>>)
+    PixelflutCanvas.CanvasClient.set_pixel(canvas_server, -1, 0, "invalid")
 
     assert PixelflutCanvas.CanvasClient.get_pixel(canvas_server, 0, 0) == <<255, 255, 0>>
     assert PixelflutCanvas.CanvasClient.get_pixel(canvas_server, 0, 1) == <<255, 0, 255>>

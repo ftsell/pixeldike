@@ -2,6 +2,7 @@ defmodule PixelflutCanvas.CanvasServer do
   @moduledoc false
 
   use GenServer
+  require Logger
 
   @impl true
   def init(opts) do
@@ -22,7 +23,7 @@ defmodule PixelflutCanvas.CanvasServer do
     try do
       {:noreply, PixelflutCanvas.Canvas.set_pixel(state, x, y, color)}
     rescue
-       ArgumentError -> {:noreply, state}
+       _ in [ArgumentError, FunctionClauseError] -> Logger.warn("Invalid CanvasServer input") && {:noreply, state}
     end
   end
 
@@ -32,6 +33,7 @@ defmodule PixelflutCanvas.CanvasServer do
       {:reply, PixelflutCanvas.Canvas.get_pixel(state, x, y), state}
     rescue
       ArgumentError -> {:reply, {:error, :argument_error}, state}
+      FunctionClauseError -> {:reply, {:error, :argument_error}, state}
     end
   end
 
