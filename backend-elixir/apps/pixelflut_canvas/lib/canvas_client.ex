@@ -30,11 +30,11 @@ defmodule PixelflutCanvas.CanvasClient do
   end
 
   @doc """
-  Returns the internal array which backs the canvas store.
-  It is needed for rendering different representations which is not done on the canvas_server process.
+  Returns the canvas encoded in the specified format.
+  Since encodings are done in background, the result is not always immediate after having called set_pixel.
   """
-  @spec get_raw_array(pid()) :: :array
-  def get_raw_array(server \\ PixelflutCanvas.CanvasServer) do
-    GenServer.call(server, {:get_raw_array})
+  @spec get_encoded(pid(), atom()) :: {:ok, bitstring()} | {:error, :invalid_encoding}
+  def get_encoded(server \\ PixelflutCanvas.CanvasServer, algorithm) do
+    GenServer.call(server, {:get_encoded, algorithm})
   end
 end

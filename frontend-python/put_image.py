@@ -28,7 +28,7 @@ if __name__ == "__main__":
     print(f"Uploading image [0/{client.x_size * client.y_size}]", end="")
     for ix in range(0, client.x_size):
         print(f"\rUploading image [{ix * client.y_size}/{client.x_size * client.y_size}]", end="")
-        #time.sleep(1)
+        time.sleep(0.001)
         for iy in range(0, client.y_size):
             r, g, b = im.getpixel((ix, iy))
             color = "%0.2X%0.2X%0.2X" % (r, g, b)

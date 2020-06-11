@@ -8,7 +8,8 @@ defmodule PixelflutCanvas.Application do
   def start(_type, _args) do
     # List all child processes to be supervised
     children = [
-      {PixelflutCanvas.CanvasServer, name: PixelflutCanvas.CanvasServer}
+      {DynamicSupervisor, name: PixelflutCanvas.EncoderSupervisor, strategy: :one_for_one},
+      {PixelflutCanvas.CanvasServer, name: PixelflutCanvas.CanvasServer},
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

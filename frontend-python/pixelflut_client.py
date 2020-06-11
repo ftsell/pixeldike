@@ -1,5 +1,6 @@
 import socket
 import base64
+import time
 
 
 class BinaryAlgorithms:
@@ -23,18 +24,13 @@ class Client():
         self.sock.send(b"SIZE\n")
         response = self.sock.recv(256).decode("ASCII")
         # SIZE $X $Y
-        x = response.split(" ")[1]
-        y = response.split(" ")[2]
+        x = response.split(" ")[0]
+        y = response.split(" ")[1]
 
         return (int(x), int(y))
 
     def set_pixel(self, x: int, y: int, color: str):
         self.sock.send(f"PX {x} {y} {color}\n".encode("ASCII"))
-        response = self.sock.recv(256).decode("ASCII")
-
-        if response != f"PX {x} {y} {color}\n":
-            escaped = response.replace("\n", "\\n")
-            print(f"Error while setting pixel. Received Response: {escaped}")
 
     def get_pixel(self, x: int, y: int) -> str:
         self.sock.send(f"PX {x} {y}\n".encode("ASCII"))
@@ -53,8 +49,7 @@ class Client():
 
         response = b''
         while len(response) == 0 or response[-1] != 10:     # 10 is \n
-            response += self.sock.recv(1024)
+            response += self.sock.recv(256)
         response = response[:-1]        # remove \n
-        response = response[len(f"STATE {algorithm}".encode("ASCII")):]
 
         return base64.b64decode(response)
