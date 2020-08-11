@@ -1,0 +1,16 @@
+---
+kind: pipeline
+type: exec
+name: default
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: build container
+    commands:
+      - docker build . -t pixelflut
+  - name: restart service
+    commands:
+      - docker kill pixelflut
+
