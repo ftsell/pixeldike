@@ -23,10 +23,12 @@ func handleTcpConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 			return
 		} else {
 			go func() {response := protocol.ParseAndHandleInput(input, pixmap)
-				if numWritten, err := connection.Write([]byte(response)); err != nil {
-					fmt.Printf("[TCP] Error writing: %v\n", err)
-				} else if numWritten != len(response) {
-					fmt.Printf("[TCP] Wrote incorrect byte amount: %v out of %v", numWritten, len(response))
+				if response != "" {
+					if numWritten, err := connection.Write([]byte(response)); err != nil {
+						fmt.Printf("[TCP] Error writing: %v\n", err)
+					} else if numWritten != len(response) {
+						fmt.Printf("[TCP] Wrote incorrect byte amount: %v out of %v", numWritten, len(response))
+					}
 				}
 			}()
 		}

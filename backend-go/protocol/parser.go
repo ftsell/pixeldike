@@ -131,11 +131,7 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 						} else {
 							if color, err := colorFromHexString(parts[3]); err == nil {
 								if err := pixmap.SetPixel(uint(x), uint(y), color); err == nil {
-									if hexColor, err := colorToHexString(color); err == nil {
-										return fmt.Sprintf("PX %v %v %v\n", x, y, hexColor)
-									} else {
-										return fmt.Sprintf("Could not decode your HEX color: %v", err)
-									}
+									return ""
 								} else {
 									return fmt.Sprintf("%v\n", err.Error())
 								}

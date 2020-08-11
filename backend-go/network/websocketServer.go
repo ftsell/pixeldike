@@ -31,7 +31,9 @@ func handleWsConnection(conn *websocket.Conn, pixmap *protocol.Pixmap) {
 			} else {
 				message := string(messageBytes)
 				response := protocol.ParseAndHandleInput(message, pixmap)
-				_ = conn.WriteMessage(websocket.TextMessage, []byte(response))
+				if response != "" {
+					_ = conn.WriteMessage(websocket.TextMessage, []byte(response))
+				}
 			}
 		}
 	}
