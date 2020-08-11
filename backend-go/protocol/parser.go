@@ -154,6 +154,6 @@ func ParseAndHandleInput(input string, pixmap *Pixmap) string {
 		}
 
 	default:
-		return "Unknown command. Send HELP\\n for detailed usage information\n"
+		return fmt.Sprintf("Unknown command %v. Send HELP\\n for detailed usage information\n", parts)
 	}
 }
