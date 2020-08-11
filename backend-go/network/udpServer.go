@@ -2,10 +2,10 @@ package network
 
 import (
 	"fmt"
+	"github.com/ftsell/pixelflut/backend-go/protocol"
+	"github.com/ftsell/pixelflut/backend-go/util"
 	"net"
 	"os"
-	"pixelflut/protocol"
-	"pixelflut/util"
 	"sync"
 )
 

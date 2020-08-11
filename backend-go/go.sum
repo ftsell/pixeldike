@@ -1,0 +1,4 @@
+github.com/akamensky/argparse v1.2.1 h1:YMYF1VMku+dnz7TVTJpYhsCXHSYCVMAIcKaBbjwbvZo=
+github.com/akamensky/argparse v1.2.1/go.mod h1:S5kwC7IuDcEr5VeXtGPRVZ5o/FdhcMlQz4IZQuw64xA=
+github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
+github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=

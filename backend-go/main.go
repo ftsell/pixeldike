@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
+	"github.com/ftsell/pixelflut/backend-go/network"
+	"github.com/ftsell/pixelflut/backend-go/protocol"
 	"os"
-	"pixelflut/network"
-	"pixelflut/protocol"
 	"sync"
 	"time"
 )
