@@ -63,7 +63,7 @@ const (
 )
 
 func ParseAndHandleInput(input string, pixmap *Pixmap) string {
-	input = strings.ToLower(input)
+	input = strings.Replace(strings.ToLower(input), "\n", "", -1)
 	parts := strings.Split(input, " ")
 
 	switch parts[0] {

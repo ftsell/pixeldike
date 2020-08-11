@@ -1,9 +1,9 @@
 package network
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/ftsell/pixelflut/backend-go/protocol"
-	"github.com/ftsell/pixelflut/backend-go/util"
 	"net"
 	"os"
 	"sync"
@@ -19,9 +19,10 @@ func StartUdpServer(port string, pixmap *protocol.Pixmap, waitGroup *sync.WaitGr
 	} else {
 		defer ln.Close()
 		fmt.Printf("[UDP] Listening for datagram packets on port %v\n", port)
+		buffer := bufio.NewReader(ln)
 
 		for {
-			if line, err := util.ReadLine(ln); err != nil {
+			if line, err := buffer.ReadString('\n'); err != nil {
 				fmt.Printf("[UDP] Could not receive packet: %v\n", err)
 			} else {
 				go protocol.ParseAndHandleInput(line, pixmap)

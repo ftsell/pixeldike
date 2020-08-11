@@ -1,9 +1,9 @@
 package network
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/ftsell/pixelflut/backend-go/protocol"
-	"github.com/ftsell/pixelflut/backend-go/util"
 	"net"
 	"os"
 	"sync"
@@ -15,9 +15,10 @@ type TcpHandler struct {
 
 func handleTcpConnection(connection net.Conn, pixmap *protocol.Pixmap) {
 	fmt.Println("[TCP] New connection from", connection.RemoteAddr())
+	buffer := bufio.NewReader(connection)
 
 	for {
-		if input, err := util.ReadLine(connection); err != nil {
+		if input, err := buffer.ReadString('\n'); err != nil {
 			fmt.Printf("[TCP] Error reading: %v\n", err)
 			_ = connection.Close()
 			return
