@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 )
 
 type Pixmap struct {
@@ -69,15 +70,35 @@ func (p *Pixmap) GetPixel(x, y uint) ([]byte, error) {
 }
 
 func (p *Pixmap) GetStateRgbBase64() string {
-	p.stateLock.RLock()
-	defer p.stateLock.RUnlock()
-	return p.stateRgbBase64
+	response := ""
+
+	for ;response == ""; {
+		p.stateLock.RLock()
+		response = p.stateRgbBase64
+		p.stateLock.RUnlock()
+
+		if response == "" {
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	return response
 }
 
 func (p *Pixmap) GetStateRgbaBase64() string {
-	p.stateLock.RLock()
-	defer p.stateLock.RUnlock()
-	return p.stateRgbaBase64
+	response := ""
+
+	for ;response == ""; {
+		p.stateLock.RLock()
+		response = p.stateRgbaBase64
+		p.stateLock.RUnlock()
+
+		if response == "" {
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	return response
 }
 
 func (p *Pixmap) CalculateStates() {
