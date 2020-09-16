@@ -1,9 +1,11 @@
+import binascii
 import os
 import logging
 import time
 import unittest
 import docker
 import socket
+import base64
 from datetime import datetime, timedelta
 from docker.models.containers import Container
 from docker.models.images import Image
@@ -67,14 +69,20 @@ class ServerTestCase(unittest.TestCase):
 
     @staticmethod
     def _send(client: socket.socket, content: str):
-        if content[-1] != "\n":
+        if len(content) == 0 or content[-1] != "\n":
             content += "\n"
         client.send(content.encode("ASCII"))
 
     @staticmethod
     def _recv(client: socket.socket) -> str or None:
         try:
-            return client.recv(2048).decode("ASCII")
+            chunk_size = 128
+            buffer = bytearray()
+            while True:
+                chunk = client.recv(chunk_size)
+                buffer.extend(chunk)
+                if b'\n' in chunk:
+                    return buffer.decode("ASCII")
         except socket.timeout as e:
             return None
 
@@ -110,3 +118,43 @@ class ServerTestCase(unittest.TestCase):
 
             self.assertIsNotNone(response)
             self.assertRegex(response, "^SIZE .+ .+$")
+
+    def test_help(self):
+        with self._connectClient() as client:
+            for sub_help in ["", "HELP", "SIZE", "PX", "STATE"]:
+                msg = f"HELP {sub_help}".strip()
+                with self.subTest(msg):
+                    self._send(client, msg)
+                    response = self._recv(client)
+
+                    self.assertIsNotNone(response)
+
+    def test_empty_command(self):
+        with self._connectClient() as client:
+            self._send(client, "")
+            response = self._recv(client)
+
+            self.assertIsNotNone(response)
+
+    def test_state(self):
+        with self._connectClient() as client:
+            for encoding in ["", "RGB64", "RGBA64"]:
+                with self.subTest(f"encoding={encoding}"):
+                    msg = f"STATE {encoding}".strip()
+                    self._send(client, msg)
+                    # size is roughly estimated from default
+                    response = self._recv(client)
+                    self.assertIsNotNone(response)
+
+                    if encoding == "" or encoding.endswith("64"):
+                        try:
+                            decoded_response = base64.b64decode(response.split(" ", 2)[2], validate=True)
+                            if encoding == "" or encoding == "RGB64":
+                                self.assertEqual(len(decoded_response) % 3, 0)
+                            elif encoding == "RGBA64":
+                                self.assertEqual(len(decoded_response) % 4, 0)
+                                for i, b in enumerate(decoded_response):
+                                    if i % 4 == 0:
+                                        self.assertEqual(b, 0, f"alpha value of {encoding} encoding is wrong")
+                        except binascii.Error as e:
+                            self.fail(f"base64 decoding of response failed: {e}")

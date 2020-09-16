@@ -7,8 +7,8 @@ class TestBackendGo(ServerTestCase):
     server_implementation = "backend-go"
 
 
-class TestBackendElixir(ServerTestCase):
-    server_implementation = "backend-elixir"
+#class TestBackendElixir(ServerTestCase):
+#    server_implementation = "backend-elixir"
 
 
 # remove ServerTestCase because it is abstract and not intended to be run directly
