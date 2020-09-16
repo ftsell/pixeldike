@@ -9,6 +9,7 @@ platform:
 steps:
   - name: build container
     commands:
+      - cd backend-go
       - docker build . -t pixelflut
   - name: restart service
     commands:
