@@ -1,0 +1,26 @@
+[package]
+name = "pixelflut"
+version = "0.0.0"
+authors = ["Finn-Thorben Sell <dev@finn-thorben.me>"]
+edition = "2018"
+description = "Pixel drawing game for programmers inspired by reddits r/place "
+documentation = "https://docs.rs/pixelflut"
+readme = "README.md"
+repository = "https://github.com/ftsell/pixelflut.git"
+license = "MIT"
+keywords = ["pixelflut"]
+categories = ["command-line-utilities", "games"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+
+[[bin]]
+name = "pixelflut_server"
+
+[[bin]]
+name = "pixelflut_client"
+
+[dependencies]
+tokio = { version = "0.2.*", default_features = false, features = ["net", "tcp", "udp", "io-util", "rt-threaded", "macros"] }
+derive_more = "0.99.*"
