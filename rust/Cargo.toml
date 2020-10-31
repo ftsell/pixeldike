@@ -1,6 +1,7 @@
 [package]
 name = "pixelflut"
 version = "0.0.0"
+publish = false
 authors = ["Finn-Thorben Sell <dev@finn-thorben.me>"]
 edition = "2018"
 description = "Pixel drawing game for programmers inspired by reddits r/place "
@@ -22,5 +23,12 @@ name = "pixelflut_server"
 name = "pixelflut_client"
 
 [dependencies]
-tokio = { version = "0.2.*", default_features = false, features = ["net", "tcp", "udp", "io-util", "rt-threaded", "macros"] }
+#actix = "0.10.*"
+#actix-rt = "1.1.*"
+#actix-server = "1.*"
+tokio = { version = "0.3.*", features = ["full"] }
 derive_more = "0.99.*"
+bytes = "0.6.*"
+
+[dev-dependencies]
+quickcheck = "0.9.*"
