@@ -8,33 +8,19 @@
     unused_lifetimes,
     unused_qualifications
 )]
+#![feature(async_closure)]
 
-//! Pixel drawing game for programmers inspired by reddits r/place
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
 
-extern crate derive_more;
+use crate::pixmap::{Pixmap, SharedPixmap};
+use std::sync::Arc;
 
-mod actor_framework;
-pub mod canvas;
-//mod net;
+mod net;
+mod pixmap;
 
-pub async fn start_server(_start_tcp: bool, _start_udp: bool) {
-    /*
-    let tcp_server = net::tcp_server::TcpServer::start_default();
-    let canvas_server = canvas::LocalCanvas::start_default();
-
-    let set_result = canvas_server
-        .send(canvas::messages::SetPixelMsg::new(0, 0, [42, 24, 42]))
-        .await;
-    let get_result = canvas_server
-        .send(canvas::messages::GetPixelMsg::new(0, 0))
-        .await;
-    let size_result = canvas_server
-        .send(canvas::messages::GetSizeMsg::new())
-        .await;
-
-    println!("{:?}, {:?}, {:?}", set_result, get_result, size_result)
-
-     */
+pub async fn start_server() {
+    let pixmap: SharedPixmap = Arc::new(Pixmap::default());
+    net::tcp_server::start(&pixmap).await;
 }
-
-pub async fn connect_to_server() {}
