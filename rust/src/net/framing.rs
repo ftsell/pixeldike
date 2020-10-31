@@ -2,6 +2,7 @@ use bytes::Bytes;
 use std::io::Cursor;
 use std::str::Utf8Error;
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) enum Error {
     Incomplete,
     Utf8Error(Utf8Error),
@@ -63,5 +64,36 @@ impl Frame {
 impl Into<Bytes> for Frame {
     fn into(self) -> Bytes {
         self.encode()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use quickcheck::TestResult;
+    use std::io::Cursor;
+
+    quickcheck! {
+        fn test_parsing_encoding_stay_the_same(input: String) -> TestResult {
+            if input.contains("\n") || input.contains("\r") {
+                return TestResult::discard();
+            }
+
+            let input = input + "\n";
+            let input_bytes = input.into_bytes();
+
+            match super::Frame::parse(&mut Cursor::new(&input_bytes)) {
+                Err(_) => TestResult::discard(),
+                Ok(frame) => TestResult::from_bool(frame.encode() == input_bytes)
+            }
+        }
+    }
+
+    #[test]
+    fn test_no_termination_character() {
+        let input = "abc123".as_bytes();
+        let result = super::Frame::parse(&mut Cursor::new(input));
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), super::Error::Incomplete);
     }
 }
