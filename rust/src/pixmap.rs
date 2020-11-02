@@ -104,11 +104,12 @@ impl Default for Pixmap {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use quickcheck::TestResult;
 
     quickcheck! {
         fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: u32) -> TestResult {
-            match super::Pixmap::new(width, height, 1) {
+            match Pixmap::new(width, height, 1) {
                 Err(_) => TestResult::discard(),
                 Ok(pixmap) => {
                     let color = color.into();
@@ -123,10 +124,10 @@ mod test {
 
     quickcheck! {
         fn test_set_and_get_pixel_sharded(width: usize, height: usize, num_shards: usize, x: usize, y: usize) -> TestResult {
-            match super::Pixmap::new(width, height, num_shards) {
+            match Pixmap::new(width, height, num_shards) {
                 Err(_) => TestResult::discard(),
                 Ok(pixmap) => {
-                    let color = super::Color(42, 43, 44);
+                    let color = Color(42, 43, 44);
                     match pixmap.set_pixel(x, y, color) {
                         false => TestResult::discard(),
                         true => TestResult::from_bool(pixmap.get_pixel(x, y).unwrap() == color)

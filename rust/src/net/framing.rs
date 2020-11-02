@@ -69,6 +69,7 @@ impl Into<Bytes> for Frame {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use quickcheck::TestResult;
     use std::io::Cursor;
 
@@ -81,7 +82,7 @@ mod test {
             let input = input + "\n";
             let input_bytes = input.into_bytes();
 
-            match super::Frame::parse(&mut Cursor::new(&input_bytes)) {
+            match Frame::parse(&mut Cursor::new(&input_bytes)) {
                 Err(_) => TestResult::discard(),
                 Ok(frame) => TestResult::from_bool(frame.encode() == input_bytes)
             }
@@ -91,7 +92,7 @@ mod test {
     #[test]
     fn test_no_termination_character() {
         let input = "abc123".as_bytes();
-        let result = super::Frame::parse(&mut Cursor::new(input));
+        let result = Frame::parse(&mut Cursor::new(input));
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), super::Error::Incomplete);
