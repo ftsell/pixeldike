@@ -29,6 +29,7 @@ name = "pixelflut_client"
 tokio = { version = "0.3.*", features = ["full"] }
 derive_more = "0.99.*"
 bytes = "0.6.*"
+nom = "6.*"
 
 [dev-dependencies]
 quickcheck = "0.9.*"

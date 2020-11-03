@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct Color(u8, u8, u8);
+pub struct Color(pub u8, pub u8, pub u8);
 
 impl From<u32> for Color {
     fn from(src: u32) -> Self {

@@ -1,0 +1,55 @@
+use crate::pixmap::Color;
+use nom::{
+    bytes::complete::{tag, take_while_m_n},
+    combinator::{map_res, opt},
+    sequence::tuple,
+    IResult,
+};
+
+fn from_hex(input: &str) -> Result<u8, std::num::ParseIntError> {
+    u8::from_str_radix(input, 16)
+}
+
+fn is_hex_digit(c: char) -> bool {
+    c.is_digit(16)
+}
+
+fn hex_primary(input: &str) -> IResult<&str, u8> {
+    map_res(take_while_m_n(2, 2, is_hex_digit), from_hex)(input)
+}
+
+/// Parses a HEX-Encoded color
+pub fn hex_color(input: &str) -> IResult<&str, Color> {
+    let (input, _) = opt(tag("#"))(input)?;
+    let (input, (red, green, blue)) = tuple((hex_primary, hex_primary, hex_primary))(input)?;
+
+    Ok((input, Color(red, green, blue)))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use quickcheck::TestResult;
+
+    #[test]
+    fn parse_color_lowercase() {
+        assert_eq!(hex_color("#ababab"), Ok(("", Color(171, 171, 171))))
+    }
+
+    #[test]
+    fn parse_color_uppercase() {
+        assert_eq!(hex_color("#ABABAB"), Ok(("", Color(171, 171, 171))))
+    }
+
+    quickcheck! {
+        fn with_without_club(use_club: bool) -> TestResult {
+            let color = if use_club {
+                "#ababab"
+            } else {
+                "ababab"
+            };
+
+            TestResult::from_bool(hex_color(color) == Ok(("", Color(171, 171, 171))))
+        }
+    }
+}

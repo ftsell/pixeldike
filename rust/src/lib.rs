@@ -13,11 +13,13 @@
 #[cfg(test)]
 #[macro_use]
 extern crate quickcheck;
+extern crate nom;
 
 use crate::pixmap::{Pixmap, SharedPixmap};
 use std::sync::Arc;
 
 mod net;
+mod parser;
 mod pixmap;
 
 pub async fn start_server() {
