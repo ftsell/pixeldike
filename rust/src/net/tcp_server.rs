@@ -50,41 +50,54 @@ async fn process_connection(mut connection: TcpConnection, pixmap: SharedPixmap)
 
         // handle the command and construct an appropriate response
         let response = match command {
-            Err(e) => Frame::Simple(format!("There was an error parsing your command: {}", e)),
-            Ok(cmd) => Frame::Simple(match handle_command(cmd, &pixmap) {
-                Ok(response) => response,
-                Err(e) => format!("There was an error handling your command: {}", e),
-            }),
+            Err(e) => Some(Frame::Simple(format!(
+                "There was an error parsing your command: {}",
+                e
+            ))),
+            Ok(cmd) => match handle_command(cmd, &pixmap) {
+                Err(e) => Some(Frame::Simple(format!(
+                    "There was an error handling your command: {}",
+                    e
+                ))),
+                Ok(None) => None,
+                Ok(Some(response)) => Some(Frame::Simple(response)),
+            },
         };
 
-        // send the response back to the client
-        match connection.write_frame(response).await {
-            Err(e) => {
-                eprintln!("[TCP] Error writing frame {}", e);
-                return;
-            }
-            _ => {}
-        };
+        // send the response back to the client (if there is one)
+        match response {
+            None => {}
+            Some(response) => match connection.write_frame(response).await {
+                Err(e) => {
+                    eprintln!("[TCP] Error writing frame {}", e);
+                    return;
+                }
+                _ => {}
+            },
+        }
     }
 }
 
-fn handle_command(cmd: Command, pixmap: &SharedPixmap) -> core::result::Result<String, String> {
+fn handle_command(
+    cmd: Command,
+    pixmap: &SharedPixmap,
+) -> core::result::Result<Option<String>, String> {
     match cmd {
-        Command::Size => Ok(format!(
+        Command::Size => Ok(Some(format!(
             "SIZE {} {}",
             pixmap.get_size().0,
             pixmap.get_size().1
-        )),
-        Command::Help(HelpTopic::General) => Ok(i18n!(get_catalog(), "help_general")),
-        Command::Help(HelpTopic::Size) => Ok(i18n!(get_catalog(), "help_size")),
-        Command::Help(HelpTopic::Px) => Ok(i18n!(get_catalog(), "help_px")),
-        Command::Help(HelpTopic::State) => Ok(i18n!(get_catalog(), "help_state")),
+        ))),
+        Command::Help(HelpTopic::General) => Ok(Some(i18n!(get_catalog(), "help_general"))),
+        Command::Help(HelpTopic::Size) => Ok(Some(i18n!(get_catalog(), "help_size"))),
+        Command::Help(HelpTopic::Px) => Ok(Some(i18n!(get_catalog(), "help_px"))),
+        Command::Help(HelpTopic::State) => Ok(Some(i18n!(get_catalog(), "help_state"))),
         Command::PxGet(x, y) => match pixmap.get_pixel(x, y) {
-            Some(color) => Ok(format!("PX {} {} {}", x, y, color.to_string())),
+            Some(color) => Ok(Some(format!("PX {} {} {}", x, y, color.to_string()))),
             None => Err("Coordinates are not inside this canvas".to_string()),
         },
         Command::PxSet(x, y, color) => match pixmap.set_pixel(x, y, color) {
-            true => Ok(String::new()),
+            true => Ok(None),
             false => Err("Coordinates are not inside this canvas".to_string()),
         },
     }
