@@ -14,10 +14,12 @@ pub(crate) enum Frame {
 }
 
 impl Frame {
+    // TODO Make type more generic (read + seek or something)
     pub fn check(src: &mut Cursor<&[u8]>) -> Result<(), Error> {
         Frame::get_line(src).and_then(Frame::get_string).map(|_| ())
     }
 
+    // TODO Make type more generic (read + seek or something)
     pub fn parse(src: &mut Cursor<&[u8]>) -> Result<Self, Error> {
         Frame::get_line(src)
             .and_then(Frame::get_string)

@@ -6,6 +6,7 @@ use crate::pixmap::SharedPixmap;
 
 mod framing;
 pub mod tcp_server;
+pub mod udp_server;
 
 fn handle_frame(input: Frame, pixmap: &SharedPixmap) -> Option<Frame> {
     // try parse the received frame as command
