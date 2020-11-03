@@ -16,6 +16,12 @@ impl Into<u32> for Color {
     }
 }
 
+impl ToString for Color {
+    fn to_string(&self) -> String {
+        format!("#{:02X}{:02X}{:02X}", self.0, self.1, self.2)
+    }
+}
+
 pub type SharedPixmap = Arc<Pixmap>;
 
 pub struct Pixmap {
@@ -93,6 +99,10 @@ impl Pixmap {
             }
             true
         }
+    }
+
+    pub fn get_size(&self) -> (usize, usize) {
+        (self.width, self.height)
     }
 }
 

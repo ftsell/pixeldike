@@ -30,6 +30,11 @@ tokio = { version = "0.3.*", features = ["full"] }
 derive_more = "0.99.*"
 bytes = "0.6.*"
 nom = "6.*"
+lazy_static = "1.*"
+#i18n-embed = { version = "0.9.*", features = ["gettext-system"] }
+gettext = "0.4.*"
+gettext-utils = "0.1.*"
+gettext-macros = "0.6.*"
 
 [dev-dependencies]
 quickcheck = "0.9.*"

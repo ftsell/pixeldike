@@ -1,50 +1,92 @@
+use crate::i18n::get_catalog;
 use crate::net::framing::Frame;
+use crate::parser;
+use crate::parser::command::*;
 use crate::pixmap::SharedPixmap;
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
 use std::net::SocketAddr;
-use tokio::io;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::prelude::io::*;
 
-pub async fn start(pixmap: &SharedPixmap) {
+pub async fn start(pixmap: SharedPixmap) {
     let listener = TcpListener::bind("0.0.0.0:1234").await.unwrap();
     println!("[TCP] Started server on {}", listener.local_addr().unwrap());
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
+        let pixmap = pixmap.clone();
         tokio::spawn(async move {
-            process_connection(TcpConnection::new(socket)).await;
+            process_connection(TcpConnection::new(socket), pixmap).await;
         });
     }
 }
 
-async fn process_connection(mut connection: TcpConnection) {
+async fn process_connection(mut connection: TcpConnection, pixmap: SharedPixmap) {
     println!("[TCP] Client connected: {}", connection.peer_address);
     loop {
-        let maybe_frame = match connection.read_frame().await {
+        // receive a frame from the client with regards to the client closing the connection
+        let frame = match connection.read_frame().await {
             Err(e) => {
                 eprintln!("[TCP] Error reading frame {}", e);
                 return;
             }
-            Ok(opt) => opt,
+            Ok(opt) => match opt {
+                None => {
+                    println!("[TCP] Client disconnected: {}", connection.peer_address);
+                    return;
+                }
+                Some(frame) => frame,
+            },
         };
 
-        let frame = match maybe_frame {
-            None => {
-                println!("[TCP] Client disconnected: {}", connection.peer_address);
-                return;
-            }
-            Some(frame) => frame,
+        // try parse the received frame as command
+        let command = match frame {
+            Frame::Simple(command_str) => match parser::simple::parse(&command_str) {
+                Ok((_, command)) => Ok(command),
+                Err(e) => Err("unhelpful, unexplained, generic error"), // TODO improve parser error handling
+            },
         };
 
-        match connection.write_frame(frame).await {
+        // handle the command and construct an appropriate response
+        let response = match command {
+            Err(e) => Frame::Simple(format!("There was an error parsing your command: {}", e)),
+            Ok(cmd) => Frame::Simple(match handle_command(cmd, &pixmap) {
+                Ok(response) => response,
+                Err(e) => format!("There was an error handling your command: {}", e),
+            }),
+        };
+
+        // send the response back to the client
+        match connection.write_frame(response).await {
             Err(e) => {
                 eprintln!("[TCP] Error writing frame {}", e);
                 return;
             }
             _ => {}
         };
+    }
+}
+
+fn handle_command(cmd: Command, pixmap: &SharedPixmap) -> core::result::Result<String, String> {
+    match cmd {
+        Command::Size => Ok(format!(
+            "SIZE {} {}",
+            pixmap.get_size().0,
+            pixmap.get_size().1
+        )),
+        Command::Help(HelpTopic::General) => Ok(i18n!(get_catalog(), "help_general")),
+        Command::Help(HelpTopic::Size) => Ok(i18n!(get_catalog(), "help_size")),
+        Command::Help(HelpTopic::Px) => Ok(i18n!(get_catalog(), "help_px")),
+        Command::Help(HelpTopic::State) => Ok(i18n!(get_catalog(), "help_state")),
+        Command::PxGet(x, y) => match pixmap.get_pixel(x, y) {
+            Some(color) => Ok(format!("PX {} {} {}", x, y, color.to_string())),
+            None => Err("Coordinates are not inside this canvas".to_string()),
+        },
+        Command::PxSet(x, y, color) => match pixmap.set_pixel(x, y, color) {
+            true => Ok(String::new()),
+            false => Err("Coordinates are not inside this canvas".to_string()),
+        },
     }
 }
 
@@ -63,7 +105,7 @@ impl TcpConnection {
         }
     }
 
-    pub(self) async fn read_frame(&mut self) -> io::Result<Option<Frame>> {
+    pub(self) async fn read_frame(&mut self) -> Result<Option<Frame>> {
         loop {
             // Attempt to read more data from the socket.
             //
@@ -88,7 +130,7 @@ impl TcpConnection {
         }
     }
 
-    pub(self) async fn write_frame(&mut self, frame: Frame) -> io::Result<()> {
+    pub(self) async fn write_frame(&mut self, frame: Frame) -> Result<()> {
         self.stream.write_all(&frame.encode()).await?;
         self.stream.flush().await?;
 

@@ -14,15 +14,22 @@
 #[macro_use]
 extern crate quickcheck;
 extern crate nom;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate gettext_macros;
+extern crate gettext;
 
 use crate::pixmap::{Pixmap, SharedPixmap};
+use gettext::Catalog;
 use std::sync::Arc;
 
+mod i18n;
 mod net;
 mod parser;
 mod pixmap;
 
 pub async fn start_server() {
     let pixmap: SharedPixmap = Arc::new(Pixmap::default());
-    net::tcp_server::start(&pixmap).await;
+    net::tcp_server::start(pixmap.clone()).await;
 }
