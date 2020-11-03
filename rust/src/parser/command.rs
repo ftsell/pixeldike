@@ -26,7 +26,7 @@ pub enum Command {
 impl FromStr for Command {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!()
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!() // TODO Implement and use
     }
 }

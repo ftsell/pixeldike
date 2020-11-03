@@ -39,7 +39,6 @@ impl Frame {
     fn get_line<'a>(src: &mut Cursor<&'a [u8]>) -> Result<&'a [u8], Error> {
         let start = src.position() as usize;
         let end = src.get_ref().len();
-        let b: Vec<u8> = src.get_ref()[start..end].iter().cloned().collect();
 
         // try to find a complete line in the buffer
         match (start..end).find_map(|i| {

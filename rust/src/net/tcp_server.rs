@@ -1,7 +1,4 @@
-use crate::i18n::get_catalog;
 use crate::net::framing::Frame;
-use crate::parser;
-use crate::parser::command::*;
 use crate::pixmap::SharedPixmap;
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;

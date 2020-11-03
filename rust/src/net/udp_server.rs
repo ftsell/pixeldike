@@ -1,6 +1,6 @@
 use crate::net::framing::Frame;
 use crate::pixmap::SharedPixmap;
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use std::io::Cursor;
 use std::net::SocketAddr;
 use std::sync::Arc;

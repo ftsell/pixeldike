@@ -2,7 +2,7 @@ use crate::parser::command::*;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::multispace1;
-use nom::combinator::{all_consuming, value};
+use nom::combinator::value;
 use nom::IResult;
 
 pub(super) fn help_topic(input: &str) -> IResult<&str, HelpTopic> {

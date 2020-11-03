@@ -34,10 +34,7 @@ fn handle_frame(input: Frame, pixmap: &SharedPixmap) -> Option<Frame> {
     }
 }
 
-fn handle_command(
-    cmd: Command,
-    pixmap: &SharedPixmap,
-) -> core::result::Result<Option<String>, String> {
+fn handle_command(cmd: Command, pixmap: &SharedPixmap) -> Result<Option<String>, String> {
     match cmd {
         Command::Size => Ok(Some(format!(
             "SIZE {} {}",

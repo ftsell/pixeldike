@@ -3,7 +3,6 @@
 //}
 
 use gettext::Catalog;
-use std::fs::File;
 
 init_i18n!("pixelflut", po = false, en);
 compile_i18n!();
@@ -18,8 +17,13 @@ fn find_catalog(language: &str) -> &Catalog {
     let catalogs = &CATALOGS;
     catalogs
         .iter()
-        .find(|(i_lang, catalog)| *i_lang == language)
-        .map(|(i_lang, catalog)| catalog)
+        .find_map(|(i_lang, catalog)| {
+            if *i_lang == language {
+                Some(catalog)
+            } else {
+                None
+            }
+        })
         .expect(&format!("Could not find i18n catalog for {}", language))
 }
 

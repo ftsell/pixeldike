@@ -1,6 +1,5 @@
 use super::command::*;
-use nom::branch::alt;
-use nom::combinator::{all_consuming, eof, map, map_parser, opt, value};
+use nom::combinator::{eof, opt, value};
 use nom::sequence::preceded;
 use nom::IResult;
 

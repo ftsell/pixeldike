@@ -10,6 +10,12 @@
 )]
 #![feature(async_closure)]
 
+//!
+//! Pixelflut is a pixel drawing game for programmers inspired by reddits r/place.
+//!
+//! This library serves as a reference server and client implementation.
+//!
+
 #[cfg(test)]
 #[macro_use]
 extern crate quickcheck;
@@ -21,7 +27,6 @@ extern crate gettext_macros;
 extern crate gettext;
 
 use crate::pixmap::{Pixmap, SharedPixmap};
-use gettext::Catalog;
 use std::sync::Arc;
 
 mod i18n;
@@ -29,6 +34,12 @@ mod net;
 mod parser;
 mod pixmap;
 
+///
+/// Start a pixelflut server
+///
+/// # Panics:
+/// - When no tokio runtime is running
+///
 pub async fn start_server() {
     let pixmap: SharedPixmap = Arc::new(Pixmap::default());
     let pixmap2 = pixmap.clone();
@@ -40,5 +51,5 @@ pub async fn start_server() {
         net::udp_server::start(pixmap2).await;
     });
 
-    tokio::join!(handle1, handle2);
+    let _ = tokio::join!(handle1, handle2);
 }
