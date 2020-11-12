@@ -25,6 +25,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate gettext_macros;
 extern crate gettext;
+#[macro_use]
+extern crate log;
 
 use crate::pixmap::{Pixmap, SharedPixmap};
 use std::sync::Arc;
@@ -33,6 +35,7 @@ mod i18n;
 mod net;
 mod parser;
 mod pixmap;
+mod state_encoding;
 
 ///
 /// Start a pixelflut server
@@ -50,6 +53,12 @@ pub async fn start_server() {
     let handle2 = tokio::spawn(async move {
         net::udp_server::start(pixmap2).await;
     });
+    /*
+    let pixmap2 = pixmap.clone();
+    let handle3 = tokio::spawn(async move {
+        state_encoding::rgb64::start_encoder(pixmap2).await;
+    });
+     */
 
     let _ = tokio::join!(handle1, handle2);
 }

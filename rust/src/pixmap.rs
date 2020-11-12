@@ -104,6 +104,24 @@ impl Pixmap {
     pub fn get_size(&self) -> (usize, usize) {
         (self.width, self.height)
     }
+
+    /*
+    pub(crate) fn get_raw_data(&self) -> Vec<Color> {
+        let shard_size = self.width * self.height / self.data.len();
+        let mut result: Vec<Color> = Vec::with_capacity(self.width * self.height);
+
+        let mut shard_data;
+        for shard in &self.data {
+            {
+                let lock = shard.lock().unwrap();
+                shard_data = lock.clone();
+            }
+            result.append(&mut shard_data);
+        }
+
+        result
+    }
+     */
 }
 
 impl Default for Pixmap {

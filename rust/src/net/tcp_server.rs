@@ -8,7 +8,7 @@ use tokio::prelude::io::*;
 
 pub async fn start(pixmap: SharedPixmap) {
     let listener = TcpListener::bind("0.0.0.0:1234").await.unwrap();
-    println!("[TCP] Started server on {}", listener.local_addr().unwrap());
+    info!(target: "TCP", "Started server on {}", listener.local_addr().unwrap());
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
@@ -20,17 +20,17 @@ pub async fn start(pixmap: SharedPixmap) {
 }
 
 async fn process_connection(mut connection: TcpConnection, pixmap: SharedPixmap) {
-    println!("[TCP] Client connected: {}", connection.peer_address);
+    debug!(target: "TCP", "Client connected {}", connection.peer_address);
     loop {
         // receive a frame from the client with regards to the client closing the connection
         let frame = match connection.read_frame().await {
             Err(e) => {
-                eprintln!("[TCP] Error reading frame {}", e);
+                warn!(target: "TCP", "Error reading frame {}", e);
                 return;
             }
             Ok(opt) => match opt {
                 None => {
-                    println!("[TCP] Client disconnected: {}", connection.peer_address);
+                    debug!(target: "TCP", "Client disconnected: {}", connection.peer_address);
                     return;
                 }
                 Some(frame) => frame,
@@ -45,7 +45,7 @@ async fn process_connection(mut connection: TcpConnection, pixmap: SharedPixmap)
             None => {}
             Some(response) => match connection.write_frame(response).await {
                 Err(e) => {
-                    eprintln!("[TCP] Error writing frame {}", e);
+                    warn!(target: "TCP", "Error writing frame {}", e);
                     return;
                 }
                 _ => {}

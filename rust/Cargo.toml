@@ -14,13 +14,19 @@ categories = ["command-line-utilities", "games"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+log-impl = ["pretty_env_logger"]
+
 [lib]
 
 [[bin]]
 name = "pixelflut_server"
+required-features = ["default", "log-impl"]
 
 [[bin]]
 name = "pixelflut_client"
+required-features = ["default", "log-impl"]
 
 [dependencies]
 #actix = "0.10.*"
@@ -31,7 +37,8 @@ derive_more = "0.99.*"
 bytes = "0.6.*"
 nom = "6.*"
 lazy_static = "1.*"
-#i18n-embed = { version = "0.9.*", features = ["gettext-system"] }
+log = "0.4.*"
+pretty_env_logger = { version = "0.4.*", optional = true }
 gettext = "0.4.*"
 gettext-utils = "0.1.*"
 gettext-macros = "0.6.*"
