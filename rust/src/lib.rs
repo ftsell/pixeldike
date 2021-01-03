@@ -44,6 +44,8 @@ mod state_encoding;
 /// - When no tokio runtime is running
 ///
 pub async fn start_server() {
+    info!(target: "pixelflut", "Starting server");
+
     let pixmap: SharedPixmap = Arc::new(Pixmap::default());
     let pixmap2 = pixmap.clone();
     let handle1 = tokio::spawn(async move {
