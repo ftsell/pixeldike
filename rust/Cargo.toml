@@ -21,11 +21,7 @@ log-impl = ["pretty_env_logger"]
 [lib]
 
 [[bin]]
-name = "pixelflut_server"
-required-features = ["default", "log-impl"]
-
-[[bin]]
-name = "pixelflut_client"
+name = "pixelflut"
 required-features = ["default", "log-impl"]
 
 [dependencies]
