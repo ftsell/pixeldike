@@ -1,3 +1,6 @@
+use crate::parser::command::StateAlgorithm;
+use bytes::Bytes;
+use nom::lib::std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -105,7 +108,6 @@ impl Pixmap {
         (self.width, self.height)
     }
 
-    /*
     pub(crate) fn get_raw_data(&self) -> Vec<Color> {
         let shard_size = self.width * self.height / self.data.len();
         let mut result: Vec<Color> = Vec::with_capacity(self.width * self.height);
@@ -121,7 +123,6 @@ impl Pixmap {
 
         result
     }
-     */
 }
 
 impl Default for Pixmap {

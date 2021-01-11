@@ -29,6 +29,7 @@ extern crate gettext;
 extern crate log;
 
 use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::state_encoding::{start_encoders, SharedMultiEncodings};
 use std::sync::Arc;
 
 mod i18n;
@@ -46,7 +47,10 @@ mod state_encoding;
 pub async fn start_server() {
     info!(target: "pixelflut", "Starting server");
 
-    let pixmap: SharedPixmap = Arc::new(Pixmap::default());
+    let pixmap: SharedPixmap = SharedPixmap::default();
+    let encodings: SharedMultiEncodings = SharedMultiEncodings::default();
+    start_encoders(encodings, pixmap.clone());
+
     let pixmap2 = pixmap.clone();
     let handle1 = tokio::spawn(async move {
         net::tcp_server::start(pixmap2).await;
