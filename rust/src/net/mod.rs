@@ -3,26 +3,62 @@ use crate::net::framing::Frame;
 use crate::parser;
 use crate::parser::command::*;
 use crate::pixmap::SharedPixmap;
+use nom::combinator::opt;
 use std::future::Future;
+use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
 use tokio::task::JoinHandle;
 
 mod framing;
 pub mod tcp_server;
 pub mod udp_server;
 
-pub fn start_listeners(pixmap: SharedPixmap) -> Vec<JoinHandle<()>> {
-    vec![
-        start_listener(pixmap.clone(), tcp_server::listen),
-        start_listener(pixmap.clone(), udp_server::listen),
-    ]
+static LOG_TARGET: &str = "pixelflut.listener";
+
+pub struct NetOptions {
+    pub tcp: Option<tcp_server::TcpOptions>,
+    pub udp: Option<udp_server::UdpOptions>,
 }
 
-fn start_listener<F: FnOnce(SharedPixmap) -> G + Send + 'static, G: Future<Output = ()> + Send>(
+pub fn start_listeners(pixmap: SharedPixmap, options: NetOptions) -> Vec<JoinHandle<()>> {
+    let mut handlers = Vec::new();
+
+    if let Some(tcp_options) = options.tcp {
+        handlers.push(start_listener(
+            pixmap.clone(),
+            tcp_options,
+            tcp_server::listen,
+        ));
+    }
+    if let Some(udp_options) = options.udp {
+        handlers.push(start_listener(
+            pixmap.clone(),
+            udp_options,
+            udp_server::listen,
+        ));
+    }
+
+    if handlers.len() == 0 {
+        warn!(
+            target: LOG_TARGET,
+            "No listeners configured. This pixelflut server will not be reachable"
+        );
+    }
+
+    handlers
+}
+
+fn start_listener<
+    F: FnOnce(SharedPixmap, O) -> G + Send + 'static,
+    G: Future<Output = ()> + Send,
+    O: Send + 'static,
+>(
     pixmap: SharedPixmap,
+    options: O,
     listen_function: F,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        listen_function(pixmap).await;
+        listen_function(pixmap, options).await;
     })
 }
 

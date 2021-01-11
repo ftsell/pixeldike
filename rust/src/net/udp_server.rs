@@ -8,8 +8,12 @@ use tokio::net::UdpSocket;
 
 static LOG_TARGET: &str = "pixelflut.listener.udp";
 
-pub async fn listen(pixmap: SharedPixmap) {
-    let socket = Arc::new(UdpSocket::bind("0.0.0.0:1234").await.unwrap());
+pub struct UdpOptions {
+    pub listen_address: SocketAddr,
+}
+
+pub async fn listen(pixmap: SharedPixmap, options: UdpOptions) {
+    let socket = Arc::new(UdpSocket::bind(options.listen_address).await.unwrap());
     info!(
         target: LOG_TARGET,
         "Started udp listener on {}",

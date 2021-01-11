@@ -31,6 +31,8 @@ extern crate log;
 use crate::net::start_listeners;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::{start_encoders, SharedMultiEncodings};
+use std::net::SocketAddr;
+use std::str::FromStr;
 use tokio::task::JoinHandle;
 
 mod i18n;
@@ -52,7 +54,17 @@ pub async fn run_server() {
     let encodings: SharedMultiEncodings = SharedMultiEncodings::default();
 
     let mut handles = start_encoders(encodings, pixmap.clone());
-    handles.append(&mut start_listeners(pixmap));
+    handles.append(&mut start_listeners(
+        pixmap,
+        net::NetOptions {
+            tcp: Some(net::tcp_server::TcpOptions {
+                listen_address: SocketAddr::from_str("0.0.0.0:1234").unwrap(),
+            }),
+            udp: Some(net::udp_server::UdpOptions {
+                listen_address: SocketAddr::from_str("0.0.0.0:1234").unwrap(),
+            }),
+        },
+    ));
 
     for handle in handles {
         tokio::join!(handle);

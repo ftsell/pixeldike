@@ -2,14 +2,19 @@ use crate::net::framing::Frame;
 use crate::pixmap::SharedPixmap;
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::prelude::io::*;
 
 static LOG_TARGET: &str = "pixelflut.listener.tcp";
 
-pub async fn listen(pixmap: SharedPixmap) {
-    let listener = TcpListener::bind("0.0.0.0:1234").await.unwrap();
+pub struct TcpOptions {
+    pub listen_address: SocketAddr,
+}
+
+pub async fn listen(pixmap: SharedPixmap, options: TcpOptions) {
+    let listener = TcpListener::bind(options.listen_address).await.unwrap();
     info!(
         target: LOG_TARGET,
         "Started tcp listener on {}",
