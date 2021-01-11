@@ -6,14 +6,14 @@ pub type SharedMultiEncodings = Arc<MultiEncodings>;
 
 pub struct MultiEncodings {
     pub rgb64: Mutex<rgb64::Encoding>,
-    pub rgba64: Mutex<String>,
+    pub rgba64: Mutex<rgba64::Encoding>,
 }
 
 impl MultiEncodings {
     pub fn new() -> Self {
         MultiEncodings {
             rgb64: Mutex::new(rgb64::Encoding::new()),
-            rgba64: Mutex::new(String::new()),
+            rgba64: Mutex::new(rgba64::Encoding::new()),
         }
     }
 }

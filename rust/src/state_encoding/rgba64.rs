@@ -14,20 +14,22 @@ pub async fn run_encoder(encodings: SharedMultiEncodings, pixmap: SharedPixmap) 
         let encoding = encode(&pixmap);
 
         {
-            let mut lock = encodings.rgb64.lock().unwrap();
+            let mut lock = encodings.rgba64.lock().unwrap();
             (*lock) = encoding;
         }
     }
 }
 
 fn encode(pixmap: &SharedPixmap) -> Encoding {
-    let mut data = Vec::with_capacity(pixmap.get_size().0 * pixmap.get_size().1 * 3);
+    // TODO Improve this by mapping the AtomicU32 types to byte slices and then use those directly
+    let mut data = Vec::with_capacity(pixmap.get_size().0 * pixmap.get_size().1 * 4);
 
     for i in pixmap.get_raw_data() {
         let color = i.load(Ordering::Relaxed).to_le_bytes();
         data.push(color[0]);
         data.push(color[1]);
         data.push(color[2]);
+        data.push(0);
     }
 
     base64::encode(&data)
@@ -46,7 +48,7 @@ mod test {
         let encoded_bytes = base64::decode(&encoded).unwrap();
         assert_eq!(
             encoded_bytes.len(),
-            pixmap.get_size().0 * pixmap.get_size().1 * 3
+            pixmap.get_size().0 * pixmap.get_size().1 * 4
         )
     }
 
@@ -64,7 +66,7 @@ mod test {
             let encoded_bytes = base64::decode(&encoded).unwrap();
 
             // verify
-            let i  = (y * pixmap.get_size().0 + x) * 3;
+            let i  = (y * pixmap.get_size().0 + x) * 4;
             let encoded_color = &encoded_bytes[i..i+3];
             let decoded_color = Color(encoded_color[0], encoded_color[1], encoded_color[2]);
             TestResult::from_bool(decoded_color == color)
