@@ -1,6 +1,7 @@
 use crate::parser::command::StateAlgorithm;
 use bytes::Bytes;
 use nom::lib::std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -19,6 +20,12 @@ impl Into<u32> for Color {
     }
 }
 
+impl Into<Vec<u8>> for Color {
+    fn into(self) -> Vec<u8> {
+        vec![self.0, self.1, self.2]
+    }
+}
+
 impl ToString for Color {
     fn to_string(&self) -> String {
         format!("#{:02X}{:02X}{:02X}", self.0, self.1, self.2)
@@ -28,7 +35,7 @@ impl ToString for Color {
 pub type SharedPixmap = Arc<Pixmap>;
 
 pub struct Pixmap {
-    data: Vec<Mutex<Vec<Color>>>,
+    data: Vec<AtomicU32>,
     width: usize,
     height: usize,
 }
@@ -37,39 +44,25 @@ impl Pixmap {
     /// Creates a new Pixmap with the specified dimensions.
     ///
     /// *Panics* if either num_shards, width or height is zero.
-    pub fn new(width: usize, height: usize, num_shards: usize) -> Result<Self, &'static str> {
+    pub fn new(width: usize, height: usize) -> Result<Self, &'static str> {
         if width == 0 {
             Err("width is 0")
         } else if height == 0 {
             Err("height is 0")
-        } else if num_shards == 0 {
-            Err("num_shards i 0")
-        } else if num_shards >= width * height {
-            Err("num_shards requests more shards than there is data (num_shards >= width * height)")
-        } else if (width * height) % num_shards != 0 {
-            Err("num_shards would result in unequal shard sizes (width * height % num_shards != 0)")
         } else {
             let size = width * height;
-            let shard_size = size / num_shards;
 
             Ok(Pixmap {
-                data: (0..num_shards)
-                    .map(|_| Mutex::new(vec![0u32.into(); shard_size]))
-                    .collect(),
+                data: (0..size).map(|_| AtomicU32::new(0)).collect(),
                 width,
                 height,
             })
         }
     }
 
-    /// Calculates the tuple `(shard_number, index_in_shard)` of the specified pixel
-    fn get_pixel_index(&self, x: usize, y: usize) -> (usize, usize) {
-        let global_i = y * self.width + x;
-        let shard_size = self.width * self.height / self.data.len();
-        let local_i = global_i % shard_size;
-        let shard_num = (global_i - local_i) / shard_size;
-
-        (shard_num, local_i)
+    /// Calculates the vector index of the specified coordinates
+    fn get_pixel_index(&self, x: usize, y: usize) -> usize {
+        y * self.width + x
     }
 
     fn are_coordinates_inside(&self, x: usize, y: usize) -> bool {
@@ -80,12 +73,8 @@ impl Pixmap {
         if !self.are_coordinates_inside(x, y) {
             None
         } else {
-            let (shard_index, i) = self.get_pixel_index(x, y);
-            let shard = self.data.get(shard_index).unwrap();
-            {
-                let lock = shard.lock().unwrap();
-                return Some(lock.get(i).unwrap().clone());
-            }
+            let i = self.get_pixel_index(x, y);
+            Some(Color::from(self.data[i].load(Ordering::Relaxed)))
         }
     }
 
@@ -93,13 +82,8 @@ impl Pixmap {
         if !self.are_coordinates_inside(x, y) {
             false
         } else {
-            let (shard_index, i) = self.get_pixel_index(x, y);
-            let shard = self.data.get(shard_index).unwrap();
-            {
-                let mut lock = shard.lock().unwrap();
-                let shard_data = &mut (*lock);
-                shard_data[i] = color;
-            }
+            let i = self.get_pixel_index(x, y);
+            self.data[i].store(color.into(), Ordering::SeqCst);
             true
         }
     }
@@ -108,26 +92,14 @@ impl Pixmap {
         (self.width, self.height)
     }
 
-    pub(crate) fn get_raw_data(&self) -> Vec<Color> {
-        let shard_size = self.width * self.height / self.data.len();
-        let mut result: Vec<Color> = Vec::with_capacity(self.width * self.height);
-
-        let mut shard_data;
-        for shard in &self.data {
-            {
-                let lock = shard.lock().unwrap();
-                shard_data = lock.clone();
-            }
-            result.append(&mut shard_data);
-        }
-
-        result
+    pub(crate) fn get_raw_data(&self) -> &Vec<AtomicU32> {
+        &self.data
     }
 }
 
 impl Default for Pixmap {
     fn default() -> Self {
-        Self::new(800, 600, 10).unwrap()
+        Self::new(800, 600).unwrap()
     }
 }
 
@@ -138,7 +110,7 @@ mod test {
 
     quickcheck! {
         fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: u32) -> TestResult {
-            match Pixmap::new(width, height, 1) {
+            match Pixmap::new(width, height) {
                 Err(_) => TestResult::discard(),
                 Ok(pixmap) => {
                     let color = color.into();
@@ -148,21 +120,6 @@ mod test {
                     }
                 }
             }
-        }
-    }
-
-    quickcheck! {
-        fn test_set_and_get_pixel_sharded(width: usize, height: usize, num_shards: usize, x: usize, y: usize) -> TestResult {
-            match Pixmap::new(width, height, num_shards) {
-                Err(_) => TestResult::discard(),
-                Ok(pixmap) => {
-                    let color = Color(42, 43, 44);
-                    match pixmap.set_pixel(x, y, color) {
-                        false => TestResult::discard(),
-                        true => TestResult::from_bool(pixmap.get_pixel(x, y).unwrap() == color)
-                    }
-                }
-             }
         }
     }
 }
