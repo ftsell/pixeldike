@@ -6,9 +6,15 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 
-pub async fn start(pixmap: SharedPixmap) {
+static LOG_TARGET: &str = "pixelflut.listener.udp";
+
+pub async fn listen(pixmap: SharedPixmap) {
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:1234").await.unwrap());
-    info!(target: "pixelflut.udp", "Started server on {}", socket.local_addr().unwrap());
+    info!(
+        target: LOG_TARGET,
+        "Started udp listener on {}",
+        socket.local_addr().unwrap()
+    );
 
     loop {
         let socket = socket.clone();
@@ -48,7 +54,10 @@ async fn process_received(
     match response {
         None => {}
         Some(response) => match socket.send_to(&response.encode()[..], origin).await {
-            Err(e) => warn!(target: "pixelflut.udp", "Could not send response to {} because: {}", origin, e),
+            Err(e) => warn!(
+                target: LOG_TARGET,
+                "Could not send response to {} because: {}", origin, e
+            ),
             Ok(_) => {}
         },
     };

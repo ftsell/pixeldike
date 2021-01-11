@@ -5,9 +5,13 @@ use std::sync::atomic::Ordering;
 use tokio::prelude::*;
 use tokio::time::{interval, Duration};
 
+static LOG_TARGET: &str = "pixelflut.encoder.rgba64";
+
 pub type Encoding = String;
 
 pub async fn run_encoder(encodings: SharedMultiEncodings, pixmap: SharedPixmap) {
+    info!(target: LOG_TARGET, "Starting rgba64 encoder");
+
     let mut int = interval(Duration::from_millis(100));
     loop {
         int.tick().await;

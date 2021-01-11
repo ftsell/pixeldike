@@ -3,10 +3,28 @@ use crate::net::framing::Frame;
 use crate::parser;
 use crate::parser::command::*;
 use crate::pixmap::SharedPixmap;
+use std::future::Future;
+use tokio::task::JoinHandle;
 
 mod framing;
 pub mod tcp_server;
 pub mod udp_server;
+
+pub fn start_listeners(pixmap: SharedPixmap) -> Vec<JoinHandle<()>> {
+    vec![
+        start_listener(pixmap.clone(), tcp_server::listen),
+        start_listener(pixmap.clone(), udp_server::listen),
+    ]
+}
+
+fn start_listener<F: FnOnce(SharedPixmap) -> G + Send + 'static, G: Future<Output = ()> + Send>(
+    pixmap: SharedPixmap,
+    listen_function: F,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        listen_function(pixmap).await;
+    })
+}
 
 fn handle_frame(input: Frame, pixmap: &SharedPixmap) -> Option<Frame> {
     // try parse the received frame as command

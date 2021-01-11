@@ -28,9 +28,10 @@ extern crate gettext;
 #[macro_use]
 extern crate log;
 
+use crate::net::start_listeners;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::{start_encoders, SharedMultiEncodings};
-use std::sync::Arc;
+use tokio::task::JoinHandle;
 
 mod i18n;
 mod net;
@@ -44,27 +45,16 @@ mod state_encoding;
 /// # Panics:
 /// - When no tokio runtime is running
 ///
-pub async fn start_server() {
+pub async fn run_server() {
     info!(target: "pixelflut", "Starting server");
 
     let pixmap: SharedPixmap = SharedPixmap::default();
     let encodings: SharedMultiEncodings = SharedMultiEncodings::default();
-    start_encoders(encodings, pixmap.clone());
 
-    let pixmap2 = pixmap.clone();
-    let handle1 = tokio::spawn(async move {
-        net::tcp_server::start(pixmap2).await;
-    });
-    let pixmap2 = pixmap.clone();
-    let handle2 = tokio::spawn(async move {
-        net::udp_server::start(pixmap2).await;
-    });
-    /*
-    let pixmap2 = pixmap.clone();
-    let handle3 = tokio::spawn(async move {
-        state_encoding::rgb64::start_encoder(pixmap2).await;
-    });
-     */
+    let mut handles = start_encoders(encodings, pixmap.clone());
+    handles.append(&mut start_listeners(pixmap));
 
-    let _ = tokio::join!(handle1, handle2);
+    for handle in handles {
+        tokio::join!(handle);
+    }
 }

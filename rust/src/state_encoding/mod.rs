@@ -5,11 +5,17 @@ pub mod rgb64;
 pub mod rgba64;
 
 pub use encodings::*;
-use tokio::macros::support::Future;
+use std::future::Future;
+use tokio::task::JoinHandle;
 
-pub fn start_encoders(encodings: SharedMultiEncodings, pixmap: SharedPixmap) {
-    start_encoder(encodings.clone(), pixmap.clone(), rgb64::run_encoder);
-    start_encoder(encodings, pixmap, rgba64::run_encoder);
+pub fn start_encoders(
+    encodings: SharedMultiEncodings,
+    pixmap: SharedPixmap,
+) -> Vec<JoinHandle<()>> {
+    vec![
+        start_encoder(encodings.clone(), pixmap.clone(), rgb64::run_encoder),
+        start_encoder(encodings, pixmap, rgba64::run_encoder),
+    ]
 }
 
 fn start_encoder<
@@ -19,8 +25,8 @@ fn start_encoder<
     encodings: SharedMultiEncodings,
     pixmap: SharedPixmap,
     encoder_function: F,
-) {
+) -> JoinHandle<()> {
     tokio::spawn(async move {
         encoder_function(encodings, pixmap).await;
-    });
+    })
 }
