@@ -30,6 +30,7 @@ required-features = ["default", "log-impl"]
 #actix-server = "1.*"
 base64 = "0.13"
 tokio = { version = "0.3.*", features = ["full"] }
+tokio-tungstenite = "0.13"
 derive_more = "0.99.*"
 bytes = "0.6.*"
 nom = "6.*"

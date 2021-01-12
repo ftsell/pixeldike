@@ -12,12 +12,14 @@ use tokio::task::JoinHandle;
 mod framing;
 pub mod tcp_server;
 pub mod udp_server;
+pub mod ws_server;
 
 static LOG_TARGET: &str = "pixelflut.listener";
 
 pub struct NetOptions {
     pub tcp: Option<tcp_server::TcpOptions>,
     pub udp: Option<udp_server::UdpOptions>,
+    pub ws: Option<ws_server::WsOptions>,
 }
 
 pub fn start_listeners(pixmap: SharedPixmap, options: NetOptions) -> Vec<JoinHandle<()>> {
@@ -36,6 +38,13 @@ pub fn start_listeners(pixmap: SharedPixmap, options: NetOptions) -> Vec<JoinHan
             udp_options,
             udp_server::listen,
         ));
+    }
+    if let Some(ws_options) = options.ws {
+        handlers.push(start_listener(
+            pixmap.clone(),
+            ws_options,
+            ws_server::listen,
+        ))
     }
 
     if handlers.len() == 0 {

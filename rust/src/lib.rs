@@ -63,6 +63,9 @@ pub async fn run_server() {
             udp: Some(net::udp_server::UdpOptions {
                 listen_address: SocketAddr::from_str("0.0.0.0:1234").unwrap(),
             }),
+            ws: Some(net::ws_server::WsOptions {
+                listen_address: SocketAddr::from_str("0.0.0.0:1235").unwrap(),
+            }),
         },
     ));
 
