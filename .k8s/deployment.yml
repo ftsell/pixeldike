@@ -5,6 +5,8 @@ metadata:
   name: pixelflut
 spec:
   selector: {}
+  strategy:
+    type: Recreate
   template:
       spec:
         hostNetwork: true
