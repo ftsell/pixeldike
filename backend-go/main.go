@@ -37,7 +37,7 @@ func main() {
 		go network.StartUdpServer(*argUdpPort, pixmap, waitGroup)
 	}
 
-	stateTicker := time.NewTicker(100 * time.Millisecond)
+	stateTicker := time.NewTicker(50 * time.Millisecond)
 	go pixmapStateWorker(stateTicker.C, pixmap)
 
 	if *argSnapshotFile != (os.File{}) {
