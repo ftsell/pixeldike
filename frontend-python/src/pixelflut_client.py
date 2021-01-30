@@ -9,7 +9,7 @@ class BinaryAlgorithms:
 
 class Client:
     sock = None  # type: socket.socket
-    size = (0, 0)   # type: (int, int)
+    size = (0, 0)  # type: (int, int)
 
     def __init__(self):
         self.sock = socket.socket()

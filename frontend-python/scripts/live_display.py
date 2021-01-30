@@ -7,6 +7,7 @@ import os
 import sys
 
 import gi
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, GdkPixbuf, GLib, GObject
@@ -34,11 +35,19 @@ def get_new_pixbuf():
     receive_end = time.time()
 
     render_start = time.time()
-    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(pixels), GdkPixbuf.Colorspace.RGB, False, 8, client.size[0], client.size[1], client.size[0] * 3)
+    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
+        GLib.Bytes.new(pixels),
+        GdkPixbuf.Colorspace.RGB,
+        False,
+        8,
+        client.size[0],
+        client.size[1],
+        client.size[0] * 3,
+    )
     render_end = time.time()
 
     line = f"receiving: {receive_end - receive_start}s, rendering: {render_end - render_start}s, fps: {1 / ((receive_end - receive_start) + (render_end - render_start))}"
-    print(f"\033[K{line}\033[{len(line)}D", end='', flush=True)
+    print(f"\033[K{line}\033[{len(line)}D", end="", flush=True)
 
     return pixbuf
 
@@ -73,4 +82,3 @@ if __name__ == "__main__":
     worker.start()
 
     Gtk.main()
-
