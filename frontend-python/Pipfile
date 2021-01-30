@@ -15,3 +15,6 @@ python_version = "3"
 
 [scripts]
 format = "black -l 110 src"
+live_display = "./scripts/live_display.py"
+get_image = "./scripts/get_image.py"
+put_image = "./scripts/put_image.py"

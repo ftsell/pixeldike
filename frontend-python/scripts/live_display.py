@@ -3,12 +3,16 @@
 import argparse
 import time
 import threading
-import shutil
+import os
+import sys
 
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gtk, GdkPixbuf, GLib, GObject
+
+SRC_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
+sys.path.append(SRC_DIR)
 
 from pixelflut_client import Client, BinaryAlgorithms
 

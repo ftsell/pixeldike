@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 import time
-
-from PIL import Image
 import argparse
+import os
+import sys
+from PIL import Image
+
+SRC_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
+sys.path.append(SRC_DIR)
 
 from pixelflut_client import Client
 
