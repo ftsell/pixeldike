@@ -1,6 +1,5 @@
 import socket
 import base64
-import time
 
 
 class BinaryAlgorithms:
@@ -8,26 +7,25 @@ class BinaryAlgorithms:
     RgbaBase64 = "rgba64"
 
 
-class Client():
+class Client:
     sock = None  # type: socket.socket
-    x_size = 0  # type: int
-    y_size = 0  # type: int
+    size = (0, 0)   # type: (int, int)
 
     def __init__(self):
         self.sock = socket.socket()
 
-    def connect(self, hostname, port):
-        self.sock.connect((hostname, int(port)))
-        self.x_size, self.y_size = self.get_size()
+    def connect(self, hostname: str, port: int):
+        self.sock.connect((hostname, port))
+        self.size = self.get_size()
 
     def get_size(self) -> (int, int):
         self.sock.send(b"SIZE\n")
         response = self.sock.recv(256).decode("ASCII")
         # SIZE $X $Y
-        x = response.split(" ")[0]
-        y = response.split(" ")[1]
 
-        return (int(x), int(y))
+        x = response.split(" ")[1]
+        y = response.split(" ")[2]
+        return int(x), int(y)
 
     def set_pixel(self, x: int, y: int, color: str):
         self.sock.send(f"PX {x} {y} {color}\n".encode("ASCII"))
@@ -39,7 +37,7 @@ class Client():
 
         return response.split(" ")[3]
 
-    def receive_binary(self, algorithm: str) -> list:
+    def receive_binary(self, algorithm: str) -> bytes:
         """
         Returns a list of 8-bit integer values.
         Each value being one color channel.
@@ -47,9 +45,10 @@ class Client():
         """
         self.sock.send(f"STATE {algorithm}\n".encode("ASCII"))
 
-        response = b''
-        while len(response) == 0 or response[-1] != 10:     # 10 is \n
-            response += self.sock.recv(256)
-        response = response[:-1]        # remove \n
+        response = b""
+        while len(response) == 0 or response[-1] != 10:  # 10 is \n
+            response += self.sock.recv(1024 * 4)
+        response = response[:-1]  # remove \n
+        response = response.split(b" ", 2)[2]
 
         return base64.b64decode(response)

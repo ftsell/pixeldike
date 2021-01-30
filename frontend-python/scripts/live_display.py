@@ -30,7 +30,7 @@ def get_new_pixbuf():
     receive_end = time.time()
 
     render_start = time.time()
-    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(pixels), GdkPixbuf.Colorspace.RGB, False, 8, client.x_size, client.y_size, client.x_size * 3)
+    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(pixels), GdkPixbuf.Colorspace.RGB, False, 8, client.size[0], client.size[1], client.size[0] * 3)
     render_end = time.time()
 
     line = f"receiving: {receive_end - receive_start}s, rendering: {render_end - render_start}s, fps: {1 / ((receive_end - receive_start) + (render_end - render_start))}"
@@ -54,10 +54,10 @@ if __name__ == "__main__":
     args = parse_args()
 
     client = Client()
-    client.connect(args.server_hostname, args.server_port)
+    client.connect(args.server_hostname, int(args.server_port))
 
     window = Gtk.Window(title=f"Pixelflut remote canvas ({args.server_hostname}:{args.server_port})")
-    window.set_default_size(client.x_size, client.y_size)
+    window.set_default_size(client.size[0], client.size[1])
     window.connect("destroy", Gtk.main_quit)
 
     image = Gtk.Image.new()

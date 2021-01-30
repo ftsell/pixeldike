@@ -4,7 +4,7 @@ from PIL import Image
 import argparse
 import time
 
-from pixelflut_client import Client
+from pixelflut_client import Client, BinaryAlgorithms
 
 
 def parse_args():
@@ -20,20 +20,20 @@ if __name__ == "__main__":
     args = parse_args()
 
     client = Client()
-    client.connect(args.server_hostname, args.server_port)
-    im = Image.new("RGB", (client.x_size, client.y_size))
+    client.connect(args.server_hostname, int(args.server_port))
+    im = Image.new("RGB", (client.size[0], client.size[1]))
 
     print("Receiving canvas", end="")
     start = time.time()
-    pixels = client.receive_binary()
+    pixels = client.receive_binary(BinaryAlgorithms.RgbBase64)
     end = time.time()
     print(f"     [{end - start}s]")
 
     print("Painting local canvas", end="")
     start = time.time()
-    for ix in range(0, client.x_size):
-        for iy in range(0, client.y_size):
-            pixel_index = (ix * client.y_size + iy) * 3
+    for ix in range(0, client.size[0]):
+        for iy in range(0, client.size[1]):
+            pixel_index = (ix * client.size[1] + iy) * 3
 
             r = pixels[pixel_index]
             g = pixels[pixel_index + 1]
