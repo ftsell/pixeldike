@@ -1,0 +1,59 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pixelflut
+spec:
+  selector: {}
+  template:
+      spec:
+        hostNetwork: true
+        volumes:
+          - name: data
+            persistentVolumeClaim:
+              claimName: pixelflut-data
+        containers:
+          - name: pixelflut
+            image: registry.finn-thorben.me/pixelflut
+            args:
+              - --tcp
+              - "9876"
+              - --udp
+              - "9876"
+              - --websocket
+              - "9875"
+              - --width
+              - $(WIDTH)
+              - --height
+              - $(HEIGHT)
+              - --file
+              - /app/data/snapshot.pxmap
+            envFrom:
+              - configMapRef:
+                  name: pixelflut
+            ports:
+              - name: tcp
+                containerPort: 9876
+                protocol: TCP
+              - name: udp
+                containerPort: 9876
+                protocol: UDP
+              - name: websocket
+                containerPort: 9875
+            volumeMounts:
+              - mountPath: /app/data
+                name: data
+
+
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pixelflut-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500M

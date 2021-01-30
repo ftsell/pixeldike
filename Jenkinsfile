@@ -35,7 +35,6 @@ spec:
                 checkout scm
             }
         }
-/*
         stage("Build Kustomization") {
             steps {
                 container("kustomize") {
@@ -65,7 +64,6 @@ spec:
                 }
             }
         }
-*/
         stage("Build Container Image") {
             steps {
                 container("podman") {

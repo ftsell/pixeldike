@@ -1,0 +1,15 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app.kubernetes.io/name: pixelflut
+
+resources:
+  - .k8s/deployment.yml
+  - .k8s/service.yml
+
+configMapGenerator:
+  - name: pixelflut
+    literals:
+      - WIDTH=800
+      - HEIGHT=600

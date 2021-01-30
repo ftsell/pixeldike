@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pixelflut
+spec:
+  type: NodePort
+  ports:
+    - name: tcp
+      port: 9876
+      targetPort: tcp
+      nodePort: 30001
+    - name: udp
+      port: 9876
+      targetPort: udp
+      nodePort: 30001
+      protocol: UDP
+    - name: websocket
+      port: 9875
+      targetPort: websocket
