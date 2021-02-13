@@ -4,8 +4,8 @@ use bytes::{Buf, BytesMut};
 use std::io::Cursor;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::prelude::io::*;
 
 static LOG_TARGET: &str = "pixelflut.listener.tcp";
 
@@ -86,7 +86,7 @@ impl TcpConnection {
         }
     }
 
-    pub(self) async fn read_frame(&mut self) -> Result<Option<Frame>> {
+    pub(self) async fn read_frame(&mut self) -> std::io::Result<Option<Frame>> {
         loop {
             // Attempt to read more data from the socket.
             //
@@ -111,7 +111,7 @@ impl TcpConnection {
         }
     }
 
-    pub(self) async fn write_frame(&mut self, frame: Frame) -> Result<()> {
+    pub(self) async fn write_frame(&mut self, frame: Frame) -> std::io::Result<()> {
         self.stream.write_all(&frame.encode()).await?;
         self.stream.flush().await?;
 

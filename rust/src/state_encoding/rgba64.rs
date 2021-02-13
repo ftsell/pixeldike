@@ -2,7 +2,6 @@ use super::SharedMultiEncodings;
 use crate::pixmap::SharedPixmap;
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
-use tokio::prelude::*;
 use tokio::time::{interval, Duration};
 
 static LOG_TARGET: &str = "pixelflut.encoder.rgba64";

@@ -1,7 +1,6 @@
 use crate::pixmap::SharedPixmap;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::prelude::io::*;
 use tokio_tungstenite::WebSocketStream;
 
 static LOG_TARGET: &str = "pixelflut.listener.ws";
@@ -33,8 +32,5 @@ async fn process_connection(mut connection: TcpStream, pixmap: SharedPixmap) {
         "Client connected {}",
         connection.peer_addr().unwrap()
     );
-    let (ws_write, ws_read) = tokio_tungstenite::accept_async(connection)
-        .await
-        .unwrap()
-        .split();
+    //let (ws_write, ws_read) = tokio_tungstenite::accept_async(connection).await.unwrap();
 }
