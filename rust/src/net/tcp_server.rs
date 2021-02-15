@@ -7,7 +7,7 @@ use std::str::FromStr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 
-static LOG_TARGET: &str = "pixelflut.listener.tcp";
+static LOG_TARGET: &str = "pixelflut.net.tcp";
 
 pub struct TcpOptions {
     pub listen_address: SocketAddr,

@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 
-static LOG_TARGET: &str = "pixelflut.listener.udp";
+static LOG_TARGET: &str = "pixelflut.net.udp";
 
 pub struct UdpOptions {
     pub listen_address: SocketAddr,

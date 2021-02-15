@@ -14,7 +14,7 @@ pub mod tcp_server;
 pub mod udp_server;
 pub mod ws_server;
 
-static LOG_TARGET: &str = "pixelflut.listener";
+static LOG_TARGET: &str = "pixelflut.net";
 
 pub struct NetOptions {
     pub tcp: Option<tcp_server::TcpOptions>,
