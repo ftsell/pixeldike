@@ -19,7 +19,10 @@ pub struct NetOptions {
     pub ws: Option<ws_server::WsOptions>,
 }
 
-pub fn start_listeners(pixmap: SharedPixmap, options: NetOptions) -> Vec<JoinHandle<()>> {
+pub fn start_listeners<P>(pixmap: SharedPixmap<P>, options: NetOptions) -> Vec<JoinHandle<()>>
+where
+    P: Pixmap + Send + Sync + 'static,
+{
     let mut handlers = Vec::new();
 
     if let Some(tcp_options) = options.tcp {
@@ -55,11 +58,12 @@ pub fn start_listeners(pixmap: SharedPixmap, options: NetOptions) -> Vec<JoinHan
 }
 
 fn start_listener<
-    F: FnOnce(SharedPixmap, O) -> G + Send + 'static,
+    P: Send + Sync + 'static,
+    F: FnOnce(SharedPixmap<P>, O) -> G + Send + 'static,
     G: Future<Output = ()> + Send,
     O: Send + 'static,
 >(
-    pixmap: SharedPixmap,
+    pixmap: SharedPixmap<P>,
     options: O,
     listen_function: F,
 ) -> JoinHandle<()> {
@@ -68,7 +72,10 @@ fn start_listener<
     })
 }
 
-fn handle_frame(input: Frame, pixmap: &SharedPixmap) -> Option<Frame> {
+fn handle_frame<P>(input: Frame, pixmap: &SharedPixmap<P>) -> Option<Frame>
+where
+    P: Pixmap,
+{
     // try parse the received frame as command
     let command = match input {
         Frame::Simple(command_str) => match parser::simple::parse(&command_str) {
@@ -94,7 +101,10 @@ fn handle_frame(input: Frame, pixmap: &SharedPixmap) -> Option<Frame> {
     }
 }
 
-fn handle_command(cmd: Command, pixmap: &SharedPixmap) -> Result<Option<String>, String> {
+fn handle_command<P>(cmd: Command, pixmap: &SharedPixmap<P>) -> Result<Option<String>, String>
+where
+    P: Pixmap,
+{
     match cmd {
         Command::Size => Ok(Some(format!(
             "SIZE {} {}",

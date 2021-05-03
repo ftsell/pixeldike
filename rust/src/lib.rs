@@ -49,7 +49,7 @@ mod state_encoding;
 pub async fn run_server() {
     info!(target: "pixelflut", "Starting server");
 
-    let pixmap: SharedPixmap = Arc::new(Box::new(InMemoryPixmap::default()));
+    let pixmap: SharedPixmap<InMemoryPixmap> = Arc::new(InMemoryPixmap::default());
     let encodings: SharedMultiEncodings = SharedMultiEncodings::default();
 
     let mut handles = start_encoders(encodings, pixmap.clone());

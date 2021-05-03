@@ -1,5 +1,5 @@
 use crate::net::framing::Frame;
-use crate::pixmap::SharedPixmap;
+use crate::pixmap::{Pixmap, SharedPixmap};
 use futures_util::stream::StreamExt;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
@@ -12,7 +12,10 @@ pub struct WsOptions {
     pub listen_address: SocketAddr,
 }
 
-pub async fn listen(pixmap: SharedPixmap, options: WsOptions) {
+pub async fn listen<P>(pixmap: SharedPixmap<P>, options: WsOptions)
+where
+    P: Pixmap + Send + Sync + 'static,
+{
     let listener = TcpListener::bind(options.listen_address).await.unwrap();
     info!(
         target: LOG_TARGET,
@@ -29,7 +32,10 @@ pub async fn listen(pixmap: SharedPixmap, options: WsOptions) {
     }
 }
 
-async fn process_connection(connection: TcpStream, pixmap: SharedPixmap) {
+async fn process_connection<P>(connection: TcpStream, pixmap: SharedPixmap<P>)
+where
+    P: Pixmap,
+{
     debug!(
         target: LOG_TARGET,
         "Client connected {}",
@@ -42,10 +48,13 @@ async fn process_connection(connection: TcpStream, pixmap: SharedPixmap) {
         .await;
 }
 
-fn process_received(
+fn process_received<P>(
     msg: Result<Message, WsError>,
-    pixmap: SharedPixmap,
-) -> Result<Message, WsError> {
+    pixmap: SharedPixmap<P>,
+) -> Result<Message, WsError>
+where
+    P: Pixmap,
+{
     match msg {
         Ok(msg) => match msg {
             Message::Text(msg) => {

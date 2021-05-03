@@ -7,6 +7,9 @@ pub struct InMemoryPixmap {
     height: usize,
 }
 
+///
+/// A pixmap implementation based on an in-memory store of AtomicU32
+///
 impl InMemoryPixmap {
     /// Creates a new Pixmap with the specified dimensions.
     ///
@@ -35,10 +38,6 @@ impl InMemoryPixmap {
     fn are_coordinates_inside(&self, x: usize, y: usize) -> bool {
         x < self.width && y < self.height
     }
-
-    pub(crate) fn get_raw_data(&self) -> &Vec<AtomicU32> {
-        &self.data
-    }
 }
 
 impl Pixmap for InMemoryPixmap {
@@ -64,6 +63,21 @@ impl Pixmap for InMemoryPixmap {
     fn get_size(&self) -> (usize, usize) {
         (self.width, self.height)
     }
+
+    fn get_raw_data(&self) -> Vec<Color> {
+        return self
+            .data
+            .iter()
+            .map(|v| v.load(Ordering::Relaxed))
+            .map(|v| Color::from(v))
+            .collect();
+    }
+
+    fn put_raw_data(&self, data: &Vec<Color>) {
+        for (i, color) in data.iter().enumerate() {
+            self.data[i].store(i as u32, Ordering::Relaxed)
+        }
+    }
 }
 
 impl Default for InMemoryPixmap {
@@ -72,7 +86,6 @@ impl Default for InMemoryPixmap {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -80,7 +93,7 @@ mod test {
 
     quickcheck! {
         fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: u32) -> TestResult {
-            match Pixmap::new(width, height) {
+            match InMemoryPixmap::new(width, height) {
                 Err(_) => TestResult::discard(),
                 Ok(pixmap) => {
                     let color = color.into();
@@ -92,5 +105,20 @@ mod test {
             }
         }
     }
+
+    quickcheck! {
+        fn test_put_and_get_raw_data(color: u32) -> bool {
+            // setup
+            let pixmap = InMemoryPixmap::default();
+            let color: Color = color.into();
+            let data = vec![color; pixmap.get_size().0 * pixmap.get_size().1];
+
+            // execution
+            pixmap.put_raw_data(&data);
+            let data2 = pixmap.get_raw_data();
+
+            // verification
+            data == data2
+        }
+    }
 }
- */

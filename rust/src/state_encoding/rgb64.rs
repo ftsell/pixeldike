@@ -1,13 +1,15 @@
 use super::SharedMultiEncodings;
 use crate::pixmap::{Pixmap, SharedPixmap};
-use std::sync::atomic::Ordering;
 use tokio::time::{interval, Duration};
 
 static LOG_TARGET: &str = "pixelflut.encoder.rgb64";
 
 pub type Encoding = String;
 
-pub async fn run_encoder(encodings: SharedMultiEncodings, pixmap: SharedPixmap) {
+pub async fn run_encoder<P>(encodings: SharedMultiEncodings, pixmap: SharedPixmap<P>)
+where
+    P: Pixmap,
+{
     info!(target: LOG_TARGET, "Starting rgb64 encoder");
 
     let mut int = interval(Duration::from_millis(100));
@@ -22,11 +24,15 @@ pub async fn run_encoder(encodings: SharedMultiEncodings, pixmap: SharedPixmap) 
     }
 }
 
-fn encode(pixmap: &SharedPixmap) -> Encoding {
+fn encode<P>(pixmap: &SharedPixmap<P>) -> Encoding
+where
+    P: Pixmap,
+{
     let mut data = Vec::with_capacity(pixmap.get_size().0 * pixmap.get_size().1 * 3);
 
     for i in pixmap.get_raw_data() {
-        let color = i.load(Ordering::Relaxed).to_le_bytes();
+        let i: u32 = i.into();
+        let color = i.to_le_bytes();
         data.push(color[0]);
         data.push(color[1]);
         data.push(color[2]);
@@ -38,12 +44,12 @@ fn encode(pixmap: &SharedPixmap) -> Encoding {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::pixmap::Color;
+    use crate::pixmap::{Color, InMemoryPixmap};
     use quickcheck::TestResult;
 
     #[test]
     fn test_encoded_content_has_correct_length() {
-        let pixmap = SharedPixmap::default();
+        let pixmap = SharedPixmap::<InMemoryPixmap>::default();
         let encoded = encode(&pixmap);
         let encoded_bytes = base64::decode(&encoded).unwrap();
         assert_eq!(
@@ -55,7 +61,7 @@ mod test {
     quickcheck! {
         fn test_encoded_color_is_correctly_decodable(x: usize, y: usize, color: u32) -> TestResult {
             // prepare
-            let mut pixmap = SharedPixmap::default();
+            let mut pixmap = SharedPixmap::<InMemoryPixmap>::default();
             let color = color.into();
             if !pixmap.set_pixel(x, y, color) {
                 return TestResult::discard()

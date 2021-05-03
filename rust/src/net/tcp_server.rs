@@ -1,5 +1,5 @@
 use crate::net::framing::Frame;
-use crate::pixmap::SharedPixmap;
+use crate::pixmap::{Pixmap, SharedPixmap};
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
 use std::net::SocketAddr;
@@ -12,7 +12,10 @@ pub struct TcpOptions {
     pub listen_address: SocketAddr,
 }
 
-pub async fn listen(pixmap: SharedPixmap, options: TcpOptions) {
+pub async fn listen<P>(pixmap: SharedPixmap<P>, options: TcpOptions)
+where
+    P: Pixmap + Send + Sync + 'static,
+{
     let listener = TcpListener::bind(options.listen_address).await.unwrap();
     info!(
         target: LOG_TARGET,
@@ -29,7 +32,10 @@ pub async fn listen(pixmap: SharedPixmap, options: TcpOptions) {
     }
 }
 
-async fn process_connection(mut connection: TcpConnection, pixmap: SharedPixmap) {
+async fn process_connection<P>(mut connection: TcpConnection, pixmap: SharedPixmap<P>)
+where
+    P: Pixmap,
+{
     debug!(
         target: LOG_TARGET,
         "Client connected {}", connection.peer_address

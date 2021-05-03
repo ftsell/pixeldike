@@ -1,5 +1,5 @@
 use crate::net::framing::Frame;
-use crate::pixmap::SharedPixmap;
+use crate::pixmap::{Pixmap, SharedPixmap};
 use bytes::BytesMut;
 use std::io::Cursor;
 use std::net::SocketAddr;
@@ -12,7 +12,10 @@ pub struct UdpOptions {
     pub listen_address: SocketAddr,
 }
 
-pub async fn listen(pixmap: SharedPixmap, options: UdpOptions) {
+pub async fn listen<P>(pixmap: SharedPixmap<P>, options: UdpOptions)
+where
+    P: Pixmap + Send + Sync + 'static,
+{
     let socket = Arc::new(UdpSocket::bind(options.listen_address).await.unwrap());
     info!(
         target: LOG_TARGET,
@@ -32,13 +35,15 @@ pub async fn listen(pixmap: SharedPixmap, options: UdpOptions) {
     }
 }
 
-async fn process_received(
+async fn process_received<P>(
     buffer: BytesMut,
     num_read: usize,
     origin: SocketAddr,
     socket: Arc<UdpSocket>,
-    pixmap: SharedPixmap,
-) {
+    pixmap: SharedPixmap<P>,
+) where
+    P: Pixmap,
+{
     let mut buffer = Cursor::new(&buffer[..num_read]);
 
     let frame = match Frame::check(&mut buffer) {
