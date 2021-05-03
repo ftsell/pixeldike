@@ -1,13 +1,10 @@
 use crate::net::framing::Frame;
 use crate::pixmap::SharedPixmap;
-use bytes::Bytes;
 use futures_util::stream::StreamExt;
 use std::net::SocketAddr;
-use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::WebSocketStream;
 
 static LOG_TARGET: &str = "pixelflut.net.ws";
 
@@ -32,7 +29,7 @@ pub async fn listen(pixmap: SharedPixmap, options: WsOptions) {
     }
 }
 
-async fn process_connection(mut connection: TcpStream, pixmap: SharedPixmap) {
+async fn process_connection(connection: TcpStream, pixmap: SharedPixmap) {
     debug!(
         target: LOG_TARGET,
         "Client connected {}",

@@ -1,5 +1,4 @@
 use super::*;
-use bytes::Bytes;
 use std::sync::{Arc, Mutex};
 
 pub type SharedMultiEncodings = Arc<MultiEncodings>;

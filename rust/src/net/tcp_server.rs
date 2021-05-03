@@ -2,8 +2,7 @@ use crate::net::framing::Frame;
 use crate::pixmap::SharedPixmap;
 use bytes::{Buf, BytesMut};
 use std::io::Cursor;
-use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
+use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::{TcpListener, TcpStream};
 

@@ -3,10 +3,7 @@ use crate::net::framing::Frame;
 use crate::parser;
 use crate::parser::command::*;
 use crate::pixmap::{Pixmap, SharedPixmap};
-use nom::combinator::opt;
 use std::future::Future;
-use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
 use tokio::task::JoinHandle;
 
 mod framing;

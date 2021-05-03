@@ -8,7 +8,6 @@
     unused_lifetimes,
     unused_qualifications
 )]
-#![feature(async_closure)]
 
 //!
 //! Pixelflut is a pixel drawing game for programmers inspired by reddits r/place.
@@ -33,7 +32,7 @@ use crate::pixmap::{InMemoryPixmap, SharedPixmap};
 use crate::state_encoding::{start_encoders, SharedMultiEncodings};
 use std::net::SocketAddr;
 use std::str::FromStr;
-use tokio::task::JoinHandle;
+use std::sync::Arc;
 
 mod i18n;
 mod net;
@@ -50,7 +49,7 @@ mod state_encoding;
 pub async fn run_server() {
     info!(target: "pixelflut", "Starting server");
 
-    let pixmap: SharedPixmap = SharedPixmap::default();
+    let pixmap: SharedPixmap = Arc::new(Box::new(InMemoryPixmap::default()));
     let encodings: SharedMultiEncodings = SharedMultiEncodings::default();
 
     let mut handles = start_encoders(encodings, pixmap.clone());
