@@ -1,46 +1,13 @@
-use crate::parser::command::StateAlgorithm;
-use bytes::Bytes;
-use nom::lib::std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use super::*;
+use std::sync::atomic::Ordering;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct Color(pub u8, pub u8, pub u8);
-
-impl From<u32> for Color {
-    fn from(src: u32) -> Self {
-        let b = src.to_le_bytes();
-        Color(b[0], b[1], b[2])
-    }
-}
-
-impl Into<u32> for Color {
-    fn into(self) -> u32 {
-        0u32 | (self.0 as u32) | (self.1 as u32) << 8 | (self.2 as u32) << 16
-    }
-}
-
-impl Into<Vec<u8>> for Color {
-    fn into(self) -> Vec<u8> {
-        vec![self.0, self.1, self.2]
-    }
-}
-
-impl ToString for Color {
-    fn to_string(&self) -> String {
-        format!("#{:02X}{:02X}{:02X}", self.0, self.1, self.2)
-    }
-}
-
-pub type SharedPixmap = Arc<Pixmap>;
-
-pub struct Pixmap {
+pub struct InMemoryPixmap {
     data: Vec<AtomicU32>,
     width: usize,
     height: usize,
 }
 
-impl Pixmap {
+impl InMemoryPixmap {
     /// Creates a new Pixmap with the specified dimensions.
     ///
     /// *Panics* if either num_shards, width or height is zero.
@@ -52,7 +19,7 @@ impl Pixmap {
         } else {
             let size = width * height;
 
-            Ok(Pixmap {
+            Ok(InMemoryPixmap {
                 data: (0..size).map(|_| AtomicU32::new(0)).collect(),
                 width,
                 height,
@@ -69,7 +36,13 @@ impl Pixmap {
         x < self.width && y < self.height
     }
 
-    pub fn get_pixel(&self, x: usize, y: usize) -> Option<Color> {
+    pub(crate) fn get_raw_data(&self) -> &Vec<AtomicU32> {
+        &self.data
+    }
+}
+
+impl Pixmap for InMemoryPixmap {
+    fn get_pixel(&self, x: usize, y: usize) -> Option<Color> {
         if !self.are_coordinates_inside(x, y) {
             None
         } else {
@@ -78,7 +51,7 @@ impl Pixmap {
         }
     }
 
-    pub fn set_pixel(&self, x: usize, y: usize, color: Color) -> bool {
+    fn set_pixel(&self, x: usize, y: usize, color: Color) -> bool {
         if !self.are_coordinates_inside(x, y) {
             false
         } else {
@@ -88,21 +61,18 @@ impl Pixmap {
         }
     }
 
-    pub fn get_size(&self) -> (usize, usize) {
+    fn get_size(&self) -> (usize, usize) {
         (self.width, self.height)
-    }
-
-    pub(crate) fn get_raw_data(&self) -> &Vec<AtomicU32> {
-        &self.data
     }
 }
 
-impl Default for Pixmap {
+impl Default for InMemoryPixmap {
     fn default() -> Self {
         Self::new(800, 600).unwrap()
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -123,3 +93,4 @@ mod test {
         }
     }
 }
+ */

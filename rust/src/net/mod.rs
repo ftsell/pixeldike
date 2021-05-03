@@ -2,7 +2,7 @@ use crate::i18n::get_catalog;
 use crate::net::framing::Frame;
 use crate::parser;
 use crate::parser::command::*;
-use crate::pixmap::SharedPixmap;
+use crate::pixmap::{Pixmap, SharedPixmap};
 use nom::combinator::opt;
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr};

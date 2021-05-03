@@ -29,7 +29,7 @@ extern crate gettext;
 extern crate log;
 
 use crate::net::start_listeners;
-use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::pixmap::{InMemoryPixmap, SharedPixmap};
 use crate::state_encoding::{start_encoders, SharedMultiEncodings};
 use std::net::SocketAddr;
 use std::str::FromStr;

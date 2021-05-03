@@ -1,5 +1,5 @@
 use super::SharedMultiEncodings;
-use crate::pixmap::SharedPixmap;
+use crate::pixmap::{Pixmap, SharedPixmap};
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
 use tokio::time::{interval, Duration};
