@@ -1,24 +1,24 @@
+use super::GenericError as Error;
 use super::*;
+use anyhow::Result;
 use std::sync::atomic::Ordering;
 
+///
+/// A pixmap implementation based on an in-memory store of AtomicU32
+///
 pub struct InMemoryPixmap {
     data: Vec<AtomicU32>,
     width: usize,
     height: usize,
 }
 
-///
-/// A pixmap implementation based on an in-memory store of AtomicU32
-///
 impl InMemoryPixmap {
     /// Creates a new Pixmap with the specified dimensions.
-    ///
-    /// *Panics* if either num_shards, width or height is zero.
-    pub fn new(width: usize, height: usize) -> Result<Self, &'static str> {
+    pub fn new(width: usize, height: usize) -> Result<Self> {
         if width == 0 {
-            Err("width is 0")
+            Err(Error::InvalidSize(width, height).into())
         } else if height == 0 {
-            Err("height is 0")
+            Err(Error::InvalidSize(width, height).into())
         } else {
             let size = width * height;
 
@@ -32,42 +32,52 @@ impl InMemoryPixmap {
 }
 
 impl Pixmap for InMemoryPixmap {
-    fn get_pixel(&self, x: usize, y: usize) -> Option<Color> {
-        if !self.are_coordinates_inside(x, y) {
-            None
+    fn get_pixel(&self, x: usize, y: usize) -> Result<Color> {
+        if !are_coordinates_inside(self, x, y)? {
+            Err(Error::InvalidCoordinates {
+                target: (x, y),
+                size: (self.width, self.height),
+            }
+            .into())
         } else {
-            let i = self.get_pixel_index(x, y);
-            Some(Color::from(self.data[i].load(Ordering::Relaxed)))
+            let i = get_pixel_index(self, x, y)?;
+            Ok(Color::from(self.data[i].load(Ordering::Relaxed)))
         }
     }
 
-    fn set_pixel(&self, x: usize, y: usize, color: Color) -> bool {
-        if !self.are_coordinates_inside(x, y) {
-            false
+    fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
+        if !are_coordinates_inside(self, x, y)? {
+            Err(Error::InvalidCoordinates {
+                target: (x, y),
+                size: (self.width, self.height),
+            }
+            .into())
         } else {
-            let i = self.get_pixel_index(x, y);
+            let i = get_pixel_index(self, x, y)?;
             self.data[i].store(color.into(), Ordering::SeqCst);
-            true
+            Ok(())
         }
     }
 
-    fn get_size(&self) -> (usize, usize) {
-        (self.width, self.height)
+    fn get_size(&self) -> Result<(usize, usize)> {
+        Ok((self.width, self.height))
     }
 
-    fn get_raw_data(&self) -> Vec<Color> {
-        return self
+    fn get_raw_data(&self) -> Result<Vec<Color>> {
+        Ok(self
             .data
             .iter()
             .map(|v| v.load(Ordering::Relaxed))
             .map(|v| Color::from(v))
-            .collect();
+            .collect())
     }
 
-    fn put_raw_data(&self, data: &Vec<Color>) {
+    fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
         for (i, color) in data.iter().enumerate() {
-            self.data[i].store(color.into(), Ordering::Relaxed)
+            self.data[i].store(color.into(), Ordering::Relaxed);
         }
+
+        Ok(())
     }
 }
 

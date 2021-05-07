@@ -1,13 +1,13 @@
 use super::*;
+use anyhow::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::fs::{create_dir_all, File, OpenOptions};
-use std::io::{BufWriter, Error as IoError, Read, Seek, SeekFrom, Write};
+use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 use thiserror::Error;
 
 // TODO Implement handling of read-only files
-// TODO Implement buffer sharing to be more efficient
 // TODO Think of an implementation with RwLock instead of Mutex
 
 const LOG_TARGET: &str = "pixelflut.pixmap.file";
@@ -22,8 +22,6 @@ const SEEK_DATA: SeekFrom = SeekFrom::Start((MAGIC_BYTES.len() + HEADER_SPACE) a
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("io error: {0}")]
-    IoError(#[from] IoError),
     #[error("content of existing file is not a valid pixmap file")]
     InvalidFileType,
     #[error("the existing file contains pixmap data of different size than the requested pixmap")]
@@ -43,7 +41,7 @@ pub struct FileBackedPixmap {
 }
 
 impl FileBackedPixmap {
-    pub fn new(path: &Path, width: usize, height: usize, overwrite: bool) -> Result<Self, Error> {
+    pub fn new(path: &Path, width: usize, height: usize, overwrite: bool) -> Result<Self> {
         // create containing directory hierarchy if it does not yet exist
         match path.parent() {
             Some(parent_dir) => create_dir_all(parent_dir)?,
@@ -79,7 +77,7 @@ impl FileBackedPixmap {
                         if instance.header != existing_header {
                             // but it is incompatible
                             if !overwrite {
-                                return Err(Error::IncompatiblePixmapData);
+                                return Err(Error::IncompatiblePixmapData.into());
                             }
                         } else {
                             // and it is compatible
@@ -91,14 +89,17 @@ impl FileBackedPixmap {
                         }
                     }
                     Err(e) => {
-                        match e {
-                            Error::InvalidFileType => {
-                                // the file is accessible but not a pixmap file
-                                if !overwrite {
-                                    return Err(Error::InvalidFileType);
+                        match e.downcast::<Error>() {
+                            Ok(e) => match e {
+                                Error::InvalidFileType => {
+                                    // the file is accessible but not a pixmap file
+                                    if !overwrite {
+                                        return Err(Error::InvalidFileType.into());
+                                    }
                                 }
-                            }
-                            _ => return Err(e), // some other error
+                                _ => return Err(e.into()), // some other of our errors
+                            },
+                            Err(e) => return Err(e), // some random other error
                         }
                     }
                 }
@@ -116,16 +117,16 @@ impl FileBackedPixmap {
     }
 
     /// Validate that the file does contain pixelflut data by validating the magic bytes
-    fn validate_magic_bytes(&self, lock: &mut MutexGuard<File>) -> Result<(), Error> {
+    fn validate_magic_bytes(&self, lock: &mut MutexGuard<File>) -> Result<()> {
         if lock.metadata()?.len() < MAGIC_BYTES.len() as u64 {
-            Err(Error::InvalidFileType)
+            Err(Error::InvalidFileType.into())
         } else {
             let mut data = vec![0; MAGIC_BYTES.len()];
             lock.seek(SEEK_MAGIC)?;
             lock.read_exact(&mut data)?;
 
             if &data != &MAGIC_BYTES {
-                Err(Error::InvalidFileType)
+                Err(Error::InvalidFileType.into())
             } else {
                 Ok(())
             }
@@ -133,14 +134,14 @@ impl FileBackedPixmap {
     }
 
     /// Write MAGIC_BYTES into the first bytes of the file
-    fn write_magic_bytes(&self, lock: &mut MutexGuard<File>) -> Result<(), Error> {
+    fn write_magic_bytes(&self, lock: &mut MutexGuard<File>) -> Result<()> {
         lock.seek(SEEK_MAGIC)?;
         lock.write_all(&MAGIC_BYTES)?;
         Ok(())
     }
 
     /// Read and deserialize only the header part of the .pixmap file
-    fn read_header(&self, lock: &mut MutexGuard<File>) -> Result<FileHeader, Error> {
+    fn read_header(&self, lock: &mut MutexGuard<File>) -> Result<FileHeader> {
         lock.seek(SEEK_HEADER)?;
         Ok(FileHeader {
             width: (*lock).read_u64::<byteorder::BigEndian>()?,
@@ -149,7 +150,7 @@ impl FileBackedPixmap {
     }
 
     /// Serialize and write only the header part of the .pixmap file
-    fn write_header(&self, lock: &mut MutexGuard<File>) -> Result<(), Error> {
+    fn write_header(&self, lock: &mut MutexGuard<File>) -> Result<()> {
         lock.seek(SEEK_HEADER)?;
         let mut buffer = BufWriter::new(&**lock);
         buffer.write_u64::<byteorder::BigEndian>(self.header.width)?;
@@ -161,7 +162,7 @@ impl FileBackedPixmap {
     }
 
     /// Read the complete data section from file
-    fn read_data(&self, lock: &mut MutexGuard<File>) -> Result<Vec<u8>, Error> {
+    fn read_data(&self, lock: &mut MutexGuard<File>) -> Result<Vec<u8>> {
         lock.seek(SEEK_DATA)?;
         let mut result = vec![0; (self.header.width * self.header.height * 3) as usize];
         lock.read_exact(&mut result)?;
@@ -170,7 +171,7 @@ impl FileBackedPixmap {
     }
 
     /// Write the complete data section of the file
-    fn write_data(&self, lock: &mut MutexGuard<File>, data: &[u8]) -> Result<(), Error> {
+    fn write_data(&self, lock: &mut MutexGuard<File>, data: &[u8]) -> Result<()> {
         lock.seek(SEEK_DATA)?;
         lock.write_all(data)?;
 
@@ -178,8 +179,8 @@ impl FileBackedPixmap {
     }
 
     /// Read the data of a single pixel with from file
-    fn read_pixel(&self, lock: &mut MutexGuard<File>, x: usize, y: usize) -> Result<[u8; 3], Error> {
-        let seek_pixel = SeekFrom::Current((self.get_pixel_index(x, y) * 3) as i64);
+    fn read_pixel(&self, lock: &mut MutexGuard<File>, x: usize, y: usize) -> Result<[u8; 3]> {
+        let seek_pixel = SeekFrom::Current((get_pixel_index(self, x, y)? * 3) as i64);
 
         lock.seek(SEEK_DATA)?;
         lock.seek(seek_pixel)?;
@@ -190,14 +191,8 @@ impl FileBackedPixmap {
     }
 
     /// Write a single pixel at into file.
-    fn write_pixel(
-        &self,
-        lock: &mut MutexGuard<File>,
-        x: usize,
-        y: usize,
-        color: [u8; 3],
-    ) -> Result<(), Error> {
-        let seek_pixel = SeekFrom::Current((self.get_pixel_index(x, y) * 3) as i64);
+    fn write_pixel(&self, lock: &mut MutexGuard<File>, x: usize, y: usize, color: [u8; 3]) -> Result<()> {
+        let seek_pixel = SeekFrom::Current((get_pixel_index(self, x, y)? * 3) as i64);
 
         lock.seek(SEEK_DATA)?;
         lock.seek(seek_pixel)?;
@@ -208,33 +203,38 @@ impl FileBackedPixmap {
 }
 
 impl Pixmap for FileBackedPixmap {
-    fn get_pixel(&self, x: usize, y: usize) -> Option<Color> {
-        if !self.are_coordinates_inside(x, y) {
-            None
+    fn get_pixel(&self, x: usize, y: usize) -> Result<Color> {
+        if !are_coordinates_inside(self, x, y)? {
+            Err(GenericError::InvalidCoordinates {
+                target: (x, y),
+                size: (self.header.width as usize, self.header.height as usize),
+            }
+            .into())
         } else {
             let mut lock = self.file.lock().unwrap();
             let bin_data = self.read_pixel(&mut lock, x, y).unwrap();
-            Some(Color(bin_data[0], bin_data[1], bin_data[2]))
+            Ok(Color(bin_data[0], bin_data[1], bin_data[2]))
         }
     }
 
-    fn set_pixel(&self, x: usize, y: usize, color: Color) -> bool {
-        if !self.are_coordinates_inside(x, y) {
-            false
+    fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
+        if !are_coordinates_inside(self, x, y)? {
+            Err(GenericError::InvalidCoordinates {
+                target: (x, y),
+                size: (self.header.width as usize, self.header.height as usize),
+            }
+            .into())
         } else {
             let mut lock = self.file.lock().unwrap();
-            match self.write_pixel(&mut lock, x, y, [color.0, color.1, color.2]) {
-                Ok(_) => true,
-                Err(_) => false,
-            }
+            Ok(self.write_pixel(&mut lock, x, y, [color.0, color.1, color.2])?)
         }
     }
 
-    fn get_size(&self) -> (usize, usize) {
-        (self.header.width as usize, self.header.height as usize)
+    fn get_size(&self) -> Result<(usize, usize)> {
+        Ok((self.header.width as usize, self.header.height as usize))
     }
 
-    fn get_raw_data(&self) -> Vec<Color> {
+    fn get_raw_data(&self) -> Result<Vec<Color>> {
         let mut result = Vec::new();
 
         let mut color = Color(0, 0, 0);
@@ -250,16 +250,16 @@ impl Pixmap for FileBackedPixmap {
             }
         }
 
-        result
+        Ok(result)
     }
 
-    fn put_raw_data(&self, data: &Vec<Color>) {
+    fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
         let bin_data: Vec<u8> = data
             .iter()
             .flat_map(|color| vec![color.0, color.1, color.2])
             .collect();
         let mut lock = self.file.lock().unwrap();
-        self.write_data(&mut lock, &bin_data).unwrap();
+        Ok(self.write_data(&mut lock, &bin_data).unwrap())
     }
 }
 
@@ -343,7 +343,7 @@ mod test {
         let path = dir.path().join("test.pixmap");
         {
             let pixmap = FileBackedPixmap::new(&path, 800, 600, false).unwrap();
-            pixmap.set_pixel(42, 42, Color(42, 42, 42));
+            pixmap.set_pixel(42, 42, Color(42, 42, 42)).unwrap();
         }
 
         // execution
@@ -351,7 +351,7 @@ mod test {
 
         // verification
         assert!(pixmap.is_ok(), "pixmap creation failed: {:?}", pixmap);
-        assert_eq!(pixmap.unwrap().get_pixel(42, 42), Some(Color(42, 42, 42)));
+        assert_eq!(pixmap.unwrap().get_pixel(42, 42).unwrap(), Color(42, 42, 42));
     }
 
     #[test]
@@ -362,7 +362,7 @@ mod test {
         let pixmap = FileBackedPixmap::new(&path, 800, 600, false).unwrap();
 
         // execution
-        let size = pixmap.get_size();
+        let size = pixmap.get_size().unwrap();
 
         // verification
         assert_eq!(size, (800, 600));

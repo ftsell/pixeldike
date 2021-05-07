@@ -25,9 +25,7 @@ name = "pixelflut"
 required-features = ["default", "log-impl"]
 
 [dependencies]
-#actix = "0.10.*"
-#actix-rt = "1.1.*"
-#actix-server = "1.*"
+anyhow = "1.*"
 base64 = "0.13"
 byteorder = "1.*"
 tokio = { version = "1.*", features = ["full"] }

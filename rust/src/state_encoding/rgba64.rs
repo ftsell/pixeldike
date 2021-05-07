@@ -29,9 +29,9 @@ where
     P: Pixmap,
 {
     // TODO Improve this by mapping the AtomicU32 types to byte slices and then use those directly
-    let mut data = Vec::with_capacity(pixmap.get_size().0 * pixmap.get_size().1 * 4);
+    let mut data = Vec::with_capacity(pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1 * 4);
 
-    for i in pixmap.get_raw_data() {
+    for i in pixmap.get_raw_data().unwrap() {
         let i: u32 = i.into();
         let color = i.to_le_bytes();
         data.push(color[0]);
@@ -54,7 +54,10 @@ mod test {
         let pixmap = SharedPixmap::<InMemoryPixmap>::default();
         let encoded = encode(&pixmap);
         let encoded_bytes = base64::decode(&encoded).unwrap();
-        assert_eq!(encoded_bytes.len(), pixmap.get_size().0 * pixmap.get_size().1 * 4)
+        assert_eq!(
+            encoded_bytes.len(),
+            pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1 * 4
+        )
     }
 
     quickcheck! {
@@ -62,7 +65,7 @@ mod test {
             // prepare
             let mut pixmap = SharedPixmap::<InMemoryPixmap>::default();
             let color = color.into();
-            if !pixmap.set_pixel(x, y, color) {
+            if pixmap.set_pixel(x, y, color).is_err() {
                 return TestResult::discard()
             }
 
@@ -71,7 +74,7 @@ mod test {
             let encoded_bytes = base64::decode(&encoded).unwrap();
 
             // verify
-            let i  = (y * pixmap.get_size().0 + x) * 4;
+            let i  = (y * pixmap.get_size().unwrap().0 + x) * 4;
             let encoded_color = &encoded_bytes[i..i+3];
             let decoded_color = Color(encoded_color[0], encoded_color[1], encoded_color[2]);
             TestResult::from_bool(decoded_color == color)
