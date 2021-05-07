@@ -88,6 +88,7 @@ impl Default for InMemoryPixmap {
 
 #[cfg(test)]
 mod test {
+    use super::super::test as super_test;
     use super::*;
     use quickcheck::TestResult;
 
@@ -95,30 +96,15 @@ mod test {
         fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: u32) -> TestResult {
             match InMemoryPixmap::new(width, height) {
                 Err(_) => TestResult::discard(),
-                Ok(pixmap) => {
-                    let color = color.into();
-                    match pixmap.set_pixel(x, y, color) {
-                        false => TestResult::discard(),
-                        true => quickcheck::TestResult::from_bool(pixmap.get_pixel(x, y).unwrap() == color)
-                    }
-                }
+                Ok(pixmap) => super_test::test_set_and_get_pixel(pixmap, x, y, color)
             }
         }
     }
 
     quickcheck! {
-        fn test_put_and_get_raw_data(color: u32) -> bool {
-            // setup
+        fn test_put_and_get_raw_data(color: u32) -> TestResult {
             let pixmap = InMemoryPixmap::default();
-            let color: Color = color.into();
-            let data = vec![color; pixmap.get_size().0 * pixmap.get_size().1];
-
-            // execution
-            pixmap.put_raw_data(&data);
-            let data2 = pixmap.get_raw_data();
-
-            // verification
-            data == data2
+            super_test::test_put_and_get_raw_data(pixmap, color)
         }
     }
 }
