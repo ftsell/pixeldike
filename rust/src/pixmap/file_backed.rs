@@ -34,6 +34,9 @@ pub struct FileHeader {
     height: u64,
 }
 
+///
+/// Pixmap implementation which reads and writes all data directly into a backing file
+///
 #[derive(Debug)]
 pub struct FileBackedPixmap {
     file: Mutex<File>,
@@ -41,6 +44,15 @@ pub struct FileBackedPixmap {
 }
 
 impl FileBackedPixmap {
+    /// Create a new instance backed by a file at `path` with the specified size.
+    ///
+    /// If a file already exists at the destination that **is not** an existing pixmap of the same
+    /// size, this only succeed when `overwrite` is true which then overwrites the existing file and thus
+    /// removing all preexisting data from it.
+    ///
+    /// If a file already exists at the destination that **is** an existing pixmap of the same size
+    /// and `overwrite` is true, the content of that file will be overwritten too and thus
+    /// removing all preexisting pixel data from it.
     pub fn new(path: &Path, width: usize, height: usize, overwrite: bool) -> Result<Self> {
         if width == 0 || height == 0 {
             return Err(GenericError::InvalidSize(width, height).into());

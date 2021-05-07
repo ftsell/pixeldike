@@ -6,6 +6,7 @@ use std::sync::atomic::Ordering;
 ///
 /// A pixmap implementation based on an in-memory store of AtomicU32
 ///
+#[derive(Debug)]
 pub struct InMemoryPixmap {
     data: Vec<AtomicU32>,
     width: usize,

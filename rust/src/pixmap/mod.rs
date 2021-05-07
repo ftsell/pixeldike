@@ -1,3 +1,7 @@
+//!
+//! Data structures to store pixel data, also called *Pixmaps*
+//!
+
 mod color;
 mod file_backed;
 mod in_memory;
@@ -11,9 +15,8 @@ pub use color::*;
 pub use file_backed::FileBackedPixmap;
 pub use in_memory::InMemoryPixmap;
 
+/// Type used for sharing `[Pixmap]`s between multiple places
 pub(crate) type SharedPixmap<P> = Arc<P>;
-
-// TODO Improve error handling
 
 #[derive(Debug, Error)]
 enum GenericError {
@@ -26,23 +29,32 @@ enum GenericError {
     InvalidSize(usize, usize),
 }
 
+///
+/// Generic trait for accessing pixel data in a unified way
+///
 pub trait Pixmap {
+    /// Get the color value of the pixel at position (x,y)
     fn get_pixel(&self, x: usize, y: usize) -> Result<Color>;
 
+    /// Set the pixel value at position (x,y) to the specified color
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()>;
 
+    /// Get the size of this pixmap as (width, height) tuple
     fn get_size(&self) -> Result<(usize, usize)>;
 
+    /// Get all of the contained pixel data
     fn get_raw_data(&self) -> Result<Vec<Color>>;
 
+    /// Overwrite all of the contained pixel data
     fn put_raw_data(&self, data: &Vec<Color>) -> Result<()>;
 }
 
-/// Calculates the vector index of the specified coordinates
+/// Calculates the index of the specified coordinates when pixels are stored in a Vector in row-major order
 fn get_pixel_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<usize> {
     Ok(y * pixmap.get_size()?.0 + x)
 }
 
+/// Calculate whether the specified coordinates are inside the pixmap
 fn are_coordinates_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<bool> {
     let size = pixmap.get_size()?;
     Ok(x < size.0 && y < size.1)
