@@ -26,6 +26,8 @@ extern crate gettext_macros;
 extern crate gettext;
 #[macro_use]
 extern crate log;
+extern crate byteorder;
+extern crate thiserror;
 
 use crate::net::start_listeners;
 use crate::pixmap::{InMemoryPixmap, SharedPixmap};

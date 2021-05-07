@@ -29,15 +29,6 @@ impl InMemoryPixmap {
             })
         }
     }
-
-    /// Calculates the vector index of the specified coordinates
-    fn get_pixel_index(&self, x: usize, y: usize) -> usize {
-        y * self.width + x
-    }
-
-    fn are_coordinates_inside(&self, x: usize, y: usize) -> bool {
-        x < self.width && y < self.height
-    }
 }
 
 impl Pixmap for InMemoryPixmap {
@@ -104,7 +95,7 @@ mod test {
     quickcheck! {
         fn test_put_and_get_raw_data(color: Color) -> TestResult {
             let pixmap = InMemoryPixmap::default();
-            test::test_put_and_get_raw_data(pixmap, color)
+            test::test_put_and_get_raw_data(&pixmap, color)
         }
     }
 }

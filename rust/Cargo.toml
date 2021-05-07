@@ -29,9 +29,9 @@ required-features = ["default", "log-impl"]
 #actix-rt = "1.1.*"
 #actix-server = "1.*"
 base64 = "0.13"
+byteorder = "1.*"
 tokio = { version = "1.*", features = ["full"] }
 tokio-tungstenite = "0.13"
-derive_more = "0.99.*"
 bytes = "1.*"
 nom = "6.*"
 lazy_static = "1.*"
@@ -41,6 +41,8 @@ gettext = "0.4.*"
 gettext-utils = "0.1.*"
 gettext-macros = "0.6.*"
 futures-util = "0.3.*"
+thiserror = "1.*"
 
 [dev-dependencies]
 quickcheck = "0.9.*"
+tempfile = "3.*"

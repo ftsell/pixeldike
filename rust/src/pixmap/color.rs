@@ -1,8 +1,7 @@
 #[cfg(test)]
 use quickcheck::{Arbitrary, Gen};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Color(pub u8, pub u8, pub u8);
 
 impl From<u32> for Color {
