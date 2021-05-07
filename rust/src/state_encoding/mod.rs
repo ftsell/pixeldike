@@ -8,10 +8,7 @@ pub use encodings::*;
 use std::future::Future;
 use tokio::task::JoinHandle;
 
-pub fn start_encoders<P>(
-    encodings: SharedMultiEncodings,
-    pixmap: SharedPixmap<P>,
-) -> Vec<JoinHandle<()>>
+pub fn start_encoders<P>(encodings: SharedMultiEncodings, pixmap: SharedPixmap<P>) -> Vec<JoinHandle<()>>
 where
     P: Pixmap + Send + Sync + 'static,
 {

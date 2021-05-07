@@ -26,25 +26,13 @@ where
     let mut handlers = Vec::new();
 
     if let Some(tcp_options) = options.tcp {
-        handlers.push(start_listener(
-            pixmap.clone(),
-            tcp_options,
-            tcp_server::listen,
-        ));
+        handlers.push(start_listener(pixmap.clone(), tcp_options, tcp_server::listen));
     }
     if let Some(udp_options) = options.udp {
-        handlers.push(start_listener(
-            pixmap.clone(),
-            udp_options,
-            udp_server::listen,
-        ));
+        handlers.push(start_listener(pixmap.clone(), udp_options, udp_server::listen));
     }
     if let Some(ws_options) = options.ws {
-        handlers.push(start_listener(
-            pixmap.clone(),
-            ws_options,
-            ws_server::listen,
-        ))
+        handlers.push(start_listener(pixmap.clone(), ws_options, ws_server::listen))
     }
 
     if handlers.len() == 0 {

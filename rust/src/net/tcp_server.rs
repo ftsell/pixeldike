@@ -36,10 +36,7 @@ async fn process_connection<P>(mut connection: TcpConnection, pixmap: SharedPixm
 where
     P: Pixmap,
 {
-    debug!(
-        target: LOG_TARGET,
-        "Client connected {}", connection.peer_address
-    );
+    debug!(target: LOG_TARGET, "Client connected {}", connection.peer_address);
     loop {
         // receive a frame from the client with regards to the client closing the connection
         let frame = match connection.read_frame().await {

@@ -54,10 +54,7 @@ mod test {
         let pixmap = SharedPixmap::<InMemoryPixmap>::default();
         let encoded = encode(&pixmap);
         let encoded_bytes = base64::decode(&encoded).unwrap();
-        assert_eq!(
-            encoded_bytes.len(),
-            pixmap.get_size().0 * pixmap.get_size().1 * 4
-        )
+        assert_eq!(encoded_bytes.len(), pixmap.get_size().0 * pixmap.get_size().1 * 4)
     }
 
     quickcheck! {

@@ -48,10 +48,7 @@ where
         .await;
 }
 
-fn process_received<P>(
-    msg: Result<Message, WsError>,
-    pixmap: SharedPixmap<P>,
-) -> Result<Message, WsError>
+fn process_received<P>(msg: Result<Message, WsError>, pixmap: SharedPixmap<P>) -> Result<Message, WsError>
 where
     P: Pixmap,
 {
@@ -74,10 +71,7 @@ where
                 }
             }
             _ => {
-                warn!(
-                    target: LOG_TARGET,
-                    "Could not handle websocket message: {}", msg
-                );
+                warn!(target: LOG_TARGET, "Could not handle websocket message: {}", msg);
                 Ok(Message::text(String::new()))
             }
         },

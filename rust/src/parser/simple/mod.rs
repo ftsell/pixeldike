@@ -17,8 +17,7 @@ pub fn parse(input: &str) -> IResult<&str, Command> {
             if input == "" {
                 (input, Command::Help(HelpTopic::General))
             } else {
-                let (input, help_topic) =
-                    preceded(command::whitespace, command::help_topic)(input)?;
+                let (input, help_topic) = preceded(command::whitespace, command::help_topic)(input)?;
                 (input, Command::Help(help_topic))
             }
         }
