@@ -11,7 +11,7 @@ pub use color::*;
 pub use file_backed::FileBackedPixmap;
 pub use in_memory::InMemoryPixmap;
 
-pub type SharedPixmap<P> = Arc<P>;
+pub(crate) type SharedPixmap<P> = Arc<P>;
 
 // TODO Improve error handling
 

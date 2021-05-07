@@ -121,6 +121,8 @@ impl FileBackedPixmap {
                         }
                     }
                 }
+            } else {
+                debug!(target: LOG_TARGET, "Creating new file {:?} for pixmap data", path)
             }
 
             // write initial data into file
