@@ -88,23 +88,23 @@ impl Default for InMemoryPixmap {
 
 #[cfg(test)]
 mod test {
-    use super::super::test as super_test;
+    use super::super::test;
     use super::*;
     use quickcheck::TestResult;
 
     quickcheck! {
-        fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: u32) -> TestResult {
+        fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: Color) -> TestResult {
             match InMemoryPixmap::new(width, height) {
                 Err(_) => TestResult::discard(),
-                Ok(pixmap) => super_test::test_set_and_get_pixel(pixmap, x, y, color)
+                Ok(pixmap) => test::test_set_and_get_pixel(pixmap, x, y, color)
             }
         }
     }
 
     quickcheck! {
-        fn test_put_and_get_raw_data(color: u32) -> TestResult {
+        fn test_put_and_get_raw_data(color: Color) -> TestResult {
             let pixmap = InMemoryPixmap::default();
-            super_test::test_put_and_get_raw_data(pixmap, color)
+            test::test_put_and_get_raw_data(pixmap, color)
         }
     }
 }

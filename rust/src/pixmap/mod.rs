@@ -30,18 +30,16 @@ mod test {
         pixmap: impl Pixmap,
         x: usize,
         y: usize,
-        color: u32,
+        color: Color,
     ) -> TestResult {
-        let color = color.into();
         match pixmap.set_pixel(x, y, color) {
             false => TestResult::discard(),
             true => quickcheck::TestResult::from_bool(pixmap.get_pixel(x, y).unwrap() == color),
         }
     }
 
-    pub(crate) fn test_put_and_get_raw_data(pixmap: impl Pixmap, color: u32) -> TestResult {
+    pub(crate) fn test_put_and_get_raw_data(pixmap: impl Pixmap, color: Color) -> TestResult {
         // setup
-        let color: Color = color.into();
         let data = vec![color; pixmap.get_size().0 * pixmap.get_size().1];
 
         // execution
