@@ -61,7 +61,7 @@ mod test {
     quickcheck! {
         fn test_encoded_color_is_correctly_decodable(x: usize, y: usize, color: u32) -> TestResult {
             // prepare
-            let mut pixmap = SharedPixmap::<InMemoryPixmap>::default();
+            let pixmap = SharedPixmap::<InMemoryPixmap>::default();
             let color = color.into();
             if pixmap.set_pixel(x, y, color).is_err() {
                 return TestResult::discard()

@@ -45,7 +45,8 @@ where
     let (write, read) = websocket.split();
     read.map(|msg| process_received(msg, pixmap.clone()))
         .forward(write)
-        .await;
+        .await
+        .unwrap();
 }
 
 fn process_received<P>(msg: Result<Message, WsError>, pixmap: SharedPixmap<P>) -> Result<Message, WsError>
