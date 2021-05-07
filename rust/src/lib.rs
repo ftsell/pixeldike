@@ -30,9 +30,10 @@ extern crate byteorder;
 extern crate thiserror;
 
 use crate::net::start_listeners;
-use crate::pixmap::{InMemoryPixmap, SharedPixmap};
+use crate::pixmap::{FileBackedPixmap, InMemoryPixmap, SharedPixmap};
 use crate::state_encoding::{start_encoders, SharedMultiEncodings};
 use std::net::SocketAddr;
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -51,7 +52,10 @@ mod state_encoding;
 pub async fn run_server() {
     info!(target: "pixelflut", "Starting server");
 
-    let pixmap: SharedPixmap<InMemoryPixmap> = Arc::new(InMemoryPixmap::default());
+    //let pixmap: SharedPixmap<InMemoryPixmap> = Arc::new(InMemoryPixmap::default());
+    let path = Path::new("/home/ftsell/pixmap.pixmap");
+    let pixmap: SharedPixmap<FileBackedPixmap> =
+        Arc::new(FileBackedPixmap::new(&path, 800, 600, true).unwrap());
     let encodings: SharedMultiEncodings = SharedMultiEncodings::default();
 
     let mut handles = start_encoders(encodings, pixmap.clone());

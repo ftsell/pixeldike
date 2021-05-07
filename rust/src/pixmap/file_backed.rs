@@ -42,6 +42,10 @@ pub struct FileBackedPixmap {
 
 impl FileBackedPixmap {
     pub fn new(path: &Path, width: usize, height: usize, overwrite: bool) -> Result<Self> {
+        if width == 0 || height == 0 {
+            return Err(GenericError::InvalidSize(width, height).into());
+        }
+
         // create containing directory hierarchy if it does not yet exist
         match path.parent() {
             Some(parent_dir) => create_dir_all(parent_dir)?,
@@ -78,14 +82,23 @@ impl FileBackedPixmap {
                             // but it is incompatible
                             if !overwrite {
                                 return Err(Error::IncompatiblePixmapData.into());
+                            } else {
+                                debug!(target: LOG_TARGET, "Overwriting data in existing file {:?}", path);
                             }
                         } else {
                             // and it is compatible
-                            debug!(
-                                target: LOG_TARGET,
-                                "Reusing data from existing pixmap file {:?}", path
-                            );
-                            initial_data = instance.read_data(&mut lock)?;
+                            if !overwrite {
+                                debug!(
+                                    target: LOG_TARGET,
+                                    "Reusing data from existing pixmap file {:?}", path
+                                );
+                                initial_data = instance.read_data(&mut lock)?;
+                            } else {
+                                debug!(
+                                    target: LOG_TARGET,
+                                    "Ignoring existing pixmap data from file {:?}", path
+                                )
+                            }
                         }
                     }
                     Err(e) => {
@@ -95,6 +108,11 @@ impl FileBackedPixmap {
                                     // the file is accessible but not a pixmap file
                                     if !overwrite {
                                         return Err(Error::InvalidFileType.into());
+                                    } else {
+                                        debug!(
+                                            target: LOG_TARGET,
+                                            "Overwriting existing file {:?} with pixmap data", path
+                                        )
                                     }
                                 }
                                 _ => return Err(e.into()), // some other of our errors
@@ -112,7 +130,7 @@ impl FileBackedPixmap {
             instance.write_data(&mut lock, &initial_data)?;
         }
 
-        info!(target: LOG_TARGET, "Creating file backed pixmap {:?}", path);
+        info!(target: LOG_TARGET, "Created file backed pixmap at {:?}", path);
         Ok(instance)
     }
 
@@ -346,12 +364,17 @@ mod test {
             pixmap.set_pixel(42, 42, Color(42, 42, 42)).unwrap();
         }
 
-        // execution
+        // execution (without reset)
         let pixmap = FileBackedPixmap::new(&path, 800, 600, false);
-
         // verification
         assert!(pixmap.is_ok(), "pixmap creation failed: {:?}", pixmap);
         assert_eq!(pixmap.unwrap().get_pixel(42, 42).unwrap(), Color(42, 42, 42));
+
+        // execution (with reset)
+        let pixmap = FileBackedPixmap::new(&path, 800, 600, true);
+        // verification
+        assert!(pixmap.is_ok(), "pixmap creation failed: {:?}", pixmap);
+        assert_eq!(pixmap.unwrap().get_pixel(42, 42).unwrap(), Color(0, 0, 0))
     }
 
     #[test]
@@ -381,10 +404,10 @@ mod test {
     }
 
     quickcheck! {
-        fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: Color) -> TestResult {
+        fn test_set_and_get_pixel(x: usize, y: usize, color: Color) -> TestResult {
             let dir = tempdir().unwrap();
             let path = dir.path().join("test.pixmap");
-            let pixmap = FileBackedPixmap::new(&path, width, height, true).unwrap();
+            let pixmap = FileBackedPixmap::new(&path, 800, 600, true).unwrap();
             test::test_set_and_get_pixel(pixmap, x, y, color)
         }
     }
