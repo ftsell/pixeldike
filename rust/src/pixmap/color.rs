@@ -14,6 +14,12 @@ impl Into<u32> for Color {
     }
 }
 
+impl Into<u32> for &Color {
+    fn into(self) -> u32 {
+        0u32 | (self.0 as u32) | (self.1 as u32) << 8 | (self.2 as u32) << 16
+    }
+}
+
 impl Into<Vec<u8>> for Color {
     fn into(self) -> Vec<u8> {
         vec![self.0, self.1, self.2]

@@ -75,7 +75,7 @@ impl Pixmap for InMemoryPixmap {
 
     fn put_raw_data(&self, data: &Vec<Color>) {
         for (i, color) in data.iter().enumerate() {
-            self.data[i].store(i as u32, Ordering::Relaxed)
+            self.data[i].store(color.into(), Ordering::Relaxed)
         }
     }
 }
