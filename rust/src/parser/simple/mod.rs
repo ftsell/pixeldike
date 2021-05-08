@@ -20,6 +20,8 @@ pub(crate) enum SimpleError {
     Coordinate(String),
     #[error("could not parse '{0}' as hex encoded color")]
     Color(String),
+    #[error("no such state encoding algorithm '{0}")]
+    StateEncodingAlgorithm(String),
     #[error("unspecific parsing error: {0}")]
     Nom(String),
 }
@@ -35,7 +37,7 @@ impl nom::error::ParseError<&str> for SimpleError {
 }
 
 pub(in crate::parser) fn parse(input: &str) -> IResult<&str, Command, SimpleError> {
-    // TODO Refactor this to be more readable. Maybe use combinators better.
+    // TODO Refactor this to be more readable. Maybe use combinators better. The `PrimaryCommand` type is probably not necessary
 
     let (input, primary_command) = command::primary_command(input)?;
     let (input, cmd) = match primary_command {
@@ -58,6 +60,8 @@ pub(in crate::parser) fn parse(input: &str) -> IResult<&str, Command, SimpleErro
                 Some(color) => (input, Command::PxSet(x, y, color)),
             }
         }
+        command::PrimaryCommand::State => preceded(command::whitespace, command::encoding_algorithm)(input)
+            .map(|(input, alg)| (input, Command::State(alg)))?,
     };
 
     // if no data remains to parse => return the parsed command

@@ -1,5 +1,6 @@
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::state_encoding::SharedMultiEncodings;
 use futures_util::stream::StreamExt;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
@@ -12,7 +13,7 @@ pub struct WsOptions {
     pub listen_address: SocketAddr,
 }
 
-pub async fn listen<P>(pixmap: SharedPixmap<P>, options: WsOptions)
+pub async fn listen<P>(pixmap: SharedPixmap<P>, encodings: SharedMultiEncodings, options: WsOptions)
 where
     P: Pixmap + Send + Sync + 'static,
 {
@@ -26,14 +27,18 @@ where
     loop {
         let (socket, _) = listener.accept().await.unwrap();
         let pixmap = pixmap.clone();
+        let encodings = encodings.clone();
         tokio::spawn(async move {
-            process_connection(socket, pixmap).await;
+            process_connection(socket, pixmap, encodings).await;
         });
     }
 }
 
-async fn process_connection<P>(connection: TcpStream, pixmap: SharedPixmap<P>)
-where
+async fn process_connection<P>(
+    connection: TcpStream,
+    pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
+) where
     P: Pixmap,
 {
     debug!(
@@ -43,13 +48,17 @@ where
     );
     let websocket = tokio_tungstenite::accept_async(connection).await.unwrap();
     let (write, read) = websocket.split();
-    read.map(|msg| process_received(msg, pixmap.clone()))
+    read.map(|msg| process_received(msg, pixmap.clone(), encodings.clone()))
         .forward(write)
         .await
         .unwrap();
 }
 
-fn process_received<P>(msg: Result<Message, WsError>, pixmap: SharedPixmap<P>) -> Result<Message, WsError>
+fn process_received<P>(
+    msg: Result<Message, WsError>,
+    pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
+) -> Result<Message, WsError>
 where
     P: Pixmap,
 {
@@ -61,7 +70,7 @@ where
                 // TODO improve websocket frame handling
                 let frame = Frame::Simple(msg);
 
-                let response = super::handle_frame(frame, &pixmap);
+                let response = super::handle_frame(frame, &pixmap, &encodings);
 
                 // TODO improve response sending
                 match response {

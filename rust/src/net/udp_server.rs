@@ -1,5 +1,6 @@
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::state_encoding::SharedMultiEncodings;
 use bytes::BytesMut;
 use std::io::Cursor;
 use std::net::SocketAddr;
@@ -12,7 +13,7 @@ pub struct UdpOptions {
     pub listen_address: SocketAddr,
 }
 
-pub async fn listen<P>(pixmap: SharedPixmap<P>, options: UdpOptions)
+pub async fn listen<P>(pixmap: SharedPixmap<P>, encodings: SharedMultiEncodings, options: UdpOptions)
 where
     P: Pixmap + Send + Sync + 'static,
 {
@@ -26,11 +27,12 @@ where
     loop {
         let socket = socket.clone();
         let pixmap = pixmap.clone();
+        let encodings = encodings.clone();
         let mut buffer = BytesMut::with_capacity(1024);
         let (num_read, origin) = socket.recv_from(&mut buffer[..]).await.unwrap();
 
         tokio::spawn(async move {
-            process_received(buffer, num_read, origin, socket, pixmap).await;
+            process_received(buffer, num_read, origin, socket, pixmap, encodings).await;
         });
     }
 }
@@ -41,6 +43,7 @@ async fn process_received<P>(
     origin: SocketAddr,
     socket: Arc<UdpSocket>,
     pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
 ) where
     P: Pixmap,
 {
@@ -57,7 +60,7 @@ async fn process_received<P>(
     };
 
     // handle the frame
-    let response = super::handle_frame(frame, &pixmap);
+    let response = super::handle_frame(frame, &pixmap, &encodings);
 
     // sen the response back to the client (if there is one)
     match response {

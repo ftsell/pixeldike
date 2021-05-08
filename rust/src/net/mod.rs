@@ -2,6 +2,7 @@ use crate::i18n::get_catalog;
 use crate::net::framing::Frame;
 use crate::parser::command::*;
 use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::state_encoding::SharedMultiEncodings;
 use std::future::Future;
 use std::str::FromStr;
 use tokio::task::JoinHandle;
@@ -19,20 +20,39 @@ pub struct NetOptions {
     pub ws: Option<ws_server::WsOptions>,
 }
 
-pub fn start_listeners<P>(pixmap: SharedPixmap<P>, options: NetOptions) -> Vec<JoinHandle<()>>
+pub fn start_listeners<P>(
+    pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
+    options: NetOptions,
+) -> Vec<JoinHandle<()>>
 where
     P: Pixmap + Send + Sync + 'static,
 {
     let mut handlers = Vec::new();
 
     if let Some(tcp_options) = options.tcp {
-        handlers.push(start_listener(pixmap.clone(), tcp_options, tcp_server::listen));
+        handlers.push(start_listener(
+            pixmap.clone(),
+            encodings.clone(),
+            tcp_options,
+            tcp_server::listen,
+        ));
     }
     if let Some(udp_options) = options.udp {
-        handlers.push(start_listener(pixmap.clone(), udp_options, udp_server::listen));
+        handlers.push(start_listener(
+            pixmap.clone(),
+            encodings.clone(),
+            udp_options,
+            udp_server::listen,
+        ));
     }
     if let Some(ws_options) = options.ws {
-        handlers.push(start_listener(pixmap.clone(), ws_options, ws_server::listen))
+        handlers.push(start_listener(
+            pixmap.clone(),
+            encodings,
+            ws_options,
+            ws_server::listen,
+        ))
     }
 
     if handlers.len() == 0 {
@@ -47,20 +67,21 @@ where
 
 fn start_listener<
     P: Send + Sync + 'static,
-    F: FnOnce(SharedPixmap<P>, O) -> G + Send + 'static,
+    F: FnOnce(SharedPixmap<P>, SharedMultiEncodings, O) -> G + Send + 'static,
     G: Future<Output = ()> + Send,
     O: Send + 'static,
 >(
     pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
     options: O,
     listen_function: F,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        listen_function(pixmap, options).await;
+        listen_function(pixmap, encodings, options).await;
     })
 }
 
-fn handle_frame<P>(input: Frame, pixmap: &SharedPixmap<P>) -> Option<Frame>
+fn handle_frame<P>(input: Frame, pixmap: &SharedPixmap<P>, encodings: &SharedMultiEncodings) -> Option<Frame>
 where
     P: Pixmap,
 {
@@ -72,7 +93,7 @@ where
     // handle the command and construct an appropriate response
     match command {
         Err(e) => Some(Frame::Simple(e.to_string())),
-        Ok(cmd) => match handle_command(cmd, pixmap) {
+        Ok(cmd) => match handle_command(cmd, pixmap, encodings) {
             Err(e) => Some(Frame::Simple(e.to_string())),
             Ok(None) => None,
             Ok(Some(response)) => Some(Frame::Simple(response)),
@@ -80,7 +101,11 @@ where
     }
 }
 
-fn handle_command<P>(cmd: Command, pixmap: &SharedPixmap<P>) -> Result<Option<String>, String>
+fn handle_command<P>(
+    cmd: Command,
+    pixmap: &SharedPixmap<P>,
+    encodings: &SharedMultiEncodings,
+) -> Result<Option<String>, String>
 where
     P: Pixmap,
 {
@@ -101,6 +126,13 @@ where
         Command::PxSet(x, y, color) => match pixmap.set_pixel(x, y, color) {
             Ok(_) => Ok(None),
             Err(_) => Err("Coordinates are not inside this canvas".to_string()),
+        },
+        Command::State(algorithm) => match algorithm {
+            StateEncodingAlgorithm::Rgb64 => Ok(Some(format!(
+                "STATE rgb64 {}",
+                encodings.rgb64.lock().unwrap().clone()
+            ))),
+            StateEncodingAlgorithm::Rgba64 => Ok(Some(encodings.rgba64.lock().unwrap().clone())),
         },
     }
 }

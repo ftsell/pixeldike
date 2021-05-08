@@ -57,9 +57,11 @@ where
     let pixmap = Arc::new(pixmap);
     let encodings: SharedMultiEncodings = SharedMultiEncodings::default();
 
-    let mut handles = start_encoders(encodings, pixmap.clone());
+    let mut handles = Vec::new();
+    handles.append(&mut start_encoders(encodings.clone(), pixmap.clone()));
     handles.append(&mut start_listeners(
         pixmap,
+        encodings,
         net::NetOptions {
             tcp: Some(net::tcp_server::TcpOptions {
                 listen_address: SocketAddr::from_str("0.0.0.0:1234").unwrap(),

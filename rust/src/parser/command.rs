@@ -8,6 +8,7 @@ pub enum Command {
     Size,
     PxGet(usize, usize),
     PxSet(usize, usize, Color),
+    State(StateEncodingAlgorithm),
 }
 
 impl FromStr for Command {
@@ -34,7 +35,7 @@ pub enum HelpTopic {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum StateAlgorithm {
+pub enum StateEncodingAlgorithm {
     Rgb64,
     Rgba64,
 }
