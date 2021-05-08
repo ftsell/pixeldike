@@ -3,8 +3,9 @@
     <option name="command" value="run --all-features --bin pixelflut" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
+    <option name="requiredFeatures" value="true" />
     <option name="allFeatures" value="false" />
-    <option name="emulateTerminal" value="false" />
+    <option name="emulateTerminal" value="true" />
     <option name="backtrace" value="SHORT" />
     <envs>
       <env name="RUST_LOG" value="debug" />

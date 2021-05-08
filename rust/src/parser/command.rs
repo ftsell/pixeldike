@@ -1,7 +1,6 @@
 use super::simple::parse;
 pub use crate::pixmap::Color;
-use anyhow::Error;
-use nom::lib::std::str::FromStr;
+use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Command {
@@ -12,12 +11,16 @@ pub enum Command {
 }
 
 impl FromStr for Command {
-    type Err = Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match parse(s) {
             Ok((_remainder, cmd)) => Ok(cmd),
-            Err(_e) => Err(Error::msg("could not convert error :(")), // TODO handle and return error correctly
+            Err(e) => match e {
+                nom::Err::Error(e) => Err(e.into()),
+                nom::Err::Failure(e) => Err(e.into()),
+                nom::Err::Incomplete(_) => Err(anyhow::Error::msg("too little input")),
+            },
         }
     }
 }

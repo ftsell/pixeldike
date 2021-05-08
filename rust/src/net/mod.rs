@@ -1,9 +1,9 @@
 use crate::i18n::get_catalog;
 use crate::net::framing::Frame;
-use crate::parser;
 use crate::parser::command::*;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use std::future::Future;
+use std::str::FromStr;
 use tokio::task::JoinHandle;
 
 mod framing;
@@ -66,23 +66,14 @@ where
 {
     // try parse the received frame as command
     let command = match input {
-        Frame::Simple(command_str) => match parser::simple::parse(&command_str) {
-            Ok((_, command)) => Ok(command),
-            Err(_e) => Err("unhelpful, unexplained, generic error"), // TODO improve parser error handling
-        },
+        Frame::Simple(command_str) => Command::from_str(&command_str),
     };
 
     // handle the command and construct an appropriate response
     match command {
-        Err(e) => Some(Frame::Simple(format!(
-            "There was an error parsing your command: {}",
-            e
-        ))),
+        Err(e) => Some(Frame::Simple(e.to_string())),
         Ok(cmd) => match handle_command(cmd, pixmap) {
-            Err(e) => Some(Frame::Simple(format!(
-                "There was an error handling your command: {}",
-                e
-            ))),
+            Err(e) => Some(Frame::Simple(e.to_string())),
             Ok(None) => None,
             Ok(Some(response)) => Some(Frame::Simple(response)),
         },

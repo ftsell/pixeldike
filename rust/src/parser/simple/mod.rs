@@ -1,13 +1,40 @@
 use super::command::*;
-use nom::combinator::{eof, opt, value};
+use nom::combinator::{cut, eof, opt, value};
 use nom::sequence::preceded;
 use nom::IResult;
+use std::fmt::Debug;
+use thiserror::Error;
 
 mod command;
 mod coordinate;
 mod hex_color;
 
-pub fn parse(input: &str) -> IResult<&str, Command> {
+/// Error type for the `simple` parser
+#[derive(Debug, PartialEq, Error)]
+pub(crate) enum SimpleError {
+    #[error("could not parse primary command from '{0}'")]
+    PrimaryCommand(String),
+    #[error("there is no help for topic {0}")]
+    HelpTopic(String),
+    #[error("could not parse '{0}' as decimal coordinate")]
+    Coordinate(String),
+    #[error("could not parse '{0}' as hex encoded color")]
+    Color(String),
+    #[error("unspecific parsing error: {0}")]
+    Nom(String),
+}
+
+impl nom::error::ParseError<&str> for SimpleError {
+    fn from_error_kind(input: &str, kind: nom::error::ErrorKind) -> Self {
+        Self::Nom(format!("'{}': {}", input, kind.description()))
+    }
+
+    fn append(_input: &str, _kind: nom::error::ErrorKind, other: Self) -> Self {
+        other
+    }
+}
+
+pub(in crate::parser) fn parse(input: &str) -> IResult<&str, Command, SimpleError> {
     // TODO Refactor this to be more readable. Maybe use combinators better.
 
     let (input, primary_command) = command::primary_command(input)?;
@@ -24,7 +51,7 @@ pub fn parse(input: &str) -> IResult<&str, Command> {
         command::PrimaryCommand::Px => {
             let (input, x) = preceded(command::whitespace, coordinate::coordinate)(input)?;
             let (input, y) = preceded(command::whitespace, coordinate::coordinate)(input)?;
-            let (input, color) = opt(preceded(command::whitespace, hex_color::hex_color))(input)?;
+            let (input, color) = opt(preceded(command::whitespace, cut(hex_color::hex_color)))(input)?;
 
             match color {
                 None => (input, Command::PxGet(x, y)),

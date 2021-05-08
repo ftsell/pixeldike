@@ -1,9 +1,11 @@
+use crate::parser::simple::SimpleError;
 use crate::pixmap::Color;
+use anyhow::Result;
 use nom::{
     bytes::complete::{tag, take_while_m_n},
     combinator::{map_res, opt},
     sequence::tuple,
-    IResult,
+    Err, IResult,
 };
 
 fn is_hex_digit(c: char) -> bool {
@@ -14,14 +16,15 @@ fn str_to_u8(input: &str) -> Result<u8, std::num::ParseIntError> {
     u8::from_str_radix(input, 16)
 }
 
-fn hex_primary(input: &str) -> IResult<&str, u8> {
+fn hex_primary(input: &str) -> IResult<&str, u8, ()> {
     map_res(take_while_m_n(2, 2, is_hex_digit), str_to_u8)(input)
 }
 
-/// a canvas color encoded through 3 two-character hex digits preceded by '#'
-pub fn hex_color(input: &str) -> IResult<&str, Color> {
+/// a canvas color encoded through 3 two-character hex digits preceded by an optional '#'
+pub(super) fn hex_color(input: &str) -> IResult<&str, Color, SimpleError> {
     let (input, _) = opt(tag("#"))(input)?;
-    let (input, (red, green, blue)) = tuple((hex_primary, hex_primary, hex_primary))(input)?;
+    let (input, (red, green, blue)) = tuple((hex_primary, hex_primary, hex_primary))(input)
+        .map_err(|_| Err::Error(SimpleError::Color(input.to_string())))?;
 
     Ok((input, Color(red, green, blue)))
 }
