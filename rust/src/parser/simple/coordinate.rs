@@ -6,12 +6,13 @@ fn is_digit(c: char) -> bool {
     c.is_digit(10)
 }
 
-fn from_hex(input: &str) -> Result<usize, std::num::ParseIntError> {
+fn str_to_usize(input: &str) -> Result<usize, std::num::ParseIntError> {
     usize::from_str_radix(input, 10)
 }
 
+/// a canvas coordinate represented as a decimal digit
 pub(super) fn coordinate(input: &str) -> IResult<&str, usize> {
-    map_res(take_while1(is_digit), from_hex)(input)
+    map_res(take_while1(is_digit), str_to_usize)(input)
 }
 
 #[cfg(test)]

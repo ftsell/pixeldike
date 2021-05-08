@@ -6,19 +6,19 @@ use nom::{
     IResult,
 };
 
-fn from_hex(input: &str) -> Result<u8, std::num::ParseIntError> {
-    u8::from_str_radix(input, 16)
-}
-
 fn is_hex_digit(c: char) -> bool {
     c.is_digit(16)
 }
 
-fn hex_primary(input: &str) -> IResult<&str, u8> {
-    map_res(take_while_m_n(2, 2, is_hex_digit), from_hex)(input)
+fn str_to_u8(input: &str) -> Result<u8, std::num::ParseIntError> {
+    u8::from_str_radix(input, 16)
 }
 
-/// Parses a HEX-Encoded color
+fn hex_primary(input: &str) -> IResult<&str, u8> {
+    map_res(take_while_m_n(2, 2, is_hex_digit), str_to_u8)(input)
+}
+
+/// a canvas color encoded through 3 two-character hex digits preceded by '#'
 pub fn hex_color(input: &str) -> IResult<&str, Color> {
     let (input, _) = opt(tag("#"))(input)?;
     let (input, (red, green, blue)) = tuple((hex_primary, hex_primary, hex_primary))(input)?;

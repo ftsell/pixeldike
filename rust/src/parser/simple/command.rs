@@ -5,6 +5,7 @@ use nom::character::complete::multispace1;
 use nom::combinator::value;
 use nom::IResult;
 
+/// the topic that is given to HELP
 pub(super) fn help_topic(input: &str) -> IResult<&str, HelpTopic> {
     alt((
         value(HelpTopic::General, tag_no_case("help")),
@@ -14,8 +15,8 @@ pub(super) fn help_topic(input: &str) -> IResult<&str, HelpTopic> {
     ))(input)
 }
 
+/// one ore more spacing characters (whitespace, tabs, …) which are discarded
 pub(super) fn whitespace(input: &str) -> IResult<&str, ()> {
-    // parse one or more spacing characters but simply discard them
     let (input, _) = multispace1(input)?;
     Ok((input, ()))
 }
@@ -27,6 +28,7 @@ pub(super) enum PrimaryCommand {
     Px,
 }
 
+/// the first word of a pixelflut command like HELP, SIZE, PX, etc.
 pub(super) fn primary_command(input: &str) -> IResult<&str, PrimaryCommand> {
     alt((
         value(PrimaryCommand::Help, tag_no_case("help")),
