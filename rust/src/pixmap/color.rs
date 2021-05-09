@@ -1,5 +1,6 @@
 #[cfg(test)]
 use quickcheck::{Arbitrary, Gen};
+use std::fmt::{Formatter, UpperHex};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Color(pub u8, pub u8, pub u8);
@@ -32,6 +33,13 @@ impl Into<Vec<u8>> for Color {
 impl ToString for Color {
     fn to_string(&self) -> String {
         format!("#{:02X}{:02X}{:02X}", self.0, self.1, self.2)
+    }
+}
+
+impl UpperHex for Color {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // format each byte as hex string with at least two characters and leading zeroes
+        f.write_fmt(format_args!("{:02X}{:02X}{:02X}", self.0, self.1, self.2))
     }
 }
 
