@@ -3,8 +3,8 @@
 //!
 
 mod color;
-mod file_backed;
-mod in_memory;
+mod file_backed_pixmap;
+mod in_memory_pixmap;
 
 use anyhow::Result;
 use std::sync::atomic::AtomicU32;
@@ -12,8 +12,8 @@ use std::sync::Arc;
 use thiserror::Error;
 
 pub use color::*;
-pub use file_backed::FileBackedPixmap;
-pub use in_memory::InMemoryPixmap;
+pub use file_backed_pixmap::FileBackedPixmap;
+pub use in_memory_pixmap::InMemoryPixmap;
 
 /// Type used for sharing `[Pixmap]`s between multiple places
 pub(crate) type SharedPixmap<P> = Arc<P>;
