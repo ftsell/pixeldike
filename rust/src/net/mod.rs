@@ -1,7 +1,7 @@
 use crate::i18n::get_catalog;
 use crate::net::framing::Frame;
-use crate::parser::command::*;
 use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::protocol::{HelpTopic, Request, StateEncodingAlgorithm};
 use crate::state_encoding::SharedMultiEncodings;
 use std::future::Future;
 use std::str::FromStr;
@@ -87,7 +87,7 @@ where
 {
     // try parse the received frame as command
     let command = match input {
-        Frame::Simple(command_str) => Command::from_str(&command_str),
+        Frame::Simple(command_str) => Request::from_str(&command_str),
     };
 
     // handle the command and construct an appropriate response
@@ -102,7 +102,7 @@ where
 }
 
 fn handle_command<P>(
-    cmd: Command,
+    cmd: Request,
     pixmap: &SharedPixmap<P>,
     encodings: &SharedMultiEncodings,
 ) -> Result<Option<String>, String>
@@ -110,24 +110,24 @@ where
     P: Pixmap,
 {
     match cmd {
-        Command::Size => Ok(Some(format!(
+        Request::Size => Ok(Some(format!(
             "SIZE {} {}",
             pixmap.get_size().unwrap().0,
             pixmap.get_size().unwrap().1
         ))),
-        Command::Help(HelpTopic::General) => Ok(Some(i18n!(get_catalog(), "help_general"))),
-        Command::Help(HelpTopic::Size) => Ok(Some(i18n!(get_catalog(), "help_size"))),
-        Command::Help(HelpTopic::Px) => Ok(Some(i18n!(get_catalog(), "help_px"))),
-        Command::Help(HelpTopic::State) => Ok(Some(i18n!(get_catalog(), "help_state"))),
-        Command::PxGet(x, y) => match pixmap.get_pixel(x, y) {
+        Request::Help(HelpTopic::General) => Ok(Some(i18n!(get_catalog(), "help_general"))),
+        Request::Help(HelpTopic::Size) => Ok(Some(i18n!(get_catalog(), "help_size"))),
+        Request::Help(HelpTopic::Px) => Ok(Some(i18n!(get_catalog(), "help_px"))),
+        Request::Help(HelpTopic::State) => Ok(Some(i18n!(get_catalog(), "help_state"))),
+        Request::PxGet(x, y) => match pixmap.get_pixel(x, y) {
             Ok(color) => Ok(Some(format!("PX {} {} {}", x, y, color.to_string()))),
             Err(_) => Err("Coordinates are not inside this canvas".to_string()),
         },
-        Command::PxSet(x, y, color) => match pixmap.set_pixel(x, y, color) {
+        Request::PxSet(x, y, color) => match pixmap.set_pixel(x, y, color) {
             Ok(_) => Ok(None),
             Err(_) => Err("Coordinates are not inside this canvas".to_string()),
         },
-        Command::State(algorithm) => match algorithm {
+        Request::State(algorithm) => match algorithm {
             StateEncodingAlgorithm::Rgb64 => Ok(Some(format!(
                 "STATE rgb64 {}",
                 encodings.rgb64.lock().unwrap().clone()

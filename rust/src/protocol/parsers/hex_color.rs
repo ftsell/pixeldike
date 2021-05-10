@@ -1,15 +1,15 @@
-use crate::parser::simple::SimpleError;
+use super::Error;
 use crate::pixmap::Color;
 use anyhow::Result;
 use nom::{
     bytes::complete::{tag, take_while_m_n},
     combinator::{map_res, opt},
     sequence::tuple,
-    Err, IResult,
+    AsChar, Err, IResult,
 };
 
 fn is_hex_digit(c: char) -> bool {
-    c.is_digit(16)
+    c.is_hex_digit()
 }
 
 fn str_to_u8(input: &str) -> Result<u8, std::num::ParseIntError> {
@@ -21,10 +21,10 @@ fn hex_primary(input: &str) -> IResult<&str, u8, ()> {
 }
 
 /// a canvas color encoded through 3 two-character hex digits preceded by an optional '#'
-pub(super) fn hex_color(input: &str) -> IResult<&str, Color, SimpleError> {
+pub(super) fn parse(input: &str) -> IResult<&str, Color, Error> {
     let (input, _) = opt(tag("#"))(input)?;
     let (input, (red, green, blue)) = tuple((hex_primary, hex_primary, hex_primary))(input)
-        .map_err(|_| Err::Error(SimpleError::Color(input.to_string())))?;
+        .map_err(|_| Err::Error(Error::msg(format!("could not parse '{}' as color", input))))?;
 
     Ok((input, Color(red, green, blue)))
 }
@@ -36,12 +36,12 @@ mod test {
 
     #[test]
     fn parse_color_lowercase() {
-        assert_eq!(hex_color("#ababab"), Ok(("", Color(171, 171, 171))))
+        assert_eq!(parse("#ababab").unwrap(), ("", Color(171, 171, 171)))
     }
 
     #[test]
     fn parse_color_uppercase() {
-        assert_eq!(hex_color("#ABABAB"), Ok(("", Color(171, 171, 171))))
+        assert_eq!(parse("#ABABAB").unwrap(), ("", Color(171, 171, 171)))
     }
 
     quickcheck! {
@@ -52,7 +52,7 @@ mod test {
                 "ababab"
             };
 
-            TestResult::from_bool(hex_color(color) == Ok(("", Color(171, 171, 171))))
+            TestResult::from_bool(parse(color).unwrap() == ("", Color(171, 171, 171)))
         }
     }
 }

@@ -38,8 +38,8 @@ use std::sync::Arc;
 
 mod i18n;
 mod net;
-mod parser;
 pub mod pixmap;
+mod protocol;
 mod state_encoding;
 
 ///
