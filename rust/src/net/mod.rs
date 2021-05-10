@@ -7,7 +7,7 @@ use std::future::Future;
 use std::str::FromStr;
 use tokio::task::JoinHandle;
 
-mod framing;
+pub mod framing;
 pub mod tcp_server;
 pub mod udp_server;
 pub mod ws_server;

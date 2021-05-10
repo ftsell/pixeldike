@@ -607,6 +607,7 @@ dependencies = [
  "nom",
  "pretty_env_logger",
  "quickcheck",
+ "regex",
  "tempfile",
  "thiserror",
  "tokio",

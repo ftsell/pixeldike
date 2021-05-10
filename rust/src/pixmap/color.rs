@@ -2,13 +2,19 @@
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Formatter, UpperHex};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
 pub struct Color(pub u8, pub u8, pub u8);
 
 impl From<u32> for Color {
     fn from(src: u32) -> Self {
         let b = src.to_le_bytes();
-        Color(b[0], b[1], b[2])
+        Self(b[0], b[1], b[2])
+    }
+}
+
+impl From<[u8; 3]> for Color {
+    fn from(data: [u8; 3]) -> Self {
+        Self(data[0], data[1], data[2])
     }
 }
 
