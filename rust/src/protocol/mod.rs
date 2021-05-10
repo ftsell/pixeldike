@@ -7,10 +7,6 @@ mod response;
 pub use request::Request;
 pub use response::Response;
 
-pub fn parse_response() {
-    todo!() // TODO implement
-}
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StateEncodingAlgorithm {
     Rgb64,

@@ -10,7 +10,8 @@ mod hex_color;
 mod request;
 mod response;
 
-pub(super) use request::parse as parse_request;
+pub use request::parse as parse_request;
+pub use response::parse as parse_response;
 
 pub struct Error(anyhow::Error);
 

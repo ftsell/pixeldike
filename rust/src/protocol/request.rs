@@ -22,7 +22,7 @@ impl FromStr for Request {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match parsers::parse_request(s) {
-            Ok((_remainder, cmd)) => Ok(cmd),
+            Ok((_remainder, request)) => Ok(request),
             Err(e) => match e {
                 nom::Err::Error(e) => Err(e.into()),
                 nom::Err::Failure(e) => Err(e.into()),

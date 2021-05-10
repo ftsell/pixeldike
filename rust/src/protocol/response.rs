@@ -2,9 +2,11 @@
 //! Data structures for pixelflut responses received from a server
 //!
 
+use super::parsers;
 use crate::i18n::get_catalog;
 use crate::pixmap::Color;
 use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
+use nom::Err;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -20,7 +22,14 @@ impl FromStr for Response {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!()
+        match parsers::parse_response(s) {
+            Ok((_remainder, response)) => Ok(response),
+            Err(e) => match e {
+                Err::Error(e) => Err(e.into()),
+                Err::Failure(e) => Err(e.into()),
+                Err::Incomplete(_) => Err(anyhow::Error::msg("too little input")),
+            },
+        }
     }
 }
 
@@ -38,4 +47,19 @@ impl Display for Response {
             Response::State(alg, data) => f.write_fmt(format_args!("STATE {} {}", alg, data)),
         }
     }
+}
+
+#[cfg(test)]
+#[test]
+fn test_from_string_to_string() {
+    macro_rules! assert_parsing {
+        ($cmd:literal) => {
+            assert_eq!($cmd, Response::from_str($cmd).unwrap().to_string());
+        };
+    }
+
+    assert_parsing!("SIZE 400 600");
+    assert_parsing!("PX 42 42 #890ABC");
+    assert_parsing!("STATE RGB64 d2hpdGU=");
+    assert_parsing!("STATE RGBA64 d2hpdGU=");
 }
