@@ -1,10 +1,11 @@
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::SharedMultiEncodings;
+use anyhow::Error;
+use bytes::buf::Take;
 use bytes::{Buf, BytesMut};
-use std::io::Cursor;
 use std::net::SocketAddr;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 static LOG_TARGET: &str = "pixelflut.net.tcp";
@@ -41,106 +42,76 @@ async fn process_connection<P>(
 ) where
     P: Pixmap,
 {
-    debug!(target: LOG_TARGET, "Client connected {}", connection.peer_address);
+    debug!(
+        target: LOG_TARGET,
+        "Client connected {}",
+        connection.stream.peer_addr().unwrap()
+    );
     loop {
-        // receive a frame from the client with regards to the client closing the connection
-        let frame = match connection.read_frame().await {
+        // receive a frame from the client
+        match connection.read_frame().await {
             Err(e) => {
-                warn!(target: LOG_TARGET, "Error reading frame {}", e);
+                warn!(target: LOG_TARGET, "Error reading frame: {}", e);
                 return;
             }
-            Ok(opt) => match opt {
-                None => {
-                    debug!(
-                        target: LOG_TARGET,
-                        "Client disconnected: {}", connection.peer_address
-                    );
-                    return;
+            Ok(frame) => {
+                // handle the frame
+                match super::handle_frame(frame, &pixmap, &encodings) {
+                    None => {}
+                    Some(response) => {
+                        // send back a response
+                        match connection.write_frame(response).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                warn!(target: LOG_TARGET, "Error writing frame: {}", e)
+                            }
+                        }
+                    }
                 }
-                Some(frame) => frame,
-            },
-        };
-
-        // handle the frame
-        let response = super::handle_frame(frame, &pixmap, &encodings);
-
-        // send the response back to the client (if there is one)
-        match response {
-            None => {}
-            Some(response) => match connection.write_frame(response).await {
-                Err(e) => {
-                    warn!(target: LOG_TARGET, "Error writing frame {}", e);
-                    return;
-                }
-                _ => {}
-            },
+            }
         }
     }
 }
 
 pub(crate) struct TcpConnection {
-    stream: BufWriter<TcpStream>,
-    buffer: BytesMut,
-    peer_address: SocketAddr,
+    stream: TcpStream,
+    read_buffer: BytesMut,
 }
 
 impl TcpConnection {
     pub fn new(stream: TcpStream) -> Self {
         Self {
-            peer_address: stream.peer_addr().unwrap(),
-            stream: BufWriter::new(stream),
-            buffer: BytesMut::with_capacity(4096),
+            read_buffer: BytesMut::with_capacity(256),
+            stream,
         }
     }
 
-    pub(self) async fn read_frame(&mut self) -> std::io::Result<Option<Frame>> {
+    pub(self) async fn read_frame(&mut self) -> std::io::Result<Frame<Take<BytesMut>>> {
         loop {
-            // Attempt to read more data from the socket.
-            //
-            // On success, the number of bytes is returned.
-            // `0` indicates `end of stream`
-            if self.stream.read_buf(&mut self.buffer).await? == 0 {
-                // The remote closed the connection.
-                // For this to be a clean shutdown, there should be no data in the buffer.
-                // If there is, this means that the peer closed the socket while sending a frame.
-                return if self.buffer.is_empty() {
-                    Ok(None)
-                } else {
-                    Err(std::io::ErrorKind::ConnectionReset.into())
-                };
-            }
-
-            // Attempt to parse a frame from the buffered data.
-            // If enough data has been buffered, the frame is returned.
-            if let Some(frame) = self.parse_frame() {
-                return Ok(Some(frame));
+            match Frame::from_input(self.read_buffer.clone()) {
+                Ok((frame, length)) => {
+                    // discard the frame from the buffer
+                    self.read_buffer.advance(length);
+                    return Ok(frame);
+                }
+                Err(_) => {
+                    let n = self.stream.read_buf(&mut self.read_buffer).await?;
+                    if n == 0 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof,
+                            Error::msg("eof while reading frame"),
+                        ));
+                    }
+                }
             }
         }
     }
 
-    pub(self) async fn write_frame(&mut self, frame: Frame) -> std::io::Result<()> {
-        self.stream.write_all(&frame.encode()).await?;
-        self.stream.flush().await?;
-
+    pub(self) async fn write_frame<B>(&mut self, frame: Frame<B>) -> std::io::Result<()>
+    where
+        B: Buf,
+    {
+        self.stream.write_buf(&mut frame.encode()).await?;
         Ok(())
-    }
-
-    fn parse_frame(&mut self) -> Option<Frame> {
-        let mut buf = Cursor::new(&self.buffer[..]);
-
-        // Check whether a full frame is available
-        match Frame::check(&mut buf) {
-            Err(_) => None,
-            Ok(_) => {
-                // Retrieve to where `check` has read the buffer
-                let len = buf.position() as usize;
-                // Reset the cursor so that `parse` can read the same bytes
-                buf.set_position(0);
-
-                let frame = Frame::parse(&mut buf).ok().unwrap();
-                self.buffer.advance(len);
-                Some(frame)
-            }
-        }
     }
 }

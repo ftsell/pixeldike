@@ -3,11 +3,8 @@ use crate::net::framing::Frame;
 use crate::protocol::{Request, Response, StateEncodingAlgorithm};
 use crate::state_encoding;
 use anyhow::{Error, Result};
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::any::type_name;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
-use std::net::{SocketAddr, TcpStream};
 use std::str::FromStr;
 use std::sync::Mutex;
 
@@ -46,7 +43,8 @@ where
 
         // send request
         debug!(target: LOG_TARGET, "Sending '{}'", request);
-        lock.1.write_all(&Frame::Simple(request.to_string()).encode())?;
+        lock.1
+            .write_all(&mut Frame::new_from_string(request.to_string()).encode())?;
         lock.1.flush()?;
 
         // receive response
@@ -108,7 +106,8 @@ where
 
         // send request without waiting for response
         debug!(target: LOG_TARGET, "Sending '{}'", request);
-        lock.1.write_all(&Frame::Simple(request.to_string()).encode())?;
+        lock.1
+            .write_all(&Frame::new_from_string(request.to_string()).encode())?;
         lock.1.flush()?;
 
         Ok(())
@@ -126,7 +125,7 @@ where
             })
     }
 
-    fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
+    fn put_raw_data(&self, _data: &Vec<Color>) -> Result<()> {
         Err(Error::msg("pixmap does not support put_raw_data").context(type_name::<Self>()))
     }
 }

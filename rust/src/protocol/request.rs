@@ -3,8 +3,11 @@
 //!
 
 use super::parsers;
+use crate::net::framing::Frame;
 use crate::pixmap::Color;
 use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
+use bytes::Buf;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -46,6 +49,18 @@ impl Display for Request {
             Request::PxSet(x, y, color) => f.write_fmt(format_args!("PX {} {} #{:X}", x, y, color)),
             Request::State(alg) => f.write_fmt(format_args!("STATE {}", alg)),
         }
+    }
+}
+
+impl<I> TryFrom<Frame<I>> for Request
+where
+    I: Buf,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: Frame<I>) -> Result<Self, Self::Error> {
+        let string: String = value.try_into()?;
+        Ok(Self::from_str(&string)?)
     }
 }
 

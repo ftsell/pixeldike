@@ -4,9 +4,12 @@
 
 use super::parsers;
 use crate::i18n::get_catalog;
+use crate::net::framing::Frame;
 use crate::pixmap::Color;
 use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
+use bytes::Buf;
 use nom::Err;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -46,6 +49,18 @@ impl Display for Response {
             Response::Px(x, y, color) => f.write_fmt(format_args!("PX {} {} #{:X}", x, y, color)),
             Response::State(alg, data) => f.write_fmt(format_args!("STATE {} {}", alg, data)),
         }
+    }
+}
+
+impl<I> TryFrom<Frame<I>> for Response
+where
+    I: Buf,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: Frame<I>) -> Result<Self, Self::Error> {
+        let string: String = value.try_into()?;
+        Ok(Self::from_str(&string)?)
     }
 }
 

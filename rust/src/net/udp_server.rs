@@ -1,8 +1,7 @@
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::SharedMultiEncodings;
-use bytes::BytesMut;
-use std::io::Cursor;
+use bytes::{Buf, BytesMut};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -29,48 +28,49 @@ where
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         let mut buffer = BytesMut::with_capacity(1024);
-        let (num_read, origin) = socket.recv_from(&mut buffer[..]).await.unwrap();
+        let (_num_read, origin) = socket.recv_from(&mut buffer[..]).await.unwrap();
 
         tokio::spawn(async move {
-            process_received(buffer, num_read, origin, socket, pixmap, encodings).await;
+            process_received(buffer, origin, socket, pixmap, encodings).await;
         });
     }
 }
 
-async fn process_received<P>(
-    buffer: BytesMut,
-    num_read: usize,
+async fn process_received<P, B>(
+    mut buffer: B,
     origin: SocketAddr,
     socket: Arc<UdpSocket>,
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
 ) where
     P: Pixmap,
+    B: Buf + Clone,
 {
-    let mut buffer = Cursor::new(&buffer[..num_read]);
+    // extract frames from received package
+    while buffer.has_remaining() {
+        match Frame::from_input(buffer.clone()) {
+            Err(_) => return,
+            Ok((frame, length)) => {
+                buffer.advance(length);
 
-    let frame = match Frame::check(&mut buffer) {
-        Err(_) => return,
-        Ok(_) => {
-            // reset the cursor so that `parse` can read the same bytes as `check`
-            buffer.set_position(0);
-
-            Frame::parse(&mut buffer).ok().unwrap()
+                // handle the frame
+                match super::handle_frame(frame, &pixmap, &encodings) {
+                    None => {}
+                    Some(response) => {
+                        // send back a response
+                        match socket
+                            .send_to(&response.encode(), origin) // TODO Find a cleaner way to convert frame to &[u8]
+                            .await
+                        {
+                            Err(e) => {
+                                warn!(target: LOG_TARGET, "Error writing frame: {}", e);
+                                return;
+                            }
+                            Ok(_) => {}
+                        }
+                    }
+                }
+            }
         }
-    };
-
-    // handle the frame
-    let response = super::handle_frame(frame, &pixmap, &encodings);
-
-    // sen the response back to the client (if there is one)
-    match response {
-        None => {}
-        Some(response) => match socket.send_to(&response.encode()[..], origin).await {
-            Err(e) => warn!(
-                target: LOG_TARGET,
-                "Could not send response to {} because: {}", origin, e
-            ),
-            Ok(_) => {}
-        },
-    };
+    }
 }

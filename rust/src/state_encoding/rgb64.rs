@@ -1,6 +1,6 @@
 use super::SharedMultiEncodings;
 use crate::pixmap::{Color, Pixmap, SharedPixmap};
-use anyhow::{Error, Result};
+use anyhow::Result;
 use tokio::time::{interval, Duration};
 
 static LOG_TARGET: &str = "pixelflut.encoder.rgb64";

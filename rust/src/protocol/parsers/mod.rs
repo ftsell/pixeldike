@@ -2,6 +2,9 @@ use nom::error::{ErrorKind, ParseError};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 
+pub use request::parse as parse_request;
+pub use response::parse as parse_response;
+
 mod combinators;
 mod coordinate;
 mod encoding_algorithm;
@@ -9,9 +12,6 @@ mod help_topic;
 mod hex_color;
 mod request;
 mod response;
-
-pub use request::parse as parse_request;
-pub use response::parse as parse_response;
 
 pub struct Error(anyhow::Error);
 

@@ -1,7 +1,9 @@
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::SharedMultiEncodings;
+use bytes::Bytes;
 use futures_util::stream::StreamExt;
+use std::convert::TryInto;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Error as WsError;
@@ -68,16 +70,12 @@ where
                 debug!(target: LOG_TARGET, "Received websocket message: {}", msg);
 
                 // TODO improve websocket frame handling
-                let frame = Frame::Simple(msg);
+                let (frame, _length) = Frame::from_input(Bytes::from(msg)).unwrap();
 
-                let response = super::handle_frame(frame, &pixmap, &encodings);
-
-                // TODO improve response sending
-                match response {
-                    Some(response) => match response {
-                        Frame::Simple(response) => Ok(Message::Text(response)),
-                    },
+                // TODO improve by not sending empty responses
+                match super::handle_frame(frame, &pixmap, &encodings) {
                     None => Ok(Message::Text(String::new())),
+                    Some(response) => Ok(Message::Text(response.try_into().unwrap())),
                 }
             }
             _ => {

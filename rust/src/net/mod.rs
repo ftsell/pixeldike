@@ -3,8 +3,9 @@ use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::protocol::{HelpTopic, Request, StateEncodingAlgorithm};
 use crate::state_encoding::SharedMultiEncodings;
+use bytes::{Buf, Bytes};
+use std::convert::TryFrom;
 use std::future::Future;
-use std::str::FromStr;
 use tokio::task::JoinHandle;
 
 pub mod framing;
@@ -81,27 +82,27 @@ fn start_listener<
     })
 }
 
-fn handle_frame<P>(input: Frame, pixmap: &SharedPixmap<P>, encodings: &SharedMultiEncodings) -> Option<Frame>
+fn handle_frame<P, B>(
+    input: Frame<B>,
+    pixmap: &SharedPixmap<P>,
+    encodings: &SharedMultiEncodings,
+) -> Option<Frame<Bytes>>
 where
     P: Pixmap,
+    B: Buf,
 {
-    // try parse the received frame as command
-    let command = match input {
-        Frame::Simple(command_str) => Request::from_str(&command_str),
-    };
-
-    // handle the command and construct an appropriate response
-    match command {
-        Err(e) => Some(Frame::Simple(e.to_string())),
-        Ok(cmd) => match handle_command(cmd, pixmap, encodings) {
-            Err(e) => Some(Frame::Simple(e.to_string())),
-            Ok(None) => None,
-            Ok(Some(response)) => Some(Frame::Simple(response)),
+    // try parse the received frame as request
+    match Request::try_from(input) {
+        Err(e) => Some(e.to_string()),
+        Ok(request) => match handle_request(request, pixmap, encodings) {
+            Err(e) => Some(e.to_string()),
+            Ok(response) => response.map(|r| r.into()),
         },
     }
+    .map(|content| Frame::new_from_string(content))
 }
 
-fn handle_command<P>(
+fn handle_request<P>(
     cmd: Request,
     pixmap: &SharedPixmap<P>,
     encodings: &SharedMultiEncodings,

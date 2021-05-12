@@ -13,7 +13,8 @@ async fn main() {
 
     let address = SocketAddr::from_str("148.251.182.214:9876").unwrap();
     let stream = TcpStream::connect(address).unwrap();
-    let pixmap = pixelflut::pixmap::RemotePixmap::new(stream.try_clone().unwrap(), stream).unwrap();
+    //let pixmap = pixelflut::pixmap::RemotePixmap::new(stream.try_clone().unwrap(), stream).unwrap();
+    let pixmap = pixelflut::pixmap::InMemoryPixmap::default();
 
     pixelflut::run_server(pixmap).await;
 }

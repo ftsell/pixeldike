@@ -76,6 +76,6 @@ where
     ));
 
     for handle in handles {
-        tokio::join!(handle);
+        let _ = tokio::join!(handle);
     }
 }
