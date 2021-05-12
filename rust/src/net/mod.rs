@@ -1,8 +1,9 @@
 use crate::i18n::get_catalog;
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
-use crate::protocol::{HelpTopic, Request, StateEncodingAlgorithm};
+use crate::protocol::{HelpTopic, Request, Response, StateEncodingAlgorithm};
 use crate::state_encoding::SharedMultiEncodings;
+use anyhow::Result;
 use bytes::{Buf, Bytes};
 use std::convert::TryFrom;
 use std::future::Future;
@@ -82,6 +83,7 @@ fn start_listener<
     })
 }
 
+/// handle a request frame and return a response frame
 fn handle_frame<P, B>(
     input: Frame<B>,
     pixmap: &SharedPixmap<P>,
@@ -93,47 +95,40 @@ where
 {
     // try parse the received frame as request
     match Request::try_from(input) {
-        Err(e) => Some(e.to_string()),
+        Err(e) => Some(Frame::new_from_string(e.to_string())),
         Ok(request) => match handle_request(request, pixmap, encodings) {
-            Err(e) => Some(e.to_string()),
+            Err(e) => Some(Frame::new_from_string(e.to_string())),
             Ok(response) => response.map(|r| r.into()),
         },
     }
-    .map(|content| Frame::new_from_string(content))
 }
 
+/// handle a request and return a response
 fn handle_request<P>(
-    cmd: Request,
+    request: Request,
     pixmap: &SharedPixmap<P>,
     encodings: &SharedMultiEncodings,
-) -> Result<Option<String>, String>
+) -> Result<Option<Response>>
 where
     P: Pixmap,
 {
-    match cmd {
-        Request::Size => Ok(Some(format!(
-            "SIZE {} {}",
-            pixmap.get_size().unwrap().0,
-            pixmap.get_size().unwrap().1
-        ))),
-        Request::Help(HelpTopic::General) => Ok(Some(i18n!(get_catalog(), "help_general"))),
-        Request::Help(HelpTopic::Size) => Ok(Some(i18n!(get_catalog(), "help_size"))),
-        Request::Help(HelpTopic::Px) => Ok(Some(i18n!(get_catalog(), "help_px"))),
-        Request::Help(HelpTopic::State) => Ok(Some(i18n!(get_catalog(), "help_state"))),
-        Request::PxGet(x, y) => match pixmap.get_pixel(x, y) {
-            Ok(color) => Ok(Some(format!("PX {} {} {}", x, y, color.to_string()))),
-            Err(_) => Err("Coordinates are not inside this canvas".to_string()),
-        },
-        Request::PxSet(x, y, color) => match pixmap.set_pixel(x, y, color) {
-            Ok(_) => Ok(None),
-            Err(_) => Err("Coordinates are not inside this canvas".to_string()),
-        },
+    match request {
+        Request::Size => Ok(Some(Response::Size(pixmap.get_size()?.0, pixmap.get_size()?.1))),
+        Request::Help(topic) => Ok(Some(Response::Help(topic))),
+        Request::PxGet(x, y) => Ok(Some(Response::Px(x, y, pixmap.get_pixel(x, y)?))),
+        Request::PxSet(x, y, color) => {
+            pixmap.set_pixel(x, y, color)?;
+            Ok(None)
+        }
         Request::State(algorithm) => match algorithm {
-            StateEncodingAlgorithm::Rgb64 => Ok(Some(format!(
-                "STATE rgb64 {}",
-                encodings.rgb64.lock().unwrap().clone()
+            StateEncodingAlgorithm::Rgb64 => Ok(Some(Response::State(
+                algorithm,
+                encodings.rgb64.lock().unwrap().clone(),
             ))),
-            StateEncodingAlgorithm::Rgba64 => Ok(Some(encodings.rgba64.lock().unwrap().clone())),
+            StateEncodingAlgorithm::Rgba64 => Ok(Some(Response::State(
+                algorithm,
+                encodings.rgba64.lock().unwrap().clone(),
+            ))),
         },
     }
 }
