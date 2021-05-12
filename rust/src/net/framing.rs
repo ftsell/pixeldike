@@ -102,9 +102,9 @@ where
         while peeker.has_remaining() {
             let b = peeker.get_u8();
             if b == '\n' as u8 || b == '\r' as u8 {
-                // construct a buffer view which is limited to the found line
+                // construct a buffer view which is limited to the found line while leaving the \n out
                 let length = src.remaining() - peeker.remaining();
-                return Ok((Frame(src.take(length)), length));
+                return Ok((Frame(src.take(length - 1)), length));
             }
         }
 
@@ -128,22 +128,22 @@ mod test {
             if input.contains("\n") || input.contains("\r") {
                 return TestResult::discard();
             }
-
             let input = input + "\n";
-            let input_bytes = input.into_bytes();
+            let input_bytes = Bytes::from(input);
 
-            match Frame::parse(&mut input_bytes) {
+            match Frame::from_input(input_bytes.clone()) {
                 Err(_) => TestResult::discard(),
-                Ok(frame) => TestResult::from_bool(frame.encode() == input_bytes)
+                Ok((frame, _length)) => {
+                    assert_eq!(frame.encode()[..], input_bytes[..]);
+                    TestResult::passed()
+                }
             }
         }
     }
 
     #[test]
     fn test_no_termination_character() {
-        let result = Frame::parse(&mut "abc123".as_bytes());
-
+        let result = Frame::from_input(Bytes::from("abc123"));
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), super::Error::Incomplete);
     }
 }
