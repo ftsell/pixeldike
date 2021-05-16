@@ -2,6 +2,7 @@ use clap::value_t_or_exit;
 use pixelflut;
 use pretty_env_logger;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -18,6 +19,9 @@ async fn main() {
             start_server(
                 value_t_or_exit!(sub_matches, "width", usize),
                 value_t_or_exit!(sub_matches, "height", usize),
+                sub_matches
+                    .value_of("path")
+                    .expect("path is required but not in matches"),
                 value_t_or_exit_opt!(sub_matches, "tcp_port", usize),
                 value_t_or_exit_opt!(sub_matches, "udp_port", usize),
                 value_t_or_exit_opt!(sub_matches, "ws_port", usize),
@@ -31,12 +35,15 @@ async fn main() {
 async fn start_server(
     width: usize,
     height: usize,
+    path: &str,
     tcp_port: Option<usize>,
     udp_port: Option<usize>,
     ws_port: Option<usize>,
 ) {
-    let pixmap =
-        Arc::new(pixelflut::pixmap::InMemoryPixmap::new(width, height).expect("could not construct pixmap"));
+    let pixmap = Arc::new(
+        pixelflut::pixmap::FileBackedPixmap::new(&Path::new(path), width, height, false)
+            .expect("could not create pixmap"),
+    );
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
     let mut handles = Vec::new();
 

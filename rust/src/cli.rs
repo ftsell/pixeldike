@@ -56,6 +56,14 @@ pub fn get_app() -> App<'static, 'static> {
                         .takes_value(true)
                         .default_value("600"),
                 )
+                .arg(
+                    Arg::with_name("path")
+                        .long("path")
+                        .short("p")
+                        .help("File path into which the pixmap is persisted")
+                        .required(true)
+                        .takes_value(true),
+                )
                 .group(
                     ArgGroup::with_name("listeners")
                         .args(&["tcp_port", "udp_port", "ws_port"])

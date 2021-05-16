@@ -19,6 +19,7 @@ default = []
 bin = ["clap", "pretty_env_logger"]
 
 [lib]
+path = "src/lib.rs"
 
 [[bin]]
 name = "pixelflut"
