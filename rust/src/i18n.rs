@@ -42,6 +42,6 @@ Those bytes are then simply appended to each other in row-major order.\n\
 At the end everything is base64 encoded.\n\
 \n\
 rgba64:\n\
-Each pixel is encoded into 4 bytes for the color channels red, green, blue and alpha whereby alpha is always zero.\n\
+Each pixel is encoded into 4 bytes for the color channels red, green, blue and alpha whereby alpha is always 255.\n\
 These bytes are then simply appended to each other in row-major order.\n\
 At the end everything is base64 encoded.";

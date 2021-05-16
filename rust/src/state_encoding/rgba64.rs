@@ -37,7 +37,7 @@ where
         data.push(color[0]);
         data.push(color[1]);
         data.push(color[2]);
-        data.push(0);
+        data.push(255);
     }
 
     base64::encode(&data)
