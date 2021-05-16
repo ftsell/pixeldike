@@ -11,6 +11,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 static LOG_TARGET: &str = "pixelflut.net.ws";
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WsOptions {
     pub listen_address: SocketAddr,
 }

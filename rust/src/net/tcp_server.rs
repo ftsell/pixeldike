@@ -10,6 +10,7 @@ use tokio::net::{TcpListener, TcpStream};
 
 static LOG_TARGET: &str = "pixelflut.net.tcp";
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct TcpOptions {
     pub listen_address: SocketAddr,
 }

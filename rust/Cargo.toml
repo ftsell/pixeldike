@@ -1,10 +1,10 @@
 [package]
 name = "pixelflut"
-version = "0.0.0"
+version = "0.0.1"
 publish = false
 authors = ["Finn-Thorben Sell <dev@finn-thorben.me>"]
 edition = "2018"
-description = "Pixel drawing game for programmers inspired by reddits r/place "
+description = "pixel drawing game for programmers inspired by reddits r/place"
 documentation = "https://docs.rs/pixelflut"
 readme = "README.md"
 repository = "https://github.com/ftsell/pixelflut.git"
@@ -16,31 +16,33 @@ categories = ["command-line-utilities", "games"]
 
 [features]
 default = []
-log-impl = ["pretty_env_logger"]
+bin = ["clap", "pretty_env_logger"]
 
 [lib]
 
 [[bin]]
 name = "pixelflut"
-required-features = ["default", "log-impl"]
+path = "src/main.rs"
+required-features = ["default", "bin"]
 
 [dependencies]
-anyhow = "1.*"
-base64 = "0.13"
-byteorder = "1.*"
-tokio = { version = "1.*", features = ["full"] }
-tokio-tungstenite = "0.13"
-bytes = "1.*"
-nom = "6.*"
-lazy_static = "1"
-log = "0.4.*"
-pretty_env_logger = { version = "0.4.*", optional = true }
-gettext = "0.4.*"
-gettext-utils = "0.1.*"
-gettext-macros = "0.6.*"
-futures-util = "0.3.*"
-thiserror = "1.*"
-regex = "1"
+anyhow = "^1"
+base64 = "^0.13"
+byteorder = "^1"
+bytes = "^1"
+clap = { version = "^2", optional = true }
+futures-util = "^0.3"
+gettext = "^0.4"
+gettext-macros = "^0.6"
+gettext-utils = "^0.1"
+lazy_static = "^1"
+log = "^0.4"
+nom = "^6"
+pretty_env_logger = { version = "^0.4", optional = true }
+regex = "^1"
+thiserror = "^1"
+tokio = { version = "^1", features = ["full"] }
+tokio-tungstenite = "^0.13"
 
 [dev-dependencies]
 quickcheck = "0.9.*"

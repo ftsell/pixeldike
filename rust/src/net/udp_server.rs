@@ -8,6 +8,7 @@ use tokio::net::UdpSocket;
 
 static LOG_TARGET: &str = "pixelflut.net.udp";
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct UdpOptions {
     pub listen_address: SocketAddr,
 }
