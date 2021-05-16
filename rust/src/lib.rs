@@ -19,10 +19,6 @@
 #[macro_use]
 extern crate quickcheck;
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate gettext_macros;
-#[macro_use]
 extern crate log;
 
 mod i18n;
