@@ -7,7 +7,6 @@
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::SharedMultiEncodings;
-use bytes::Bytes;
 use futures_util::stream::StreamExt;
 use std::convert::TryInto;
 use std::net::{Ipv4Addr, SocketAddr};
@@ -75,10 +74,13 @@ async fn process_connection<P>(
     );
     let websocket = tokio_tungstenite::accept_async(connection).await.unwrap();
     let (write, read) = websocket.split();
-    read.map(|msg| process_received(msg, pixmap.clone(), encodings.clone()))
+    if let Err(e) = read
+        .map(|msg| process_received(msg, pixmap.clone(), encodings.clone()))
         .forward(write)
         .await
-        .unwrap();
+    {
+        warn!(target: LOG_TARGET, "Error while handling connection: {}", e)
+    }
 }
 
 fn process_received<P>(
