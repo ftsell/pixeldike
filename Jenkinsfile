@@ -1,7 +1,7 @@
 // vim: set filetype=groovy:
 
 def image_name = "registry.finn-thorben.me/pixelflut"
-def implementation = "backend-go"
+def implementation = "rust"
 
 pipeline {
     agent {

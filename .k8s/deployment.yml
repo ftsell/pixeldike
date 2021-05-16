@@ -17,17 +17,18 @@ spec:
           - name: pixelflut
             image: registry.finn-thorben.me/pixelflut
             args:
+              - server
               - --tcp
               - "9876"
               - --udp
               - "9876"
-              - --websocket
+              - --ws
               - "9875"
               - --width
               - $(WIDTH)
               - --height
               - $(HEIGHT)
-              - --file
+              - --path
               - /app/data/snapshot.pxmap
             envFrom:
               - configMapRef:
