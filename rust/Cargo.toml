@@ -1,0 +1,47 @@
+[package]
+name = "pixelflut"
+version = "0.0.1"
+publish = false
+authors = ["Finn-Thorben Sell <dev@finn-thorben.me>"]
+edition = "2018"
+description = "pixel drawing game for programmers inspired by reddits r/place"
+documentation = "https://docs.rs/pixelflut"
+readme = "README.md"
+repository = "https://github.com/ftsell/pixelflut.git"
+license = "MIT"
+keywords = ["pixelflut"]
+categories = ["command-line-utilities", "games"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+bin = ["clap", "pretty_env_logger"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "pixelflut"
+path = "src/main.rs"
+required-features = ["default", "bin"]
+
+[dependencies]
+anyhow = "^1"
+base64 = "^0.13"
+byteorder = "^1"
+bytes = "^1"
+clap = { version = "^2", optional = true }
+futures-util = "^0.3"
+lazy_static = "^1"
+log = "^0.4"
+nom = "^6"
+pretty_env_logger = { version = "^0.4", optional = true }
+regex = "^1"
+thiserror = "^1"
+tokio = { version = "^1", features = ["full"] }
+tokio-tungstenite = "^0.13"
+
+[dev-dependencies]
+quickcheck = "0.9.*"
+tempfile = "3.*"

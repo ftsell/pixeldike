@@ -11,7 +11,9 @@ defmodule PixelflutCanvas.MixProject do
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      compilers: [:rustler] ++ Mix.compilers(),
+      rustler_crates: rustler_crates(),
     ]
   end
 
@@ -30,6 +32,15 @@ defmodule PixelflutCanvas.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
       # {:sibling_app_in_umbrella, in_umbrella: true},
       {:stream_data, "~> 0.5.0"},
+      {:rustler, "~> 0.21"},
+    ]
+  end
+
+  defp rustler_crates do
+    [
+      nativearray: [
+        mode: (if Mix.env() == :prod, do: :release, else: :debug)
+      ]
     ]
   end
 end
