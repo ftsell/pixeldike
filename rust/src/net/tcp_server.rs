@@ -1,33 +1,56 @@
+//!
+//! Server for handling the pixelflut protocol over TCP connections
+//!
+
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::SharedMultiEncodings;
 use anyhow::Error;
 use bytes::buf::Take;
 use bytes::{Buf, BytesMut};
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 static LOG_TARGET: &str = "pixelflut.net.tcp";
 
+/// Options which can be given to [`listen`] for detailed configuration
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct TcpOptions {
+    /// On which address the server should listen
     pub listen_address: SocketAddr,
 }
 
-pub async fn listen<P>(pixmap: SharedPixmap<P>, encodings: SharedMultiEncodings, options: TcpOptions)
+impl Default for TcpOptions {
+    fn default() -> Self {
+        Self {
+            listen_address: SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), 1234),
+        }
+    }
+}
+
+/// Start the tcp server
+///
+/// This binds to the socket address specified via *options* with TCP.
+///
+/// It uses the provided *pixmap* as a pixel data storage and *encodings* for reading cached state command results.
+pub async fn listen<P>(
+    pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
+    options: TcpOptions,
+) -> tokio::io::Result<()>
 where
     P: Pixmap + Send + Sync + 'static,
 {
-    let listener = TcpListener::bind(options.listen_address).await.unwrap();
+    let listener = TcpListener::bind(options.listen_address).await?;
     info!(
         target: LOG_TARGET,
-        "Started tcp listener on {}",
+        "Started tcp server on {}",
         listener.local_addr().unwrap()
     );
 
     loop {
-        let (socket, _) = listener.accept().await.unwrap();
+        let (socket, _) = listener.accept().await?;
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         tokio::spawn(async move {

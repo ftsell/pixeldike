@@ -1,21 +1,45 @@
+//!
+//! Server for handling the pixelflut protocol over websocket connections
+//!
+//! This implementation is currently fairly basic and only really intended to be used by [pixelflut-js](https://github.com/ftsell/pixelflut-js)
+//!
+
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::SharedMultiEncodings;
 use bytes::Bytes;
 use futures_util::stream::StreamExt;
 use std::convert::TryInto;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::Message;
 
 static LOG_TARGET: &str = "pixelflut.net.ws";
 
+/// Options which can be given to [`listen`] for detailed configuration
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WsOptions {
+    /// On which address the server should listen
     pub listen_address: SocketAddr,
 }
 
+impl Default for WsOptions {
+    fn default() -> Self {
+        Self {
+            listen_address: SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), 1234),
+        }
+    }
+}
+
+/// Start the websocket server
+///
+/// This binds to the socket address specified via *options* with TCP but expects only websocket
+/// traffic on it. All pixelflut commands must then be passed over the created websocket channel
+/// ond not directly via TCP.
+///
+/// It uses the provided *pixmap* as a pixel data storage and *encodings* for reading cached state
+/// command results.
 pub async fn listen<P>(pixmap: SharedPixmap<P>, encodings: SharedMultiEncodings, options: WsOptions)
 where
     P: Pixmap + Send + Sync + 'static,

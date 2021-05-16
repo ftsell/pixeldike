@@ -1,5 +1,6 @@
 //!
 //! Framing is the process of taking a byte stream and converting it to a stream of frames.
+//!
 //! A frame is a unit of data transmitted between two peers.
 //!
 
@@ -8,12 +9,24 @@ use anyhow::{Error, Result};
 use bytes::buf::Take;
 use bytes::{Buf, Bytes};
 use std::convert::TryInto;
+use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
 /// A frame is a unit of data transmitted between two peers.
+///
+/// The pixelflut on-the-wire binary format consists of an UTF-8 encoded string followed by a newline (\n or \r) character.
 pub struct Frame<I>(I)
 where
     I: Buf;
+
+impl<I> Debug for Frame<I>
+where
+    I: Buf + Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("frame of: {:?}", self.0))
+    }
+}
 
 impl<I> AsRef<I> for Frame<I>
 where
@@ -83,6 +96,7 @@ impl<I> Frame<I>
 where
     I: Buf,
 {
+    /// encode the contained frame to an on-the-wire binary format
     pub fn encode(self) -> Bytes {
         let mut chain = self.0.chain(Bytes::from_static("\n".as_bytes()));
         let length = chain.remaining();
@@ -94,7 +108,7 @@ impl<I> Frame<I>
 where
     I: Buf + Clone,
 {
-    /// Try to extract a Frame from an input buffer.
+    /// Try to extract a Frame from an input buffer by parsing the on-the-wire binary format.
     /// If successful, returns the extracted framed as well as how many bytes were read to extract it.
     pub fn from_input(src: I) -> Result<(Frame<Take<I>>, usize)> {
         // use a separate peeking view into the buffer to search for a newline
@@ -113,6 +127,7 @@ where
 }
 
 impl Frame<Bytes> {
+    /// create a new Frame with the provided *content*
     pub fn new_from_string(content: String) -> Self {
         Self(Bytes::from(content))
     }

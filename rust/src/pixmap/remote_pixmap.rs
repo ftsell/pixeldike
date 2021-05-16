@@ -10,6 +10,10 @@ use std::sync::Mutex;
 
 static LOG_TARGET: &str = "pixelflut.pixmap.remote";
 
+/// A pixmap implementation that proxies through to another pixelflut server.
+///
+/// It is implemented on generic [`Read`] and [`Write`] trait requirements but these are expected
+/// to be a communication channel to something that speaks the pixelflut protocol.
 #[derive(Debug)]
 pub struct RemotePixmap<I, F>
 where
@@ -26,6 +30,14 @@ where
     I: Read,
     F: Write,
 {
+    /// Create a new instance by using the given *reader* and *writer* implementations as a
+    /// communication channel.
+    ///
+    /// The resulting instance will write pixelflut [`Frame`]s into *writer* and expects
+    /// corresponding [`Frame`] responses by reading from *reader*.
+    /// An example is to use a TCP socket connected to another pixelflut server and pass
+    /// the [`TcpStream`](std::net::TcpStream) (after calling [`try_clone`](std::net::TcpStream::try_clone)) as both
+    /// *reader* and *writer*.
     pub fn new(reader: I, writer: F) -> Result<Self> {
         let mut instance = Self {
             stream: Mutex::new((BufReader::new(reader), BufWriter::new(writer))),

@@ -1,5 +1,4 @@
 use clap::value_t_or_exit;
-use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgGroup, SubCommand};
 use pixelflut;
 use pretty_env_logger;
 use std::net::SocketAddr;

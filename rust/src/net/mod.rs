@@ -1,3 +1,7 @@
+//!
+//! Networking layer for pixelflut servers and clients as well as on-the-wire protocol handling
+//!
+
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::protocol::{Request, Response, StateEncodingAlgorithm};
@@ -11,7 +15,7 @@ pub mod tcp_server;
 pub mod udp_server;
 pub mod ws_server;
 
-static LOG_TARGET: &str = "pixelflut.net";
+//static LOG_TARGET: &str = "pixelflut.net";
 
 /// handle a request frame and return a response frame
 fn handle_frame<P, B>(

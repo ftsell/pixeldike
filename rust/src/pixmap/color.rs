@@ -2,6 +2,7 @@
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Formatter, UpperHex};
 
+/// Color data represented as red, green, and blue channels each having a depth of 8 bits
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
 pub struct Color(pub u8, pub u8, pub u8);
 

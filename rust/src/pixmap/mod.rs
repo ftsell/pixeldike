@@ -17,8 +17,13 @@ pub use file_backed_pixmap::FileBackedPixmap;
 pub use in_memory_pixmap::InMemoryPixmap;
 pub use remote_pixmap::RemotePixmap;
 
-/// Type used for sharing `[Pixmap]`s between multiple places
-pub(crate) type SharedPixmap<P> = Arc<P>;
+/// A [`Pixmap`] which can be used throughout multiple threads
+///
+/// This is simply an [`Arc`] around any pixmap because pixmaps are already required to implement
+/// interior mutability and thus are already [`Send`] and [`Sync`]. The Arc then allows actual
+/// sharing between multiple users because it provides a [`Clone`] implementation that refers
+/// to the same data.
+pub type SharedPixmap<P> = Arc<P>;
 
 #[derive(Debug, Error)]
 enum GenericError {
