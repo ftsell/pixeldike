@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run Server" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run --all-features --bin pixelflut" />
+    <option name="command" value="run --all-features --bin pixelflut -- server --tcp 1234" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />
