@@ -80,6 +80,8 @@ async fn start_server(
     }
 
     if let Some(ws_port) = ws_port {
+        let pixmap = pixmap.clone();
+        let encodings = encodings.clone();
         handles.push(tokio::spawn(async move {
             pixelflut::net::ws_server::listen(
                 pixmap.clone(),
@@ -92,6 +94,8 @@ async fn start_server(
             .await;
         }))
     }
+
+    handles.extend(pixelflut::state_encoding::start_encoders(encodings, pixmap));
 
     for handle in handles {
         let _ = tokio::join!(handle);
