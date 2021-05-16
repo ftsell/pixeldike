@@ -95,7 +95,7 @@ where
                 debug!(target: LOG_TARGET, "Received websocket message: {}", msg);
 
                 // TODO improve websocket frame handling
-                let (frame, _length) = Frame::from_input(Bytes::from(msg)).unwrap();
+                let frame = Frame::new_from_string(msg);
 
                 // TODO improve by not sending empty responses
                 match super::handle_frame(frame, &pixmap, &encodings) {
