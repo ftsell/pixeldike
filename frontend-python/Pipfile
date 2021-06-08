@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-Pillow = "~=8.1"
+Pillow = "~=8.2"
 PyGObject = "~=3.38"
 
 [dev-packages]
