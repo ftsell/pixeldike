@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 pub type SharedMultiEncodings = Arc<MultiEncodings>;
 
+#[derive(Debug)]
 pub struct MultiEncodings {
     pub rgb64: Mutex<rgb64::Encoding>,
     pub rgba64: Mutex<rgba64::Encoding>,
