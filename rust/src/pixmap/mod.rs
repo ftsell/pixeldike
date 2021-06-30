@@ -6,6 +6,7 @@ mod color;
 mod file_backed_pixmap;
 mod in_memory_pixmap;
 mod remote_pixmap;
+mod replicating_pixmap;
 
 use anyhow::Result;
 use std::sync::atomic::AtomicU32;
