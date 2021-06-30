@@ -100,29 +100,32 @@ where
         let frequency = self.frequency;
         let (sender, receiver) = mpsc::channel();
 
-        let join_handle = thread::spawn(move || {
-            let interval_duration = Duration::from_secs_f64(1.0 / frequency);
-            debug!(
-                target: LOG_TARGET,
-                "Starting pixmap replication once every {:?}", interval_duration
-            );
+        let join_handle = thread::Builder::new()
+            .name("pixelflut.replicator".to_string())
+            .spawn(move || {
+                let interval_duration = Duration::from_secs_f64(1.0 / frequency);
+                debug!(
+                    target: LOG_TARGET,
+                    "Starting pixmap replication once every {:?}", interval_duration
+                );
 
-            // loop while nothing has been sent over the notification channel
-            while receiver.try_recv().is_err() {
-                let start_time = Instant::now();
+                // loop while nothing has been sent over the notification channel
+                while receiver.try_recv().is_err() {
+                    let start_time = Instant::now();
 
-                if let Err(e) = ReplicatingPixmap::replicate(&primary, &replicas)
-                    .context("replicating in replication thread")
-                {
-                    error!("{}", e);
-                    return;
+                    if let Err(e) = ReplicatingPixmap::replicate(&primary, &replicas)
+                        .context("replicating in replication thread")
+                    {
+                        error!("{}", e);
+                        return;
+                    }
+
+                    if start_time.elapsed() < interval_duration {
+                        thread::sleep(interval_duration - start_time.elapsed())
+                    }
                 }
-
-                if start_time.elapsed() < interval_duration {
-                    thread::sleep(interval_duration - start_time.elapsed())
-                }
-            }
-        });
+            })
+            .expect("could not start replicator thread");
 
         self.replication_thread = Some(Mutex::new(ReplicationThreadHandler {
             join_handle: Some(join_handle),
