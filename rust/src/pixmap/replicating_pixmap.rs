@@ -1,8 +1,10 @@
 use super::*;
 use anyhow::{Context, Result};
-use std::sync::mpsc;
+use std::sync::{mpsc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+
+const LOG_TARGET: &str = "pixelflut.pixmap.replica";
 
 #[derive(Debug, Error)]
 enum Error {
@@ -16,7 +18,7 @@ type ReplicaList = Vec<Box<dyn Pixmap + Send + Sync>>;
 
 struct ReplicationThreadHandler {
     #[allow(dead_code)]
-    join_handle: thread::JoinHandle<()>,
+    join_handle: Option<thread::JoinHandle<()>>,
     stop_channel: mpsc::Sender<()>,
 }
 
@@ -31,7 +33,7 @@ where
     primary: Arc<P>,
     replicas: Arc<ReplicaList>,
     frequency: f64,
-    replication_thread: Option<ReplicationThreadHandler>,
+    replication_thread: Option<Mutex<ReplicationThreadHandler>>,
 }
 
 impl<P> ReplicatingPixmap<P>
@@ -99,6 +101,12 @@ where
         let (sender, receiver) = mpsc::channel();
 
         let join_handle = thread::spawn(move || {
+            let interval_duration = Duration::from_secs_f64(1.0 / frequency);
+            debug!(
+                target: LOG_TARGET,
+                "Starting pixmap replication once every {:?}", interval_duration
+            );
+
             // loop while nothing has been sent over the notification channel
             while receiver.try_recv().is_err() {
                 let start_time = Instant::now();
@@ -110,29 +118,31 @@ where
                     return;
                 }
 
-                println!("first: {:?}", Duration::from_secs_f64(1.0 / frequency));
-                println!("second: {:?}", start_time.elapsed());
-                //thread::sleep(Duration::from_secs_f64(1.0 / frequency) - start_time.elapsed());
-                thread::sleep(Duration::from_secs_f64(1.0 / frequency));
+                if start_time.elapsed() < interval_duration {
+                    thread::sleep(interval_duration - start_time.elapsed())
+                }
             }
         });
 
-        self.replication_thread = Some(ReplicationThreadHandler {
-            join_handle,
+        self.replication_thread = Some(Mutex::new(ReplicationThreadHandler {
+            join_handle: Some(join_handle),
             stop_channel: sender,
-        });
+        }));
 
         Ok(())
     }
 
     fn stop_replication(&mut self) {
-        if let Some(replication_thread) = self.replication_thread.take() {
+        if let Some(mutex) = self.replication_thread.take() {
+            let mut replication_thread = mutex.lock().unwrap();
             replication_thread
                 .stop_channel
                 .send(())
                 .expect("could not send stop signal to replication thread");
             replication_thread
                 .join_handle
+                .take()
+                .unwrap()
                 .join()
                 .expect("could not join with replication thread");
             self.replication_thread = None;
