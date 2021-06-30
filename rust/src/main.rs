@@ -1,5 +1,6 @@
 use clap::value_t_or_exit;
 use pixelflut;
+use pixelflut::pixmap::Pixmap;
 use pretty_env_logger;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -40,9 +41,24 @@ async fn start_server(
     udp_port: Option<usize>,
     ws_port: Option<usize>,
 ) {
+    // create pixmap instances
+    let primary_pixmap =
+        pixelflut::pixmap::InMemoryPixmap::new(width, height).expect("could not create in memory pixmap");
+    let file_pixmap = pixelflut::pixmap::FileBackedPixmap::new(&Path::new(path), width, height, false)
+        .expect(&format!("could not create pixmap backed by file {}", path));
+
+    // copy data from file into memory
+    primary_pixmap
+        .put_raw_data(
+            &file_pixmap
+                .get_raw_data()
+                .expect("could not load pixel data from file"),
+        )
+        .expect("could not put pixel data into memory");
+
+    // create final pixmap instance which automatically saves data into file
     let pixmap = Arc::new(
-        pixelflut::pixmap::FileBackedPixmap::new(&Path::new(path), width, height, false)
-            .expect("could not create pixmap"),
+        pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
     );
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
     let mut handles = Vec::new();
