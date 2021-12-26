@@ -15,8 +15,8 @@ categories = ["command-line-utilities", "games"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = []
-bin = ["clap", "pretty_env_logger"]
+cli = ["clap", "pretty_env_logger"]
+gui = ["gtk", "pretty_env_logger"]
 
 [lib]
 path = "src/lib.rs"
@@ -24,7 +24,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "pixelflut"
 path = "src/main.rs"
-required-features = ["default", "bin"]
+required-features = ["cli"]
 
 [dependencies]
 anyhow = "^1"
@@ -41,6 +41,7 @@ regex = "^1"
 thiserror = "^1"
 tokio = { version = "^1", features = ["full"] }
 tokio-tungstenite = "^0.13"
+gtk = { package = "gtk4", version = "0.3.1", features = ["v4_4", "v4_2"], optional = true }
 
 [dev-dependencies]
 quickcheck = "0.9.*"

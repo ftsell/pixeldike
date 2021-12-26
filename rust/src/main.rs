@@ -4,10 +4,14 @@ use pixelflut::pixmap::Pixmap;
 use pretty_env_logger;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
+use log::info;
 
 mod cli;
+#[cfg(feature = "gui")]
+mod gui;
 
 #[tokio::main]
 async fn main() {
@@ -16,6 +20,7 @@ async fn main() {
     let matches = cli::get_app().get_matches();
 
     match matches.subcommand() {
+        // subcommand to start server
         ("server", Some(sub_matches)) => {
             start_server(
                 value_t_or_exit!(sub_matches, "width", usize),
@@ -27,9 +32,24 @@ async fn main() {
                 value_t_or_exit_opt!(sub_matches, "udp_port", usize),
                 value_t_or_exit_opt!(sub_matches, "ws_port", usize),
             )
-            .await;
+                .await;
         }
-        _ => {}
+
+        // subcommand to start gui
+        #[cfg(feature = "gui")]
+        ("gui", _) => {
+            gui::start_gui();
+        }
+
+        // no subcommand given
+        ("", None) => {
+            println!("No subcommand given");
+            println!("Call with --help for more information");
+            exit(1);
+        }
+
+        // match exhaustion, this should not happen
+        (sub_command, sub_matches) => panic!("Unhandled subcommand '{}' with sub_matches {:?}", sub_command, sub_matches)
     }
 }
 
@@ -75,7 +95,7 @@ async fn start_server(
                         .expect("could not build SocketAddr"),
                 },
             )
-            .await;
+                .await;
         }));
     }
 
@@ -91,7 +111,7 @@ async fn start_server(
                         .expect("could not build SocketAddr"),
                 },
             )
-            .await;
+                .await;
         }))
     }
 
@@ -107,7 +127,7 @@ async fn start_server(
                         .expect("could not build SocketAddr"),
                 },
             )
-            .await;
+                .await;
         }))
     }
 

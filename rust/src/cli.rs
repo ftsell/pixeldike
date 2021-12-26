@@ -18,7 +18,7 @@ macro_rules! value_t_or_exit_opt {
 }
 
 pub fn get_app() -> App<'static, 'static> {
-    App::new(crate_name!())
+    let mut app = App::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
         .subcommand(
@@ -70,5 +70,14 @@ pub fn get_app() -> App<'static, 'static> {
                         .required(true)
                         .multiple(true),
                 ),
-        )
+        );
+
+    if cfg!(feature = "gui") {
+        app = app.subcommand(
+            SubCommand::with_name("gui")
+                .about("Start a graphical user interface")
+        );
+    }
+
+    app
 }
