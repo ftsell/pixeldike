@@ -33,6 +33,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
+name = "async-trait"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "061a7acccaa286c011ddc30970520b98fa40e00c9d644633fb26b5fc63a265e3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -219,6 +230,12 @@ dependencies = [
  "matches",
  "percent-encoding",
 ]
+
+[[package]]
+name = "fragile"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69a039c3498dc930fe810151a34ba0c1c70b02b8625035592e74432f678591f2"
 
 [[package]]
 name = "funty"
@@ -916,6 +933,9 @@ dependencies = [
  "pretty_env_logger",
  "quickcheck",
  "regex",
+ "relm4",
+ "relm4-components",
+ "relm4-macros",
  "tempfile",
  "thiserror",
  "tokio",
@@ -1126,6 +1146,43 @@ name = "regex-syntax"
 version = "0.6.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
+
+[[package]]
+name = "relm4"
+version = "0.4.0-beta.2"
+source = "git+https://github.com/AaronErhardt/relm4.git#8e36dd86b9c81411204a502891ddb36c4e4fcbb7"
+dependencies = [
+ "async-trait",
+ "fragile",
+ "futures-core",
+ "gtk4",
+ "log",
+ "once_cell",
+ "tokio",
+]
+
+[[package]]
+name = "relm4-components"
+version = "0.4.0-beta.2"
+source = "git+https://github.com/AaronErhardt/relm4.git#8e36dd86b9c81411204a502891ddb36c4e4fcbb7"
+dependencies = [
+ "gtk4",
+ "log",
+ "once_cell",
+ "relm4",
+ "relm4-macros",
+ "tracker",
+]
+
+[[package]]
+name = "relm4-macros"
+version = "0.4.0-beta.2"
+source = "git+https://github.com/AaronErhardt/relm4.git#8e36dd86b9c81411204a502891ddb36c4e4fcbb7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "remove_dir_all"
@@ -1410,6 +1467,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31142970826733df8241ef35dc040ef98c679ab14d7c3e54d827099b3acecaa"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "tracker"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e66d89d37f24af7a53e394a412441c803df73f1a5adfcb3b9c37a2e0a75392eb"
+dependencies = [
+ "tracker-macros",
+]
+
+[[package]]
+name = "tracker-macros"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ca57dc00ed70e0acce16b1a4994ba9caf7718b9247382285d5e5192d3f6cd8d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

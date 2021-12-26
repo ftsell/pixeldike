@@ -1,11 +1,25 @@
 use std::process::exit;
+use std::time::Duration;
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow};
+use gtk::{Application, ApplicationWindow, PopoverMenuBar};
+use relm4::RelmApp;
+
+mod app;
+mod layout;
+mod config_form;
+mod control_buttons;
 
 pub fn start_gui<S>(args: &[S]) where S: AsRef<str> {
+    gtk::init().expect("Couln't initialize GTK");
     let app = Application::builder()
         .application_id("me.finn-thorben.pixelflut")
         .build();
+    let model = app::AppModel {};
+
+    let app = RelmApp::with_app(model, app);
+    app.run_with_args(args);
+
+    /*
 
     app.connect_activate(|app| {
         // create the main window
@@ -22,4 +36,5 @@ pub fn start_gui<S>(args: &[S]) where S: AsRef<str> {
 
     // run main event loop and pass through its exit code
     exit(app.run_with_args(args))
+     */
 }
