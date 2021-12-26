@@ -1,4 +1,4 @@
-use clap::{crate_description, crate_name, crate_version, App, Arg, ArgGroup, SubCommand};
+use clap::{crate_description, crate_name, crate_version, App, Arg, ArgGroup, SubCommand, AppSettings};
 
 /// Adapted implementation of [`clap::value_t_or_exit`] that ignores non-existing values and simply
 /// keeps them as None without raising an error
@@ -73,9 +73,12 @@ pub fn get_app() -> App<'static, 'static> {
         );
 
     if cfg!(feature = "gui") {
+        app = app.setting(AppSettings::TrailingVarArg);
         app = app.subcommand(
             SubCommand::with_name("gui")
                 .about("Start a graphical user interface")
+                .after_help("To specify gtk arguments, use -- followed by the gtk arguments")
+                .arg(Arg::with_name("gtk-args").multiple(true))
         );
     }
 

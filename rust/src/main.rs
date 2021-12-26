@@ -37,8 +37,12 @@ async fn main() {
 
         // subcommand to start gui
         #[cfg(feature = "gui")]
-        ("gui", _) => {
-            gui::start_gui();
+        ("gui", Some(sub_matches)) => {
+            let gtk_args = match sub_matches.values_of("gtk-args") {
+                None => Vec::new(),
+                Some(values) => values.collect()
+            };
+            gui::start_gui(&gtk_args);
         }
 
         // no subcommand given
