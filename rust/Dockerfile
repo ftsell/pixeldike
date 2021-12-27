@@ -1,11 +1,11 @@
-FROM docker.io/rust:1.52 as build
+FROM docker.io/rust:1.57 as build
 
 RUN apt update && apt install -y musl-tools
 RUN rustup target add x86_64-unknown-linux-musl
 
 WORKDIR /app/src
 ADD . /app/src/
-RUN cargo build --target x86_64-unknown-linux-musl --features bin --release --locked --bin pixelflut
+RUN cargo build --target x86_64-unknown-linux-musl --features cli --release --locked --bin pixelflut
 
 
 #

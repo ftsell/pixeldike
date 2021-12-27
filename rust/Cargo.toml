@@ -3,7 +3,7 @@ name = "pixelflut"
 version = "0.1.0"
 publish = false
 authors = ["Finn-Thorben Sell <dev@finn-thorben.me>"]
-edition = "2018"
+edition = "2021"
 description = "pixel drawing game for programmers inspired by reddits r/place"
 documentation = "https://docs.rs/pixelflut"
 readme = "README.md"
@@ -16,7 +16,7 @@ categories = ["command-line-utilities", "games"]
 
 [features]
 cli = ["clap", "pretty_env_logger"]
-gui = ["gtk", "relm4", "relm4-macros", "relm4-components", "pretty_env_logger"]
+gui = ["gtk", "relm4", "relm4-macros", "relm4-components", "pretty_env_logger", "clap"]
 
 [lib]
 path = "src/lib.rs"
