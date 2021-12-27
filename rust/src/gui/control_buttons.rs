@@ -1,25 +1,46 @@
 use gtk::glib::Sender;
 use gtk::prelude::*;
-use relm4::{Widgets, ComponentUpdate, Model};
+use relm4::{Widgets, ComponentUpdate, Model, send};
+use crate::gui::config_form::ConfigFormMsg;
 use super::config_form::ConfigFormModel;
 
 /// State of the *ControlButtons* component.
 ///
 /// This component's job is to display multiple buttons which are used to start and stop the server or client.
-pub(super) struct ControlButtonsModel {}
+pub(super) struct ControlButtonsModel {
+    enabled: bool,
+    server_currently_running: bool,
+}
+
+pub(super) enum ControlButtonsMsg {
+    SetEnabled(bool),
+    ToggleEnabled,
+    ToggleServerCurrentlyRunning
+}
 
 impl Model for ControlButtonsModel {
-    type Msg = ();
+    type Msg = ControlButtonsMsg;
     type Widgets = ControlButtonsWidgets;
     type Components = ();
 }
 
 impl ComponentUpdate<ConfigFormModel> for ControlButtonsModel {
     fn init_model(parent_model: &ConfigFormModel) -> Self {
-        Self {}
+        Self {
+            enabled: true,
+            server_currently_running: false,
+        }
     }
 
-    fn update(&mut self, msg: Self::Msg, components: &Self::Components, sender: Sender<Self::Msg>, parent_sender: Sender<<ConfigFormModel as Model>::Msg>) {
+    fn update(&mut self, msg: Self::Msg, _components: &Self::Components, _sender: Sender<Self::Msg>, parent_sender: Sender<<ConfigFormModel as Model>::Msg>) {
+        match msg {
+            ControlButtonsMsg::ToggleEnabled => self.enabled = !self.enabled,
+            ControlButtonsMsg::ToggleServerCurrentlyRunning => {
+                self.server_currently_running = !self.server_currently_running;
+                send!(parent_sender, ConfigFormMsg::ToggleInputFreeze);
+            },
+            ControlButtonsMsg::SetEnabled(value) => self.enabled = value,
+        }
     }
 }
 
@@ -37,6 +58,7 @@ impl Widgets<ControlButtonsModel, ConfigFormModel> for ControlButtonsWidgets {
             .name("PixelflutControlButtonsButton")
             .label("Start Server")
             .build();
+        start_stop_button.connect_clicked(move |btn| send!(sender, ControlButtonsMsg::ToggleServerCurrentlyRunning));
 
         Self {
             start_stop_button,
@@ -47,5 +69,13 @@ impl Widgets<ControlButtonsModel, ConfigFormModel> for ControlButtonsWidgets {
         self.start_stop_button.clone()
     }
 
-    fn view(&mut self, model: &ControlButtonsModel, sender: Sender<<ControlButtonsModel as Model>::Msg>) {}
+    fn view(&mut self, model: &ControlButtonsModel, _sender: Sender<<ControlButtonsModel as Model>::Msg>) {
+        self.start_stop_button.set_sensitive(model.enabled);
+
+        if model.server_currently_running {
+            self.start_stop_button.set_label("Stop Server");
+        } else {
+            self.start_stop_button.set_label("Start Server");
+        }
+    }
 }

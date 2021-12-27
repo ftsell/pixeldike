@@ -1,19 +1,52 @@
+use std::num::ParseIntError;
+use std::ptr::drop_in_place;
+use std::str::FromStr;
 use gtk::glib::Sender;
+use gtk::glib::value::ToValueOptional;
 use gtk::prelude::*;
-use relm4::{Components, ComponentUpdate, Model, RelmComponent, WidgetPlus, Widgets};
+use relm4::{Components, ComponentUpdate, Model, RelmComponent, send, WidgetPlus, Widgets};
+use crate::gui::control_buttons::ControlButtonsMsg;
 use super::app::AppModel;
 use super::layout::LayoutModel;
 use super::control_buttons::ControlButtonsModel;
+
+
+/// Available pixelflut network protocols that can be chosen in the GUI
+pub(super) enum ProtocolChoice {
+    TCP,
+    UDP,
+}
 
 
 /// State of the *ConfigForm* component
 ///
 /// The *ConfigForm* is rendered at the top of the main window and allows the user to configure
 /// the application.
-pub(super) struct ConfigFormModel {}
+pub(super) struct ConfigFormModel {
+    /// Whether user input is currently frozen (not possible) or enabled.
+    ///
+    /// The is usually frozen when a server is currently running in which case it is not possible
+    /// to change any server configuration.
+    is_input_frozen: bool,
+    selected_protocol: Option<ProtocolChoice>,
+    selected_port: Option<u32>
+}
 
 /// Operations which can change [`ConfigFormModel`]
-pub(super) enum ConfigFormMsg {}
+pub(super) enum ConfigFormMsg {
+    /// Toggle the value of [`ConfigFormModel::is_input_frozen`]
+    ToggleInputFreeze,
+    /// Set the value of [`ConfigFormModel::selected_protocol`]
+    SetSelectedProtocol(Option<ProtocolChoice>),
+    /// Set the value of [`ConfigFormModel::selected_port`]
+    SetSelectedPort(Option<u32>),
+}
+
+impl ConfigFormModel {
+    fn is_valid(&self) -> bool {
+        self.selected_protocol.is_some() && self.selected_port.is_some()
+    }
+}
 
 impl Model for ConfigFormModel {
     type Msg = ConfigFormMsg;
@@ -23,10 +56,22 @@ impl Model for ConfigFormModel {
 
 impl ComponentUpdate<LayoutModel> for ConfigFormModel {
     fn init_model(_parent_model: &LayoutModel) -> Self {
-        Self {}
+        Self {
+            is_input_frozen: false,
+            selected_port: Some(9876),
+            selected_protocol: Some(ProtocolChoice::TCP),
+        }
     }
 
-    fn update(&mut self, msg: Self::Msg, components: &Self::Components, sender: Sender<Self::Msg>, parent_sender: Sender<<LayoutModel as Model>::Msg>) {    }
+    fn update(&mut self, msg: Self::Msg, components: &Self::Components, _sender: Sender<Self::Msg>, _parent_sender: Sender<<LayoutModel as Model>::Msg>) {
+        match msg {
+            ConfigFormMsg::ToggleInputFreeze => self.is_input_frozen = !self.is_input_frozen,
+            ConfigFormMsg::SetSelectedProtocol(protocol) => self.selected_protocol = protocol,
+            ConfigFormMsg::SetSelectedPort(port) => self.selected_port = port,
+        }
+
+        components.control_buttons.send(ControlButtonsMsg::SetEnabled(self.is_valid()));
+    }
 }
 
 
@@ -34,38 +79,82 @@ impl ComponentUpdate<LayoutModel> for ConfigFormModel {
 pub(super) struct ConfigFormWidgets {
     container: gtk::Box,
     spacer: gtk::Box,
-    text: gtk::Text,
+    protocol_selector_label: gtk::Label,
+    protocol_selector: gtk::DropDown,
+    port_input_label: gtk::Label,
+    port_input: gtk::Entry,
 }
 
 impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
     type Root = gtk::Box;
 
-    fn init_view(_model: &ConfigFormModel, components: &<ConfigFormModel as Model>::Components, _sender: Sender<<ConfigFormModel as Model>::Msg>) -> Self {
+    fn init_view(_model: &ConfigFormModel, components: &<ConfigFormModel as Model>::Components, sender: Sender<<ConfigFormModel as Model>::Msg>) -> Self {
+        // container
         let container = gtk::Box::builder()
             .name("PixelflutConfigFormContainer")
             .halign(gtk::Align::Fill)
             .orientation(gtk::Orientation::Horizontal)
             .build();
         container.set_margin_all(4);
-
-        let text = gtk::Text::builder()
-            .name("PixelflutConfigFormTestText")
-            .text("Test text")
-            .build();
-
         let spacer = gtk::Box::builder()
             .name("PixelflutConfigFormSpacer")
             .hexpand(true)
             .build();
 
-        container.append(&text);
+        // protocol selection
+        let protocol_selector_label = gtk::Label::builder()
+            .name("PixelflutConfigFormProtocolSelectorLabel")
+            .label("Protocols")
+            .margin_end(4)
+            .build();
+        let protocol_selector = gtk::DropDown::builder()
+            .name("PixelflutConfigFormProtocolSelector")
+            .margin_end(16)
+            .model(&gtk::StringList::new(&["tcp", "udp"]))
+            .build();
+        let sender2 = sender.clone();
+        protocol_selector.connect_selected_item_notify(move |dropdown| {
+            match dropdown.selected() {
+                0 => send!(sender2, ConfigFormMsg::SetSelectedProtocol(Some(ProtocolChoice::TCP))),
+                1 => send!(sender2, ConfigFormMsg::SetSelectedProtocol(Some(ProtocolChoice::UDP))),
+                _ => send!(sender2, ConfigFormMsg::SetSelectedProtocol(None)),
+            }
+        });
+
+        // port input
+        let port_input_label = gtk::Label::builder()
+            .name("PixelflutConfigFormPortInputLabel")
+            .label("Port")
+            .margin_end(4)
+            .build();
+        let port_input = gtk::Entry::builder()
+            .name("PixelflutConfigFormPortInput")
+            .input_purpose(gtk::InputPurpose::Number)
+            .max_width_chars(6)
+            .text("9876")
+            .build();
+        port_input.connect_changed(move |entry| {
+            match u32::from_str(entry.text().as_str()) {
+                Ok(port) => send!(sender, ConfigFormMsg::SetSelectedPort(Some(port))),
+                Err(_) => send!(sender, ConfigFormMsg::SetSelectedPort(None))
+            }
+        });
+
+        // view construction
+        container.append(&protocol_selector_label);
+        container.append(&protocol_selector);
+        container.append(&port_input_label);
+        container.append(&port_input);
         container.append(&spacer);
         container.append(components.control_buttons.root_widget());
 
         Self {
             container,
             spacer,
-            text,
+            protocol_selector_label,
+            protocol_selector,
+            port_input_label,
+            port_input,
         }
     }
 
@@ -73,7 +162,9 @@ impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
         self.container.clone()
     }
 
-    fn view(&mut self, _model: &ConfigFormModel, _sender: Sender<<ConfigFormModel as Model>::Msg>) {
+    fn view(&mut self, model: &ConfigFormModel, _sender: Sender<<ConfigFormModel as Model>::Msg>) {
+        self.protocol_selector.set_sensitive(!model.is_input_frozen);
+        self.port_input.set_sensitive(!model.is_input_frozen);
     }
 }
 
