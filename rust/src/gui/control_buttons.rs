@@ -1,8 +1,8 @@
+use super::config_form::ConfigFormModel;
+use crate::gui::config_form::ConfigFormMsg;
 use gtk::glib::Sender;
 use gtk::prelude::*;
-use relm4::{Widgets, ComponentUpdate, Model, send};
-use crate::gui::config_form::ConfigFormMsg;
-use super::config_form::ConfigFormModel;
+use relm4::{send, ComponentUpdate, Model, Widgets};
 
 /// State of the *ControlButtons* component.
 ///
@@ -15,7 +15,7 @@ pub(super) struct ControlButtonsModel {
 pub(super) enum ControlButtonsMsg {
     SetEnabled(bool),
     ToggleEnabled,
-    ToggleServerCurrentlyRunning
+    ToggleServerCurrentlyRunning,
 }
 
 impl Model for ControlButtonsModel {
@@ -32,18 +32,31 @@ impl ComponentUpdate<ConfigFormModel> for ControlButtonsModel {
         }
     }
 
-    fn update(&mut self, msg: Self::Msg, _components: &Self::Components, _sender: Sender<Self::Msg>, parent_sender: Sender<<ConfigFormModel as Model>::Msg>) {
+    fn update(
+        &mut self,
+        msg: Self::Msg,
+        _components: &Self::Components,
+        _sender: Sender<Self::Msg>,
+        parent_sender: Sender<<ConfigFormModel as Model>::Msg>,
+    ) {
         match msg {
             ControlButtonsMsg::ToggleEnabled => self.enabled = !self.enabled,
             ControlButtonsMsg::ToggleServerCurrentlyRunning => {
+                log::debug!("Toggling whether server is currently running");
                 self.server_currently_running = !self.server_currently_running;
-                send!(parent_sender, ConfigFormMsg::ToggleInputFreeze);
-            },
+                send!(
+                    parent_sender,
+                    if self.server_currently_running {
+                        ConfigFormMsg::SendStartServer
+                    } else {
+                        ConfigFormMsg::SendStopServer
+                    }
+                );
+            }
             ControlButtonsMsg::SetEnabled(value) => self.enabled = value,
         }
     }
 }
-
 
 /// Widgets that are used to render [`ControlButtonsModel`]
 pub(super) struct ControlButtonsWidgets {
@@ -53,16 +66,19 @@ pub(super) struct ControlButtonsWidgets {
 impl Widgets<ControlButtonsModel, ConfigFormModel> for ControlButtonsWidgets {
     type Root = gtk::Button;
 
-    fn init_view(model: &ControlButtonsModel, _components: &<ControlButtonsModel as Model>::Components, sender: Sender<<ControlButtonsModel as Model>::Msg>) -> Self {
+    fn init_view(
+        model: &ControlButtonsModel,
+        _components: &<ControlButtonsModel as Model>::Components,
+        sender: Sender<<ControlButtonsModel as Model>::Msg>,
+    ) -> Self {
         let start_stop_button = gtk::Button::builder()
             .name("PixelflutControlButtonsButton")
             .label("Start Server")
             .build();
-        start_stop_button.connect_clicked(move |btn| send!(sender, ControlButtonsMsg::ToggleServerCurrentlyRunning));
+        start_stop_button
+            .connect_clicked(move |btn| send!(sender, ControlButtonsMsg::ToggleServerCurrentlyRunning));
 
-        Self {
-            start_stop_button,
-        }
+        Self { start_stop_button }
     }
 
     fn root_widget(&self) -> Self::Root {

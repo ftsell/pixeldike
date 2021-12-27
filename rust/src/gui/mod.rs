@@ -1,15 +1,19 @@
-use std::process::exit;
-use std::time::Duration;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, PopoverMenuBar};
 use relm4::RelmApp;
+use std::process::exit;
+use std::time::Duration;
 
 mod app;
-mod layout;
 mod config_form;
 mod control_buttons;
+mod layout;
+mod server_worker;
 
-pub fn start_gui<S>(args: &[S]) where S: AsRef<str> {
+pub fn start_gui<S>(args: &[S])
+where
+    S: AsRef<str>,
+{
     gtk::init().expect("Couln't initialize GTK");
     let app = Application::builder()
         .application_id("me.finn-thorben.pixelflut")

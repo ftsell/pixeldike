@@ -1,22 +1,22 @@
+use super::app::AppModel;
+use super::control_buttons::{ControlButtonsModel, ControlButtonsMsg};
+use super::layout::LayoutModel;
+use super::layout::LayoutMsg;
+use super::server_worker::ServerWorkerMsg;
+use gtk::glib::value::ToValueOptional;
+use gtk::glib::Sender;
+use gtk::prelude::*;
+use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
 use std::num::ParseIntError;
 use std::ptr::drop_in_place;
 use std::str::FromStr;
-use gtk::glib::Sender;
-use gtk::glib::value::ToValueOptional;
-use gtk::prelude::*;
-use relm4::{Components, ComponentUpdate, Model, RelmComponent, send, WidgetPlus, Widgets};
-use crate::gui::control_buttons::ControlButtonsMsg;
-use super::app::AppModel;
-use super::layout::LayoutModel;
-use super::control_buttons::ControlButtonsModel;
-
 
 /// Available pixelflut network protocols that can be chosen in the GUI
+#[derive(Debug, Copy, Clone)]
 pub(super) enum ProtocolChoice {
     TCP,
     UDP,
 }
-
 
 /// State of the *ConfigForm* component
 ///
@@ -29,17 +29,20 @@ pub(super) struct ConfigFormModel {
     /// to change any server configuration.
     is_input_frozen: bool,
     selected_protocol: Option<ProtocolChoice>,
-    selected_port: Option<u32>
+    selected_port: Option<u32>,
 }
 
 /// Operations which can change [`ConfigFormModel`]
 pub(super) enum ConfigFormMsg {
-    /// Toggle the value of [`ConfigFormModel::is_input_frozen`]
-    ToggleInputFreeze,
     /// Set the value of [`ConfigFormModel::selected_protocol`]
     SetSelectedProtocol(Option<ProtocolChoice>),
     /// Set the value of [`ConfigFormModel::selected_port`]
     SetSelectedPort(Option<u32>),
+    /// Send a message based on the current input up the component hierarchy to start a pixelflut
+    /// server.
+    SendStartServer,
+    /// Send a message up the component hierarchy to stop a pixelflut server
+    SendStopServer,
 }
 
 impl ConfigFormModel {
@@ -63,17 +66,41 @@ impl ComponentUpdate<LayoutModel> for ConfigFormModel {
         }
     }
 
-    fn update(&mut self, msg: Self::Msg, components: &Self::Components, _sender: Sender<Self::Msg>, _parent_sender: Sender<<LayoutModel as Model>::Msg>) {
+    fn update(
+        &mut self,
+        msg: Self::Msg,
+        components: &Self::Components,
+        _sender: Sender<Self::Msg>,
+        parent_sender: Sender<<LayoutModel as Model>::Msg>,
+    ) {
         match msg {
-            ConfigFormMsg::ToggleInputFreeze => self.is_input_frozen = !self.is_input_frozen,
             ConfigFormMsg::SetSelectedProtocol(protocol) => self.selected_protocol = protocol,
             ConfigFormMsg::SetSelectedPort(port) => self.selected_port = port,
+            ConfigFormMsg::SendStartServer => {
+                log::debug!("Freezing ConfigForm input and propagating StartServer message");
+                self.is_input_frozen = true;
+                send!(
+                    parent_sender,
+                    LayoutMsg::PropagateServerWorkerMsg(ServerWorkerMsg::StartServer {
+                        protocol: self.selected_protocol.expect(
+                            "Selected protocol is None but this message should not be received in that case"
+                        ),
+                        port: self.selected_port.expect(
+                            "Selected port is None but this message should not be received in that case"
+                        ),
+                    })
+                );
+            }
+            ConfigFormMsg::SendStopServer => {
+                self.is_input_frozen = false;
+            }
         }
 
-        components.control_buttons.send(ControlButtonsMsg::SetEnabled(self.is_valid()));
+        components
+            .control_buttons
+            .send(ControlButtonsMsg::SetEnabled(self.is_valid()));
     }
 }
-
 
 /// Storage of instantiated gtk widgets that render [`ConfigFormModel`]
 pub(super) struct ConfigFormWidgets {
@@ -88,7 +115,11 @@ pub(super) struct ConfigFormWidgets {
 impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
     type Root = gtk::Box;
 
-    fn init_view(_model: &ConfigFormModel, components: &<ConfigFormModel as Model>::Components, sender: Sender<<ConfigFormModel as Model>::Msg>) -> Self {
+    fn init_view(
+        _model: &ConfigFormModel,
+        components: &<ConfigFormModel as Model>::Components,
+        sender: Sender<<ConfigFormModel as Model>::Msg>,
+    ) -> Self {
         // container
         let container = gtk::Box::builder()
             .name("PixelflutConfigFormContainer")
@@ -113,12 +144,16 @@ impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
             .model(&gtk::StringList::new(&["tcp", "udp"]))
             .build();
         let sender2 = sender.clone();
-        protocol_selector.connect_selected_item_notify(move |dropdown| {
-            match dropdown.selected() {
-                0 => send!(sender2, ConfigFormMsg::SetSelectedProtocol(Some(ProtocolChoice::TCP))),
-                1 => send!(sender2, ConfigFormMsg::SetSelectedProtocol(Some(ProtocolChoice::UDP))),
-                _ => send!(sender2, ConfigFormMsg::SetSelectedProtocol(None)),
-            }
+        protocol_selector.connect_selected_item_notify(move |dropdown| match dropdown.selected() {
+            0 => send!(
+                sender2,
+                ConfigFormMsg::SetSelectedProtocol(Some(ProtocolChoice::TCP))
+            ),
+            1 => send!(
+                sender2,
+                ConfigFormMsg::SetSelectedProtocol(Some(ProtocolChoice::UDP))
+            ),
+            _ => send!(sender2, ConfigFormMsg::SetSelectedProtocol(None)),
         });
 
         // port input
@@ -133,11 +168,9 @@ impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
             .max_width_chars(6)
             .text("9876")
             .build();
-        port_input.connect_changed(move |entry| {
-            match u32::from_str(entry.text().as_str()) {
-                Ok(port) => send!(sender, ConfigFormMsg::SetSelectedPort(Some(port))),
-                Err(_) => send!(sender, ConfigFormMsg::SetSelectedPort(None))
-            }
+        port_input.connect_changed(move |entry| match u32::from_str(entry.text().as_str()) {
+            Ok(port) => send!(sender, ConfigFormMsg::SetSelectedPort(Some(port))),
+            Err(_) => send!(sender, ConfigFormMsg::SetSelectedPort(None)),
         });
 
         // view construction
@@ -168,14 +201,16 @@ impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
     }
 }
 
-
 /// Child-Components of the *ConfigForm* components
 pub(super) struct ConfigFormComponents {
     control_buttons: RelmComponent<ControlButtonsModel, ConfigFormModel>,
 }
 
 impl Components<ConfigFormModel> for ConfigFormComponents {
-    fn init_components(parent_model: &ConfigFormModel, parent_sender: Sender<<ConfigFormModel as Model>::Msg>) -> Self {
+    fn init_components(
+        parent_model: &ConfigFormModel,
+        parent_sender: Sender<<ConfigFormModel as Model>::Msg>,
+    ) -> Self {
         Self {
             control_buttons: RelmComponent::new(parent_model, parent_sender),
         }

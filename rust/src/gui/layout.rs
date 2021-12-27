@@ -1,15 +1,20 @@
-use gtk::glib::Sender;
-use gtk::prelude::*;
-use relm4::{Model, ComponentUpdate, Widgets, Components, WidgetPlus, RelmComponent};
-use relm4::factory::FactoryView;
 use super::app::{AppModel, AppMsg, AppWidgets};
 use super::config_form::{ConfigFormModel, ConfigFormWidgets};
+use super::server_worker::ServerWorkerMsg;
+use gtk::glib::Sender;
+use gtk::prelude::*;
+use relm4::factory::FactoryView;
+use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
 
 /// Representation of the layout state
 pub(super) struct LayoutModel {}
 
+pub(super) enum LayoutMsg {
+    PropagateServerWorkerMsg(ServerWorkerMsg),
+}
+
 impl Model for LayoutModel {
-    type Msg = ();
+    type Msg = LayoutMsg;
     type Widgets = LayoutWidgets;
     type Components = LayoutComponents;
 }
@@ -19,9 +24,20 @@ impl ComponentUpdate<AppModel> for LayoutModel {
         Self {}
     }
 
-    fn update(&mut self, _msg: Self::Msg, _components: &Self::Components, _sender: Sender<Self::Msg>, _parent_sender: Sender<AppMsg>) {}
+    fn update(
+        &mut self,
+        msg: Self::Msg,
+        _components: &Self::Components,
+        _sender: Sender<Self::Msg>,
+        parent_sender: Sender<AppMsg>,
+    ) {
+        match msg {
+            LayoutMsg::PropagateServerWorkerMsg(msg) => {
+                send!(parent_sender, AppMsg::PropagateServerWorkerMsg(msg))
+            }
+        }
+    }
 }
-
 
 /// Storage of instantiated widgets
 pub(super) struct LayoutWidgets {
@@ -33,7 +49,11 @@ pub(super) struct LayoutWidgets {
 impl Widgets<LayoutModel, AppModel> for LayoutWidgets {
     type Root = gtk::Box;
 
-    fn init_view(_model: &LayoutModel, components: &<LayoutModel as Model>::Components, _sender: Sender<<LayoutModel as Model>::Msg>) -> Self {
+    fn init_view(
+        _model: &LayoutModel,
+        components: &<LayoutModel as Model>::Components,
+        _sender: Sender<<LayoutModel as Model>::Msg>,
+    ) -> Self {
         let layout_box = gtk::Box::builder()
             .name("PixelflutLayout")
             .orientation(gtk::Orientation::Vertical)
@@ -70,11 +90,8 @@ impl Widgets<LayoutModel, AppModel> for LayoutWidgets {
         self.layout_box.clone()
     }
 
-    fn view(&mut self, model: &LayoutModel, sender: Sender<<LayoutModel as Model>::Msg>) {
-        todo!()
-    }
+    fn view(&mut self, model: &LayoutModel, sender: Sender<<LayoutModel as Model>::Msg>) {}
 }
-
 
 /// Storage of instantiated child components
 pub(super) struct LayoutComponents {
@@ -82,7 +99,10 @@ pub(super) struct LayoutComponents {
 }
 
 impl Components<LayoutModel> for LayoutComponents {
-    fn init_components(parent_model: &LayoutModel, parent_sender: Sender<<LayoutModel as Model>::Msg>) -> Self {
+    fn init_components(
+        parent_model: &LayoutModel,
+        parent_sender: Sender<<LayoutModel as Model>::Msg>,
+    ) -> Self {
         Self {
             config_form: RelmComponent::new(parent_model, parent_sender),
         }
