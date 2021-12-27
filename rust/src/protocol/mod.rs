@@ -1,11 +1,11 @@
 use std::fmt::{Display, Formatter};
 
+pub use request::Request;
+pub use response::Response;
+
 mod parsers;
 mod request;
 mod response;
-
-pub use request::Request;
-pub use response::Response;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StateEncodingAlgorithm {

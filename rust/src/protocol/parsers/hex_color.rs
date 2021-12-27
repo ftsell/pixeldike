@@ -1,5 +1,3 @@
-use super::Error;
-use crate::pixmap::Color;
 use anyhow::Result;
 use nom::{
     bytes::complete::{tag, take_while_m_n},
@@ -7,6 +5,10 @@ use nom::{
     sequence::tuple,
     AsChar, Err, IResult,
 };
+
+use crate::pixmap::Color;
+
+use super::Error;
 
 fn is_hex_digit(c: char) -> bool {
     c.is_hex_digit()
@@ -31,8 +33,9 @@ pub(super) fn parse(input: &str) -> IResult<&str, Color, Error> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use quickcheck::TestResult;
+
+    use super::*;
 
     #[test]
     fn parse_color_lowercase() {

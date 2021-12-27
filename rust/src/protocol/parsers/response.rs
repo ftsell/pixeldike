@@ -1,12 +1,14 @@
-use super::combinators::*;
-use super::Error;
-use super::{coordinate, encoding_algorithm, hex_color};
-use crate::protocol::Response;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::multispace1;
 use nom::combinator::{cut, map};
 use nom::IResult;
+
+use crate::protocol::Response;
+
+use super::combinators::*;
+use super::Error;
+use super::{coordinate, encoding_algorithm, hex_color};
 
 pub fn parse(input: &str) -> IResult<&str, Response, Error> {
     Ok(alt((

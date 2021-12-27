@@ -1,15 +1,13 @@
-use super::app::AppModel;
+use std::str::FromStr;
+
+use gtk::glib::Sender;
+use gtk::prelude::*;
+use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
+
 use super::control_buttons::{ControlButtonsModel, ControlButtonsMsg};
 use super::layout::LayoutModel;
 use super::layout::LayoutMsg;
 use super::server_worker::ServerWorkerMsg;
-use gtk::glib::value::ToValueOptional;
-use gtk::glib::Sender;
-use gtk::prelude::*;
-use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
-use std::num::ParseIntError;
-use std::ptr::drop_in_place;
-use std::str::FromStr;
 
 /// Available pixelflut network protocols that can be chosen in the GUI
 #[derive(Debug, Copy, Clone)]
@@ -98,11 +96,13 @@ impl ComponentUpdate<LayoutModel> for ConfigFormModel {
 
         components
             .control_buttons
-            .send(ControlButtonsMsg::SetEnabled(self.is_valid()));
+            .send(ControlButtonsMsg::SetEnabled(self.is_valid()))
+            .expect("Could not send SetEnabled to control_buttons");
     }
 }
 
 /// Storage of instantiated gtk widgets that render [`ConfigFormModel`]
+#[allow(dead_code)]
 pub(super) struct ConfigFormWidgets {
     container: gtk::Box,
     spacer: gtk::Box,

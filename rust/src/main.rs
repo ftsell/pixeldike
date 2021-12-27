@@ -1,13 +1,14 @@
-use clap::value_t_or_exit;
-use log::info;
-use pixelflut;
-use pixelflut::pixmap::Pixmap;
-use pretty_env_logger;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
+
+use clap::value_t_or_exit;
+use pretty_env_logger;
+
+use pixelflut;
+use pixelflut::pixmap::Pixmap;
 
 mod cli;
 #[cfg(feature = "gui")]
@@ -102,7 +103,8 @@ async fn start_server(
                         .expect("could not build SocketAddr"),
                 },
             )
-            .await;
+            .await
+            .expect("Could not run TCP listener");
         }));
     }
 
@@ -118,7 +120,8 @@ async fn start_server(
                         .expect("could not build SocketAddr"),
                 },
             )
-            .await;
+            .await
+            .expect("Could not run UDP listener");
         }))
     }
 

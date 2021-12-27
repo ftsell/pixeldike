@@ -1,11 +1,12 @@
-use super::app::{AppModel, AppMsg};
-use super::config_form::ProtocolChoice;
 use gtk::glib::Sender;
-use pixelflut::pixmap::{InMemoryPixmap, Pixmap};
-use pixelflut::state_encoding::SharedMultiEncodings;
 use relm4::{ComponentUpdate, Model};
-use std::sync::Arc;
 use tokio::task::JoinHandle;
+
+use pixelflut::pixmap::InMemoryPixmap;
+use pixelflut::state_encoding::SharedMultiEncodings;
+
+use super::app::AppModel;
+use super::config_form::ProtocolChoice;
 
 /// State of the *ServerWorker* component.
 ///
@@ -49,7 +50,7 @@ impl ComponentUpdate<AppModel> for ServerWorkerModel {
         _parent_sender: Sender<<AppModel as Model>::Msg>,
     ) {
         match msg {
-            ServerWorkerMsg::StartServer { port, protocol } => {
+            ServerWorkerMsg::StartServer { .. } => {
                 todo!("Starting a server is not yet implemented")
             }
             ServerWorkerMsg::StopServer => todo!("Stopping a server is not yet implemented"),

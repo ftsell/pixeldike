@@ -1,8 +1,10 @@
-use super::config_form::ConfigFormModel;
-use crate::gui::config_form::ConfigFormMsg;
 use gtk::glib::Sender;
 use gtk::prelude::*;
 use relm4::{send, ComponentUpdate, Model, Widgets};
+
+use crate::gui::config_form::ConfigFormMsg;
+
+use super::config_form::ConfigFormModel;
 
 /// State of the *ControlButtons* component.
 ///
@@ -14,7 +16,6 @@ pub(super) struct ControlButtonsModel {
 
 pub(super) enum ControlButtonsMsg {
     SetEnabled(bool),
-    ToggleEnabled,
     ToggleServerCurrentlyRunning,
 }
 
@@ -25,7 +26,7 @@ impl Model for ControlButtonsModel {
 }
 
 impl ComponentUpdate<ConfigFormModel> for ControlButtonsModel {
-    fn init_model(parent_model: &ConfigFormModel) -> Self {
+    fn init_model(_parent_model: &ConfigFormModel) -> Self {
         Self {
             enabled: true,
             server_currently_running: false,
@@ -40,7 +41,6 @@ impl ComponentUpdate<ConfigFormModel> for ControlButtonsModel {
         parent_sender: Sender<<ConfigFormModel as Model>::Msg>,
     ) {
         match msg {
-            ControlButtonsMsg::ToggleEnabled => self.enabled = !self.enabled,
             ControlButtonsMsg::ToggleServerCurrentlyRunning => {
                 log::debug!("Toggling whether server is currently running");
                 self.server_currently_running = !self.server_currently_running;
@@ -67,7 +67,7 @@ impl Widgets<ControlButtonsModel, ConfigFormModel> for ControlButtonsWidgets {
     type Root = gtk::Button;
 
     fn init_view(
-        model: &ControlButtonsModel,
+        _model: &ControlButtonsModel,
         _components: &<ControlButtonsModel as Model>::Components,
         sender: Sender<<ControlButtonsModel as Model>::Msg>,
     ) -> Self {
@@ -76,7 +76,7 @@ impl Widgets<ControlButtonsModel, ConfigFormModel> for ControlButtonsWidgets {
             .label("Start Server")
             .build();
         start_stop_button
-            .connect_clicked(move |btn| send!(sender, ControlButtonsMsg::ToggleServerCurrentlyRunning));
+            .connect_clicked(move |_| send!(sender, ControlButtonsMsg::ToggleServerCurrentlyRunning));
 
         Self { start_stop_button }
     }

@@ -2,16 +2,19 @@
 //! Data structures for pixelflut responses received from a server
 //!
 
-use super::parsers;
+use std::convert::{TryFrom, TryInto};
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+
+use bytes::Buf;
+use nom::Err;
+
 use crate::i18n;
 use crate::net::framing::Frame;
 use crate::pixmap::Color;
 use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
-use bytes::Buf;
-use nom::Err;
-use std::convert::{TryFrom, TryInto};
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
+
+use super::parsers;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Response {

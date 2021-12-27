@@ -1,8 +1,5 @@
-use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, PopoverMenuBar};
+use gtk::Application;
 use relm4::RelmApp;
-use std::process::exit;
-use std::time::Duration;
 
 mod app;
 mod config_form;

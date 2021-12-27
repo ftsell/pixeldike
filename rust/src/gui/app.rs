@@ -1,8 +1,9 @@
-use super::layout::LayoutModel;
-use super::server_worker::{ServerWorkerModel, ServerWorkerMsg};
 use gtk::glib::Sender;
 use gtk::prelude::*;
-use relm4::{AppUpdate, Components, Model, RelmApp, RelmComponent, RelmWorker, Widgets};
+use relm4::{AppUpdate, Model, RelmComponent, RelmWorker, Widgets};
+
+use super::layout::LayoutModel;
+use super::server_worker::{ServerWorkerModel, ServerWorkerMsg};
 
 /// All data that is general to the whole application
 pub(super) struct AppModel {}

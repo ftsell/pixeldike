@@ -1,11 +1,13 @@
-use super::*;
-use anyhow::Result;
-use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
+
+use anyhow::Result;
+use byteorder::{ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
+
+use super::*;
 
 // TODO Implement handling of read-only files
 // TODO Think of an implementation with RwLock instead of Mutex
@@ -297,10 +299,11 @@ impl Pixmap for FileBackedPixmap {
 
 #[cfg(test)]
 mod test {
-    use super::super::test;
-    use super::*;
     use quickcheck::TestResult;
     use tempfile::tempdir;
+
+    use super::super::test;
+    use super::*;
 
     #[test]
     fn test_new_file() {

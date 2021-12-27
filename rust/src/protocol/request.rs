@@ -2,14 +2,17 @@
 //! Data structures for pixelflut requests sent to a server
 //!
 
-use super::parsers;
-use crate::net::framing::Frame;
-use crate::pixmap::Color;
-use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
-use bytes::Buf;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+
+use bytes::Buf;
+
+use crate::net::framing::Frame;
+use crate::pixmap::Color;
+use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
+
+use super::parsers;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Request {

@@ -1,7 +1,9 @@
+use std::sync::atomic::Ordering;
+
+use anyhow::Result;
+
 use super::GenericError as Error;
 use super::*;
-use anyhow::Result;
-use std::sync::atomic::Ordering;
 
 ///
 /// A pixmap implementation based on an in-memory store of AtomicU32
@@ -88,9 +90,10 @@ impl Default for InMemoryPixmap {
 
 #[cfg(test)]
 mod test {
+    use quickcheck::TestResult;
+
     use super::super::test;
     use super::*;
-    use quickcheck::TestResult;
 
     quickcheck! {
         fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: Color) -> TestResult {

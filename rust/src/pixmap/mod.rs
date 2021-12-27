@@ -2,15 +2,10 @@
 //! Data structures to store pixel data, also called *Pixmaps*
 //!
 
-mod color;
-mod file_backed_pixmap;
-mod in_memory_pixmap;
-mod remote_pixmap;
-mod replicating_pixmap;
-
-use anyhow::Result;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+
+use anyhow::Result;
 use thiserror::Error;
 
 pub use color::*;
@@ -18,6 +13,12 @@ pub use file_backed_pixmap::FileBackedPixmap;
 pub use in_memory_pixmap::InMemoryPixmap;
 pub use remote_pixmap::RemotePixmap;
 pub use replicating_pixmap::ReplicatingPixmap;
+
+mod color;
+mod file_backed_pixmap;
+mod in_memory_pixmap;
+mod remote_pixmap;
+mod replicating_pixmap;
 
 /// A [`Pixmap`] which can be used throughout multiple threads
 ///
@@ -71,8 +72,9 @@ fn are_coordinates_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<bo
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use quickcheck::TestResult;
+
+    use super::*;
 
     pub(crate) fn test_set_and_get_pixel(
         pixmap: impl Pixmap,

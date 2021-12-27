@@ -1,10 +1,10 @@
-use super::app::{AppModel, AppMsg, AppWidgets};
-use super::config_form::{ConfigFormModel, ConfigFormWidgets};
-use super::server_worker::ServerWorkerMsg;
 use gtk::glib::Sender;
 use gtk::prelude::*;
-use relm4::factory::FactoryView;
 use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
+
+use super::app::{AppModel, AppMsg};
+use super::config_form::ConfigFormModel;
+use super::server_worker::ServerWorkerMsg;
 
 /// Representation of the layout state
 pub(super) struct LayoutModel {}
@@ -40,6 +40,7 @@ impl ComponentUpdate<AppModel> for LayoutModel {
 }
 
 /// Storage of instantiated widgets
+#[allow(dead_code)]
 pub(super) struct LayoutWidgets {
     layout_box: gtk::Box,
     separator: gtk::Separator,
@@ -90,7 +91,7 @@ impl Widgets<LayoutModel, AppModel> for LayoutWidgets {
         self.layout_box.clone()
     }
 
-    fn view(&mut self, model: &LayoutModel, sender: Sender<<LayoutModel as Model>::Msg>) {}
+    fn view(&mut self, _model: &LayoutModel, _sender: Sender<<LayoutModel as Model>::Msg>) {}
 }
 
 /// Storage of instantiated child components

@@ -1,12 +1,25 @@
-use super::SharedMultiEncodings;
-use crate::pixmap::{Color, Pixmap, SharedPixmap};
+//!
+//! Each pixel is encoded into 3 bytes for the color channels red, green and blue.
+// Those bytes are then simply appended to each other in row-major order.
+// At the end everything is base64 encoded.
+//!
+
 use anyhow::Result;
 use tokio::time::{interval, Duration};
 
+use crate::pixmap::{Color, Pixmap, SharedPixmap};
+
+use super::SharedMultiEncodings;
+
 static LOG_TARGET: &str = "pixelflut.encoder.rgb64";
 
+/// *RGB64* encoded pixmap canvas data
 pub type Encoding = String;
 
+/// Run the *RGB64* encoding algorithm in a loop.
+///
+/// Effectively, this periodically re-encodes the provided *pixmap*'s data into the given
+/// *encodings* storage.
 pub async fn run_encoder<P>(encodings: SharedMultiEncodings, pixmap: SharedPixmap<P>)
 where
     P: Pixmap,
@@ -42,6 +55,7 @@ where
     base64::encode(&data)
 }
 
+/// Decode data that was encoded using the *RGB64* algorithm into a list of Colors
 pub fn decode(data: Encoding) -> Result<Vec<Color>> {
     let mut result = Vec::new();
 
@@ -62,9 +76,11 @@ pub fn decode(data: Encoding) -> Result<Vec<Color>> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::pixmap::{Color, InMemoryPixmap};
     use quickcheck::TestResult;
+
+    use crate::pixmap::{Color, InMemoryPixmap};
+
+    use super::*;
 
     #[test]
     fn test_encoded_content_has_correct_length() {

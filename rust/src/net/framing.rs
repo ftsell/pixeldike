@@ -4,13 +4,15 @@
 //! A frame is a unit of data transmitted between two peers.
 //!
 
-use crate::protocol::{Request, Response};
-use anyhow::{Error, Result};
-use bytes::buf::Take;
-use bytes::{Buf, Bytes};
 use std::convert::TryInto;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
+
+use anyhow::{Error, Result};
+use bytes::buf::Take;
+use bytes::{Buf, Bytes};
+
+use crate::protocol::{Request, Response};
 
 /// A frame is a unit of data transmitted between two peers.
 ///
@@ -135,8 +137,9 @@ impl Frame<Bytes> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use quickcheck::TestResult;
+
+    use super::*;
 
     quickcheck! {
         fn test_parsing_encoding_stay_the_same(input: String) -> TestResult {

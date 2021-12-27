@@ -1,8 +1,11 @@
-use super::*;
-use anyhow::{Context, Result};
+use std::fmt::{Debug, Formatter};
 use std::sync::{mpsc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+
+use anyhow::{Context, Result};
+
+use super::*;
 
 const LOG_TARGET: &str = "pixelflut.pixmap.replica";
 
@@ -40,6 +43,7 @@ impl<P> ReplicatingPixmap<P>
 where
     P: Pixmap + Send + Sync + 'static,
 {
+    /// Create a new replicating pixmap from the given parameters.
     pub fn new(primary: P, replicas: ReplicaList, frequency: f64) -> Result<Self> {
         match primary.get_size() {
             Ok(primary_size) => {
@@ -55,7 +59,7 @@ where
                         Err(e) => {
                             return Err(Error::SizeVerificationError)
                                 .context(format!("tried to retrieve size of a replica"))
-                                .context(e)
+                                .context(e);
                         }
                     }
                 }
@@ -187,13 +191,33 @@ where
     }
 }
 
+impl<P> Debug for ReplicatingPixmap<P>
+where
+    P: Pixmap + Send + Sync + Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "ReplicatingPixmap {{ primary: {:?}, replicas: {}, frequency: {}, replication_thread: {} }}",
+            self.primary,
+            self.replicas.len(),
+            self.frequency,
+            match self.replication_thread {
+                None => "stopped",
+                Some(_) => "running",
+            }
+        ))
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use super::super::test;
-    use super::*;
-    use quickcheck::TestResult;
     use std::thread::sleep;
     use std::time::Duration;
+
+    use quickcheck::TestResult;
+
+    use super::super::test;
+    use super::*;
 
     quickcheck! {
         fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: Color) -> TestResult {

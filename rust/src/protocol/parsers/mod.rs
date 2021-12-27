@@ -1,6 +1,7 @@
-use nom::error::{ErrorKind, ParseError};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
+
+use nom::error::{ErrorKind, ParseError};
 
 pub use request::parse as parse_request;
 pub use response::parse as parse_response;

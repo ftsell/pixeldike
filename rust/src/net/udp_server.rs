@@ -2,13 +2,15 @@
 //! Server for handling the pixelflut protocol over connectionless UDP datagrams
 //!
 
+use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
+
+use bytes::{Buf, BytesMut};
+use tokio::net::UdpSocket;
+
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
 use crate::state_encoding::SharedMultiEncodings;
-use bytes::{Buf, BytesMut};
-use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::Arc;
-use tokio::net::UdpSocket;
 
 static LOG_TARGET: &str = "pixelflut.net.udp";
 

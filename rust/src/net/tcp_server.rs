@@ -2,15 +2,17 @@
 //! Server for handling the pixelflut protocol over TCP connections
 //!
 
-use crate::net::framing::Frame;
-use crate::pixmap::{Pixmap, SharedPixmap};
-use crate::state_encoding::SharedMultiEncodings;
+use std::net::{Ipv4Addr, SocketAddr};
+
 use anyhow::Error;
 use bytes::buf::Take;
 use bytes::{Buf, BytesMut};
-use std::net::{Ipv4Addr, SocketAddr};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+
+use crate::net::framing::Frame;
+use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::state_encoding::SharedMultiEncodings;
 
 static LOG_TARGET: &str = "pixelflut.net.tcp";
 

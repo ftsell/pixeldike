@@ -1,11 +1,24 @@
-use super::SharedMultiEncodings;
-use crate::pixmap::{Pixmap, SharedPixmap};
+//!
+//! Each pixel is encoded into 4 bytes for the color channels red, green, blue and alpha whereby alpha is always 255.
+// These bytes are then simply appended to each other in row-major order.
+// At the end everything is base64 encoded.
+//!
+
 use tokio::time::{interval, Duration};
+
+use crate::pixmap::{Pixmap, SharedPixmap};
+
+use super::SharedMultiEncodings;
 
 static LOG_TARGET: &str = "pixelflut.encoder.rgba64";
 
+/// *RGBA64* encoded pixmap canvas data
 pub type Encoding = String;
 
+/// Run the *RGBA64* encoding algorithm in a loop.
+///
+/// Effectively, this periodically re-encodes the provided *pixmap*'s data into the given
+/// *encodings* storage.
 pub async fn run_encoder<P>(encodings: SharedMultiEncodings, pixmap: SharedPixmap<P>)
 where
     P: Pixmap,
@@ -45,9 +58,11 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::pixmap::{Color, InMemoryPixmap};
     use quickcheck::TestResult;
+
+    use crate::pixmap::{Color, InMemoryPixmap};
+
+    use super::*;
 
     #[test]
     fn test_encoded_content_has_correct_length() {

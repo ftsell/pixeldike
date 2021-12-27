@@ -1,12 +1,14 @@
-use super::combinators::*;
-use super::{coordinate, encoding_algorithm, help_topic, hex_color, Error};
-use crate::protocol::request::Request::PxGet;
-use crate::protocol::{HelpTopic, Request};
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::multispace1;
 use nom::combinator::{cut, eof, flat_map, map, value};
 use nom::IResult;
+
+use crate::protocol::request::Request::PxGet;
+use crate::protocol::{HelpTopic, Request};
+
+use super::combinators::*;
+use super::{coordinate, encoding_algorithm, help_topic, hex_color, Error};
 
 pub fn parse(input: &str) -> IResult<&str, Request, Error> {
     Ok(alt((

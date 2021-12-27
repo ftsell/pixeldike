@@ -1,10 +1,12 @@
-use super::Error;
+use std::num::ParseIntError;
+use std::str::FromStr;
+
 use nom::bytes::complete::take_while1;
 use nom::combinator::map_res;
 use nom::IResult;
 use nom::{AsChar, Err};
-use std::num::ParseIntError;
-use std::str::FromStr;
+
+use super::Error;
 
 fn is_digit(c: char) -> bool {
     c.is_dec_digit()
@@ -22,8 +24,9 @@ pub(super) fn parse(input: &str) -> IResult<&str, usize, Error> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use quickcheck::TestResult;
+
+    use super::*;
 
     quickcheck! {
         fn parse_positive_coordinate(coord: usize) -> TestResult {

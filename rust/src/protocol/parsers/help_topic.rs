@@ -1,9 +1,11 @@
-use super::Error;
-use crate::protocol::HelpTopic;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::value;
 use nom::{Err, IResult};
+
+use crate::protocol::HelpTopic;
+
+use super::Error;
 
 /// the topic that is given to HELP
 pub(super) fn parse(input: &str) -> IResult<&str, HelpTopic, Error> {
