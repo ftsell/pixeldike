@@ -1,8 +1,8 @@
 #![deny(trivial_numeric_casts, trivial_casts, unsafe_code)]
 #![warn(
-    missing_crate_level_docs,
-    broken_intra_doc_links,
-    private_intra_doc_links,
+    rustdoc::missing_crate_level_docs,
+    rustdoc::broken_intra_doc_links,
+    rustdoc::private_intra_doc_links,
     missing_docs,
     missing_debug_implementations,
     missing_copy_implementations,
