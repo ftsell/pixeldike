@@ -927,6 +927,7 @@ dependencies = [
  "clap",
  "futures-util",
  "gtk4",
+ "itertools",
  "lazy_static",
  "log",
  "nom",

@@ -16,6 +16,8 @@ pub use replicating_pixmap::ReplicatingPixmap;
 
 mod color;
 mod file_backed_pixmap;
+#[cfg(feature = "gui")]
+mod gdk_pixbuf_pixmap;
 mod in_memory_pixmap;
 mod remote_pixmap;
 mod replicating_pixmap;
@@ -68,6 +70,19 @@ fn get_pixel_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<usize> {
 fn are_coordinates_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<bool> {
     let size = pixmap.get_size()?;
     Ok(x < size.0 && y < size.1)
+}
+
+/// Verify that the given coordinates are inside the given pixmap by returning an error if not
+fn verify_coordinates_are_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<()> {
+    if !are_coordinates_inside(pixmap, x, y)? {
+        Err(GenericError::InvalidCoordinates {
+            target: (x, y),
+            size: pixmap.get_size()?,
+        }
+        .into())
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
