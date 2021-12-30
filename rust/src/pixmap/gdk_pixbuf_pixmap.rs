@@ -1,6 +1,7 @@
 use crate::pixmap::{verify_coordinates_are_inside, Color, GenericError as Error, Pixmap};
 use gtk::gdk_pixbuf::Pixbuf;
 use itertools::Itertools;
+use std::cmp::min;
 use std::sync::RwLock;
 
 /// A [`Pixmap`] implementation which uses a [`gdk-pixbuf`](Pixbuf) as underlying storage
@@ -112,6 +113,7 @@ impl Pixmap for GdkPixbufPixmap {
 
     #[allow(unsafe_code)]
     fn put_raw_data(&self, data: &Vec<Color>) -> anyhow::Result<()> {
+        let size = self.get_size().expect("Could not get size of own Pixmap");
         let pixbuf = self
             .pixbuf
             .write()
@@ -124,7 +126,7 @@ impl Pixmap for GdkPixbufPixmap {
         // this needs to be unsafe because gdk pixbuf normally does not implement mutation
         unsafe {
             let pixels = pixbuf.pixels();
-            for (i, color) in data.iter().enumerate() {
+            for (i, color) in data[..min(data.len(), size.0 * size.1)].iter().enumerate() {
                 pixels[i * n_channels] = color.0;
                 pixels[i * n_channels + 1] = color.1;
                 pixels[i * n_channels + 2] = color.2;
@@ -156,5 +158,11 @@ mod test {
             let pixmap = GdkPixbufPixmap::default();
             test::test_put_and_get_raw_data(&pixmap, color)
         }
+    }
+
+    #[test]
+    fn test_put_raw_data_with_incorrect_size_data() {
+        let pixmap = GdkPixbufPixmap::default();
+        test::test_put_raw_data_with_incorrect_size_data(&pixmap);
     }
 }

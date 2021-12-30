@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -288,7 +289,10 @@ impl Pixmap for FileBackedPixmap {
     }
 
     fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
-        let bin_data: Vec<u8> = data
+        let bin_data: Vec<u8> = data[..min(
+            data.len(),
+            self.header.width as usize * self.header.height as usize,
+        )]
             .iter()
             .flat_map(|color| vec![color.0, color.1, color.2])
             .collect();
@@ -443,5 +447,14 @@ mod test {
             // verification
             assert!(!result.is_error() && !result.is_failure())
         }
+    }
+
+    #[test]
+    fn test_put_raw_data_with_incorrect_size_data() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("test.pixmap");
+        let pixmap = FileBackedPixmap::new(&path, 800, 600, true).unwrap();
+
+        test::test_put_raw_data_with_incorrect_size_data(&pixmap);
     }
 }

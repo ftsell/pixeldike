@@ -57,7 +57,11 @@ pub trait Pixmap {
     /// Get all of the contained pixel data
     fn get_raw_data(&self) -> Result<Vec<Color>>;
 
-    /// Overwrite all of the contained pixel data
+    /// Overwrite all of the contained pixel data.
+    ///
+    /// If the given *data* is too small, the remaining pixmap colors will be kept as they are.
+    ///
+    /// If the given *data* is too large, left over data will simply be ignored.
     fn put_raw_data(&self, data: &Vec<Color>) -> Result<()>;
 }
 
@@ -113,5 +117,32 @@ mod test {
 
         // verification
         TestResult::from_bool(data == data_out)
+    }
+
+    pub(crate) fn test_put_raw_data_with_incorrect_size_data(pixmap: &impl Pixmap) {
+        // setup
+        let size = pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1;
+
+        // empty data
+        pixmap.set_pixel(0, 0, Color(42, 42, 42)).unwrap();
+        pixmap.set_pixel(1, 0, Color(43, 43, 43)).unwrap();
+        pixmap.put_raw_data(&Vec::new()).unwrap();
+        let output_data = pixmap.get_raw_data().unwrap();
+        assert_eq!(output_data[0], Color(42, 42, 42));
+        assert_eq!(output_data[1], Color(43, 43, 43));
+        assert_eq!(output_data[2..], vec![Color(0, 0, 0); size - 2]);
+
+        // too small data
+        let input_data = vec![Color(42, 42, 42); 10];
+        pixmap.put_raw_data(&input_data).unwrap();
+        let output_data = pixmap.get_raw_data().unwrap();
+        assert_eq!(output_data[0..10], input_data);
+        assert_eq!(output_data[10..], vec![Color(0, 0, 0); size - 10]);
+
+        // too large data
+        let input_data = vec![Color(42, 42, 42); size + 10];
+        pixmap.put_raw_data(&input_data).unwrap();
+        let output_data = pixmap.get_raw_data().unwrap();
+        assert_eq!(output_data, vec![Color(42, 42, 42); size]);
     }
 }

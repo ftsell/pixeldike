@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::sync::atomic::Ordering;
 
 use anyhow::Result;
@@ -74,7 +75,10 @@ impl Pixmap for InMemoryPixmap {
     }
 
     fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
-        for (i, color) in data.iter().enumerate() {
+        for (i, color) in data[..min(data.len(), self.width * self.height)]
+            .iter()
+            .enumerate()
+        {
             self.data[i].store(color.into(), Ordering::Relaxed);
         }
 
@@ -109,5 +113,11 @@ mod test {
             let pixmap = InMemoryPixmap::default();
             test::test_put_and_get_raw_data(&pixmap, color)
         }
+    }
+
+    #[test]
+    fn test_put_raw_data_with_incorrect_size_data() {
+        let pixmap = InMemoryPixmap::default();
+        test::test_put_raw_data_with_incorrect_size_data(&pixmap);
     }
 }
