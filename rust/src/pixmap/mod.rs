@@ -70,15 +70,12 @@ fn get_pixel_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<usize> {
     Ok(y * pixmap.get_size()?.0 + x)
 }
 
-/// Calculate whether the specified coordinates are inside the pixmap
-fn are_coordinates_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<bool> {
-    let size = pixmap.get_size()?;
-    Ok(x < size.0 && y < size.1)
-}
-
 /// Verify that the given coordinates are inside the given pixmap by returning an error if not
 fn verify_coordinates_are_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<()> {
-    if !are_coordinates_inside(pixmap, x, y)? {
+    let size = pixmap.get_size()?;
+
+    // we don't need to check for >=0 because x and y are unsigned types
+    if !(x < size.0 && y < size.1) {
         Err(GenericError::InvalidCoordinates {
             target: (x, y),
             size: pixmap.get_size()?,

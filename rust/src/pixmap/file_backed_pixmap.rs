@@ -239,30 +239,18 @@ impl FileBackedPixmap {
 
 impl Pixmap for FileBackedPixmap {
     fn get_pixel(&self, x: usize, y: usize) -> Result<Color> {
-        if !are_coordinates_inside(self, x, y)? {
-            Err(GenericError::InvalidCoordinates {
-                target: (x, y),
-                size: (self.header.width as usize, self.header.height as usize),
-            }
-            .into())
-        } else {
-            let mut lock = self.file.lock().unwrap();
-            let bin_data = self.read_pixel(&mut lock, x, y).unwrap();
-            Ok(Color(bin_data[0], bin_data[1], bin_data[2]))
-        }
+        verify_coordinates_are_inside(self, x, y)?;
+
+        let mut lock = self.file.lock().unwrap();
+        let bin_data = self.read_pixel(&mut lock, x, y).unwrap();
+        Ok(Color(bin_data[0], bin_data[1], bin_data[2]))
     }
 
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
-        if !are_coordinates_inside(self, x, y)? {
-            Err(GenericError::InvalidCoordinates {
-                target: (x, y),
-                size: (self.header.width as usize, self.header.height as usize),
-            }
-            .into())
-        } else {
-            let mut lock = self.file.lock().unwrap();
-            Ok(self.write_pixel(&mut lock, x, y, [color.0, color.1, color.2])?)
-        }
+        verify_coordinates_are_inside(self, x, y)?;
+
+        let mut lock = self.file.lock().unwrap();
+        Ok(self.write_pixel(&mut lock, x, y, [color.0, color.1, color.2])?)
     }
 
     fn get_size(&self) -> Result<(usize, usize)> {
