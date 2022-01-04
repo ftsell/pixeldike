@@ -18,6 +18,9 @@ categories = ["command-line-utilities", "games"]
 cli = ["clap", "pretty_env_logger"]
 gui = ["gtk", "relm4", "relm4-macros", "relm4-components", "pretty_env_logger", "clap"]
 
+[profile.release]
+lto = true
+
 [lib]
 path = "src/lib.rs"
 
