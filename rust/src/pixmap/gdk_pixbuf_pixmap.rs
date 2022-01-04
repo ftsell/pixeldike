@@ -31,7 +31,9 @@ impl Pixmap for Pixbuf {
         let n_channels = self.n_channels() as usize;
         assert!(n_channels >= 3);
         let row_stride = self.rowstride() as usize;
-        let pixels = self.pixel_bytes().expect("Could not get pixels from GDK Pixbuf");
+        let pixels = self
+            .read_pixel_bytes()
+            .expect("Could not get pixels from GDK Pixbuf");
 
         Ok(Color(
             pixels[y * row_stride + x * n_channels],
@@ -40,22 +42,9 @@ impl Pixmap for Pixbuf {
         ))
     }
 
-    #[allow(unsafe_code)]
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> anyhow::Result<()> {
         verify_coordinates_are_inside(self, x, y)?;
-
-        let n_channels = self.n_channels() as usize;
-        assert!(n_channels >= 3);
-        let row_stride = self.rowstride() as usize;
-        self.pixel_bytes().expect("Could not get pixels from GDK Pixbuf");
-
-        // this needs to be unsafe because gdk pixbuf normally does not implement mutations
-        unsafe {
-            self.pixels()[y * row_stride + x * n_channels] = color.0;
-            self.pixels()[y * row_stride + x * n_channels + 1] = color.1;
-            self.pixels()[y * row_stride + x * n_channels + 2] = color.2;
-        }
-
+        self.put_pixel(x as u32, y as u32, color.0, color.1, color.2, 0);
         Ok(())
     }
 
@@ -69,7 +58,9 @@ impl Pixmap for Pixbuf {
 
         let (width, height) = self.get_size()?;
         let row_stride = self.rowstride() as usize;
-        let pixels = self.pixel_bytes().expect("Could not get pixels from GdkPixbuf");
+        let pixels = self
+            .read_pixel_bytes()
+            .expect("Could not get pixels from GdkPixbuf");
 
         let mut result = Vec::with_capacity(width * height);
         for iy in 0..height {
@@ -85,24 +76,13 @@ impl Pixmap for Pixbuf {
         Ok(result)
     }
 
-    #[allow(unsafe_code)]
     fn put_raw_data(&self, data: &Vec<Color>) -> anyhow::Result<()> {
-        let n_channels = self.n_channels() as usize;
-        assert!(n_channels >= 3);
-        let row_stride = self.rowstride() as usize;
-        self.pixel_bytes().expect("Could not get pixels from GDK Pixbuf");
-
-        // this needs to be unsafe because gdk pixbuf normally does not implement mutations
-        unsafe {
-            for (i, color) in data[..min(data.len(), self.width() as usize * self.height() as usize)]
-                .iter()
-                .enumerate()
-            {
-                let (x, y) = pixel_index_2_coordinates(self, i)?;
-                self.pixels()[y * row_stride + x * n_channels] = color.0;
-                self.pixels()[y * row_stride + x * n_channels + 1] = color.1;
-                self.pixels()[y * row_stride + x * n_channels + 2] = color.2;
-            }
+        for (i, color) in data[..min(data.len(), self.width() as usize * self.height() as usize)]
+            .iter()
+            .enumerate()
+        {
+            let (x, y) = pixel_index_2_coordinates(self, i)?;
+            self.put_pixel(x as u32, y as u32, color.0, color.1, color.2, 0);
         }
 
         Ok(())
