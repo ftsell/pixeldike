@@ -17,7 +17,7 @@ pub use replicating_pixmap::ReplicatingPixmap;
 mod color;
 mod file_backed_pixmap;
 #[cfg(feature = "gui")]
-mod gdk_pixbuf_pixmap;
+pub mod gdk_pixbuf_pixmap;
 mod in_memory_pixmap;
 mod remote_pixmap;
 mod replicating_pixmap;
@@ -65,9 +65,19 @@ pub trait Pixmap {
     fn put_raw_data(&self, data: &Vec<Color>) -> Result<()>;
 }
 
-/// Calculates the index of the specified coordinates when pixels are stored in a Vector in row-major order
-fn get_pixel_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<usize> {
+/// Calculates the index of the specified coordinates when pixels are stored in a Vector in
+/// row-major order
+fn pixel_coordinates_2_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<usize> {
     Ok(y * pixmap.get_size()?.0 + x)
+}
+
+/// Calculate the coordinates `(x, y)` for the pixel with the given index assuming the pixels are
+/// stored in row-major order
+fn pixel_index_2_coordinates(pixmap: &impl Pixmap, i: usize) -> Result<(usize, usize)> {
+    let (width, _height) = pixmap.get_size()?;
+    let x = i % width;
+    let y = (i - x) / width;
+    Ok((x, y))
 }
 
 /// Verify that the given coordinates are inside the given pixmap by returning an error if not
@@ -113,6 +123,8 @@ mod test {
         let data_out = pixmap.get_raw_data().unwrap();
 
         // verification
+        println!("{:?}", data);
+        println!("{:?}", data_out);
         TestResult::from_bool(data == data_out)
     }
 

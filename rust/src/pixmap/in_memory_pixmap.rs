@@ -37,14 +37,14 @@ impl Pixmap for InMemoryPixmap {
     fn get_pixel(&self, x: usize, y: usize) -> Result<Color> {
         verify_coordinates_are_inside(self, x, y)?;
 
-        let i = get_pixel_index(self, x, y)?;
+        let i = pixel_coordinates_2_index(self, x, y)?;
         Ok(Color::from(self.data[i].load(Ordering::Relaxed)))
     }
 
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
         verify_coordinates_are_inside(self, x, y)?;
 
-        let i = get_pixel_index(self, x, y)?;
+        let i = pixel_coordinates_2_index(self, x, y)?;
         self.data[i].store(color.into(), Ordering::SeqCst);
         Ok(())
     }

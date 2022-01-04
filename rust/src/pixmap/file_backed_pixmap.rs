@@ -215,7 +215,7 @@ impl FileBackedPixmap {
 
     /// Read the data of a single pixel with from file
     fn read_pixel(&self, lock: &mut MutexGuard<File>, x: usize, y: usize) -> Result<[u8; 3]> {
-        let seek_pixel = SeekFrom::Current((get_pixel_index(self, x, y)? * 3) as i64);
+        let seek_pixel = SeekFrom::Current((pixel_coordinates_2_index(self, x, y)? * 3) as i64);
 
         lock.seek(SEEK_DATA)?;
         lock.seek(seek_pixel)?;
@@ -227,7 +227,7 @@ impl FileBackedPixmap {
 
     /// Write a single pixel at into file.
     fn write_pixel(&self, lock: &mut MutexGuard<File>, x: usize, y: usize, color: [u8; 3]) -> Result<()> {
-        let seek_pixel = SeekFrom::Current((get_pixel_index(self, x, y)? * 3) as i64);
+        let seek_pixel = SeekFrom::Current((pixel_coordinates_2_index(self, x, y)? * 3) as i64);
 
         lock.seek(SEEK_DATA)?;
         lock.seek(seek_pixel)?;
