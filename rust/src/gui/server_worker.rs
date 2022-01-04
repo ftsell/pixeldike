@@ -6,7 +6,7 @@ use pixelflut::pixmap::InMemoryPixmap;
 use pixelflut::state_encoding::SharedMultiEncodings;
 
 use super::app::AppModel;
-use super::config_form::ProtocolChoice;
+use crate::gui::components::config_form::ProtocolChoice;
 
 /// State of the *ServerWorker* component.
 ///

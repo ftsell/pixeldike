@@ -2,19 +2,17 @@ use gtk::glib::Sender;
 use gtk::prelude::*;
 use relm4::{send, ComponentUpdate, Model, Widgets};
 
-use crate::gui::config_form::ConfigFormMsg;
-
-use super::config_form::ConfigFormModel;
+use crate::gui::components::config_form::{ConfigFormModel, ConfigFormMsg};
 
 /// State of the *ControlButtons* component.
 ///
 /// This component's job is to display multiple buttons which are used to start and stop the server or client.
-pub(super) struct ControlButtonsModel {
+pub(in crate::gui) struct ControlButtonsModel {
     enabled: bool,
     server_currently_running: bool,
 }
 
-pub(super) enum ControlButtonsMsg {
+pub(in crate::gui) enum ControlButtonsMsg {
     SetEnabled(bool),
     ToggleServerCurrentlyRunning,
 }
@@ -59,7 +57,7 @@ impl ComponentUpdate<ConfigFormModel> for ControlButtonsModel {
 }
 
 /// Widgets that are used to render [`ControlButtonsModel`]
-pub(super) struct ControlButtonsWidgets {
+pub(in crate::gui) struct ControlButtonsWidgets {
     start_stop_button: gtk::Button,
 }
 

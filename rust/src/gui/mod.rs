@@ -2,9 +2,7 @@ use gtk::Application;
 use relm4::RelmApp;
 
 mod app;
-mod config_form;
-mod control_buttons;
-mod layout;
+mod components;
 mod server_worker;
 
 pub fn start_gui<S>(args: &[S])

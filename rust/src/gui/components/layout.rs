@@ -2,14 +2,14 @@ use gtk::glib::Sender;
 use gtk::prelude::*;
 use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
 
-use super::app::{AppModel, AppMsg};
-use super::config_form::ConfigFormModel;
-use super::server_worker::ServerWorkerMsg;
+use crate::gui::app::{AppModel, AppMsg};
+use crate::gui::components::config_form::ConfigFormModel;
+use crate::gui::server_worker::ServerWorkerMsg;
 
 /// Representation of the layout state
-pub(super) struct LayoutModel {}
+pub(in crate::gui) struct LayoutModel {}
 
-pub(super) enum LayoutMsg {
+pub(in crate::gui) enum LayoutMsg {
     PropagateServerWorkerMsg(ServerWorkerMsg),
 }
 
@@ -41,7 +41,7 @@ impl ComponentUpdate<AppModel> for LayoutModel {
 
 /// Storage of instantiated widgets
 #[allow(dead_code)]
-pub(super) struct LayoutWidgets {
+pub(in crate::gui) struct LayoutWidgets {
     layout_box: gtk::Box,
     separator: gtk::Separator,
     text2: gtk::Text,
@@ -95,7 +95,7 @@ impl Widgets<LayoutModel, AppModel> for LayoutWidgets {
 }
 
 /// Storage of instantiated child components
-pub(super) struct LayoutComponents {
+pub(in crate::gui) struct LayoutComponents {
     config_form: RelmComponent<ConfigFormModel, LayoutModel>,
 }
 

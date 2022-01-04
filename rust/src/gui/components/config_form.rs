@@ -4,14 +4,14 @@ use gtk::glib::Sender;
 use gtk::prelude::*;
 use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
 
-use super::control_buttons::{ControlButtonsModel, ControlButtonsMsg};
-use super::layout::LayoutModel;
-use super::layout::LayoutMsg;
-use super::server_worker::ServerWorkerMsg;
+use crate::gui::components::control_buttons::{ControlButtonsModel, ControlButtonsMsg};
+use crate::gui::components::layout::LayoutModel;
+use crate::gui::components::layout::LayoutMsg;
+use crate::gui::server_worker::ServerWorkerMsg;
 
 /// Available pixelflut network protocols that can be chosen in the GUI
 #[derive(Debug, Copy, Clone)]
-pub(super) enum ProtocolChoice {
+pub(in crate::gui) enum ProtocolChoice {
     TCP,
     UDP,
 }
@@ -20,7 +20,7 @@ pub(super) enum ProtocolChoice {
 ///
 /// The *ConfigForm* is rendered at the top of the main window and allows the user to configure
 /// the application.
-pub(super) struct ConfigFormModel {
+pub(in crate::gui) struct ConfigFormModel {
     /// Whether user input is currently frozen (not possible) or enabled.
     ///
     /// The is usually frozen when a server is currently running in which case it is not possible
@@ -31,7 +31,7 @@ pub(super) struct ConfigFormModel {
 }
 
 /// Operations which can change [`ConfigFormModel`]
-pub(super) enum ConfigFormMsg {
+pub(in crate::gui) enum ConfigFormMsg {
     /// Set the value of [`ConfigFormModel::selected_protocol`]
     SetSelectedProtocol(Option<ProtocolChoice>),
     /// Set the value of [`ConfigFormModel::selected_port`]
@@ -103,7 +103,7 @@ impl ComponentUpdate<LayoutModel> for ConfigFormModel {
 
 /// Storage of instantiated gtk widgets that render [`ConfigFormModel`]
 #[allow(dead_code)]
-pub(super) struct ConfigFormWidgets {
+pub(in crate::gui) struct ConfigFormWidgets {
     container: gtk::Box,
     spacer: gtk::Box,
     protocol_selector_label: gtk::Label,
@@ -202,7 +202,7 @@ impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
 }
 
 /// Child-Components of the *ConfigForm* components
-pub(super) struct ConfigFormComponents {
+pub(in crate::gui) struct ConfigFormComponents {
     control_buttons: RelmComponent<ControlButtonsModel, ConfigFormModel>,
 }
 
