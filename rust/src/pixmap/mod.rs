@@ -73,6 +73,7 @@ fn pixel_coordinates_2_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result
 
 /// Calculate the coordinates `(x, y)` for the pixel with the given index assuming the pixels are
 /// stored in row-major order
+#[cfg(feature = "gui")]
 fn pixel_index_2_coordinates(pixmap: &impl Pixmap, i: usize) -> Result<(usize, usize)> {
     let (width, _height) = pixmap.get_size()?;
     let x = i % width;
