@@ -26,6 +26,10 @@ name = "pixelflut"
 path = "src/main.rs"
 required-features = ["cli"]
 
+[[bench]]
+name = "pixmap_benchmark"
+harness = false
+
 [dependencies]
 anyhow = "^1"
 base64 = "^0.13"
@@ -48,5 +52,6 @@ relm4-macros = { git = "https://github.com/AaronErhardt/relm4.git", optional = t
 relm4-components = { git = "https://github.com/AaronErhardt/relm4.git", optional = true }
 
 [dev-dependencies]
-quickcheck = "0.9.*"
-tempfile = "3.*"
+quickcheck = "^0.9"
+tempfile = "^3"
+criterion = { version = "^0.3", features = ["html_reports"] }
