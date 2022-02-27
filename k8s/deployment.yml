@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -46,16 +45,3 @@ spec:
               - mountPath: /app/data
                 name: data
 
-
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pixelflut-data
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 500M

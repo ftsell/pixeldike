@@ -5,8 +5,9 @@ commonLabels:
   app.kubernetes.io/name: pixelflut
 
 resources:
-  - .k8s/deployment.yml
-  - .k8s/service.yml
+  - k8s/deployment.yml
+  - k8s/service.yml
+  - k8s/pvc.yml
 
 configMapGenerator:
   - name: pixelflut
