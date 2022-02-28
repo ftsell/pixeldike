@@ -14,7 +14,7 @@ spec:
               claimName: pixelflut-data
         containers:
           - name: pixelflut
-            image: registry.finn-thorben.me/pixelflut
+            image: registry.finn-thorben.me/ftsell/pixelflut
             args:
               - server
               - --tcp
