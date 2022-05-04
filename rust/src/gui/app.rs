@@ -64,7 +64,7 @@ impl Widgets<AppModel, ()> for AppWidgets {
 }
 
 /// Storage struct for instantiated relm components
-#[derive(relm4_macros::Components)]
+#[derive(relm4::Components)]
 pub(super) struct AppComponents {
     layout: RelmComponent<LayoutModel, AppModel>,
     server_worker: RelmWorker<ServerWorkerModel, AppModel>,

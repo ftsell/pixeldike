@@ -16,7 +16,7 @@ categories = ["command-line-utilities", "games"]
 
 [features]
 cli = ["clap", "pretty_env_logger"]
-gui = ["gtk", "relm4", "relm4-macros", "relm4-components", "pretty_env_logger", "clap"]
+gui = ["gtk", "libadwaita", "relm4", "relm4-components", "pretty_env_logger", "clap"]
 
 [profile.release]
 lto = true
@@ -47,10 +47,10 @@ pretty_env_logger = { version = "^0.4", optional = true }
 thiserror = "^1"
 tokio = { version = "^1", features = ["full"] }
 tokio-tungstenite = "^0.13"
-gtk = { package = "gtk4", version = "^0.3", features = ["v4_4", "v4_2"], optional = true }
-relm4 = { git = "https://github.com/AaronErhardt/relm4.git", features = ["tokio-rt"], optional = true }
-relm4-macros = { git = "https://github.com/AaronErhardt/relm4.git", optional = true }
-relm4-components = { git = "https://github.com/AaronErhardt/relm4.git", optional = true }
+gtk = { package = "gtk4", version = "^0.4", features = ["v4_4", "v4_2"], optional = true }
+libadwaita = { version = "^0.1", optional = true }
+relm4 = { version = "^0.4", features = [ "tokio-rt", "macros", "libadwaita" ], optional = true }
+relm4-components = { version = "^0.4", optional = true }
 
 [dev-dependencies]
 quickcheck = "^0.9"

@@ -1,4 +1,4 @@
-use gtk::Application;
+use libadwaita::Application;
 use relm4::RelmApp;
 
 mod app;
