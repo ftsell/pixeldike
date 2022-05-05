@@ -12,7 +12,7 @@ use crate::gui::components::server::server_layout::ServerLayoutModel;
 use crate::gui::components::server::server_layout::ServerLayoutMsg;
 
 /// Available pixelflut network protocols that can be chosen in the GUI
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) enum ProtocolChoice {
     TCP,
     UDP,

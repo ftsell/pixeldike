@@ -1,26 +1,31 @@
 //! PixmapDisplay displays a [`GDK Pixbuf`](gdk_pixbuf::auto::pixbuf)
 
 use crate::gui::components::server::server_layout::ServerLayoutModel;
+use gtk::gdk_pixbuf::Pixbuf;
 use gtk::glib::Sender;
-use gtk::traits::WidgetExt;
-use gtk::{Align, IconSize};
+use gtk::prelude::WidgetExt;
+use gtk::Align;
+use pixelflut::pixmap::gdk_pixbuf_pixmap::default_gdk_pixbuf_pixmap;
+use pixelflut::pixmap::{Color, Pixmap};
 use relm4::{ComponentUpdate, Model, Widgets};
 
 type ParentModel = ServerLayoutModel;
 
 /// State of the *PixmapDisplay* component
 pub(in crate::gui) struct PixmapDisplayModel {
-    pixbuf: Option<gtk::gdk_pixbuf::Pixbuf>,
+    pixbuf: Pixbuf,
+    visibility: bool,
 }
 
 /// State altering messages of the *PixmapDisplay* component
 pub(in crate::gui) enum PixmapDisplayMsg {
-    SetPixbuf(Option<gtk::gdk_pixbuf::Pixbuf>),
+    SetVisibility(bool),
+    UpdatePixmapData(Vec<Color>),
 }
 
 /// GTK widgets used to render the *PixmapDisplay* component
 pub(in crate::gui) struct PixmapDisplayWidgets {
-    image: gtk::Image,
+    picture: gtk::Picture,
 }
 
 impl Model for PixmapDisplayModel {
@@ -31,7 +36,10 @@ impl Model for PixmapDisplayModel {
 
 impl ComponentUpdate<ParentModel> for PixmapDisplayModel {
     fn init_model(_parent_model: &ParentModel) -> Self {
-        Self { pixbuf: None }
+        Self {
+            pixbuf: default_gdk_pixbuf_pixmap(),
+            visibility: false,
+        }
     }
 
     fn update(
@@ -42,49 +50,41 @@ impl ComponentUpdate<ParentModel> for PixmapDisplayModel {
         _parent_sender: Sender<<ParentModel as Model>::Msg>,
     ) {
         match msg {
-            PixmapDisplayMsg::SetPixbuf(msg) => {
-                log::debug!("Setting pixbuf to {:?}", msg);
-                self.pixbuf = msg;
+            PixmapDisplayMsg::UpdatePixmapData(data) => {
+                self.pixbuf.put_raw_data(&data).expect("Could not put raw data");
+            }
+            PixmapDisplayMsg::SetVisibility(value) => {
+                self.visibility = value;
             }
         }
     }
 }
 
 impl Widgets<PixmapDisplayModel, ParentModel> for PixmapDisplayWidgets {
-    type Root = gtk::Image;
+    type Root = gtk::Picture;
 
     fn init_view(
-        _model: &PixmapDisplayModel,
+        model: &PixmapDisplayModel,
         _components: &<PixmapDisplayModel as Model>::Components,
         _sender: Sender<<PixmapDisplayModel as Model>::Msg>,
     ) -> Self {
-        let image = gtk::Image::builder()
-            .name("pixmap")
+        let picture = gtk::Picture::builder()
+            .name("PixelflutPixmapDisplay")
             .halign(Align::Center)
             .valign(Align::Center)
-            .icon_size(IconSize::Large)
-            .hexpand(true)
-            .vexpand(true)
-            .visible(false)
+            .visible(model.visibility)
             .build();
+        picture.set_pixbuf(Some(&model.pixbuf));
 
-        Self { image }
+        Self { picture }
     }
 
     fn root_widget(&self) -> Self::Root {
-        self.image.clone()
+        self.picture.clone()
     }
 
     fn view(&mut self, model: &PixmapDisplayModel, _sender: Sender<<PixmapDisplayModel as Model>::Msg>) {
-        match &model.pixbuf {
-            None => {
-                self.image.clear();
-                self.image.set_visible(false);
-            }
-            Some(pixbuf) => {
-                self.image.set_from_gicon(&pixbuf.clone());
-                self.image.set_visible(true);
-            }
-        }
+        self.picture.set_visible(model.visibility);
+        self.picture.set_pixbuf(Some(&model.pixbuf));
     }
 }

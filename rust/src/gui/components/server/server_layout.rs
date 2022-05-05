@@ -3,6 +3,7 @@
 use gtk::glib::Sender;
 use gtk::prelude::*;
 use gtk::{Align, Overflow};
+use pixelflut::pixmap::Color;
 use relm4::{send, ComponentUpdate, Model, RelmComponent, WidgetPlus, Widgets};
 
 use crate::gui::components::server::pixmap_display::{PixmapDisplayModel, PixmapDisplayMsg};
@@ -20,7 +21,7 @@ pub(in crate::gui) struct ServerLayoutModel {
 pub(in crate::gui) enum ServerLayoutMsg {
     StartServer { protocol: ProtocolChoice, port: u32 },
     StopServer,
-    SetPixbuf(Option<gtk::gdk_pixbuf::Pixbuf>),
+    UpdatePixmapData(Vec<Color>),
 }
 
 /// GTK widgets that are directly used to render the *ServerLayout* component
@@ -62,14 +63,18 @@ impl ComponentUpdate<ParentModel> for ServerLayoutModel {
             ServerLayoutMsg::StartServer { port, protocol } => {
                 self.is_server_running = true;
                 send!(parent_sender, ServerHolderMsg::StartServer { protocol, port });
-            }
-            ServerLayoutMsg::SetPixbuf(pixbuf) => {
-                send!(components.pixmap_display, PixmapDisplayMsg::SetPixbuf(pixbuf));
+                send!(components.pixmap_display, PixmapDisplayMsg::SetVisibility(true));
             }
             ServerLayoutMsg::StopServer => {
                 self.is_server_running = false;
                 send!(parent_sender, ServerHolderMsg::StopServer);
-                send!(components.pixmap_display, PixmapDisplayMsg::SetPixbuf(None));
+                send!(components.pixmap_display, PixmapDisplayMsg::SetVisibility(false));
+            }
+            ServerLayoutMsg::UpdatePixmapData(data) => {
+                send!(
+                    components.pixmap_display,
+                    PixmapDisplayMsg::UpdatePixmapData(data)
+                )
             }
         }
     }

@@ -23,7 +23,7 @@ pub fn new_gdk_pixbuf_pixmap(width: i32, height: i32) -> anyhow::Result<Pixbuf> 
 pub fn default_gdk_pixbuf_pixmap() -> Pixbuf {
     let pixbuf = new_gdk_pixbuf_pixmap(800, 600).expect("Could not construct default gdk pixbuf pixmap");
     pixbuf
-        .put_raw_data(&vec![Color(255, 0, 255); (800 * 600) as usize])
+        .put_raw_data(&vec![Color(255, 255, 255); (800 * 600) as usize])
         .expect("Could not fill pixbuf with default color");
     pixbuf
 }
