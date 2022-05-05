@@ -138,16 +138,12 @@ fn run_server(
                 listen_address: SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port),
             },
         ),
-        ProtocolChoice::UDP => {
-            todo!()
-            // net::udp_server::listen(
-            //     pixmap,
-            //     encodings,
-            //     net::udp_server::UdpOptions {
-            //         listen_address: SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port),
-            //     },
-            // )
-            // .await
-        }
+        ProtocolChoice::UDP => net::udp_server::start_listener(
+            pixmap,
+            encodings,
+            net::udp_server::UdpOptions {
+                listen_address: SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port),
+            },
+        ),
     }
 }
