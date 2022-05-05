@@ -1,17 +1,13 @@
+use crate::gui::components::server::server_holder::ServerHolderModel;
 use gtk::glib::Sender;
 use gtk::prelude::*;
-use relm4::{AppUpdate, Model, RelmComponent, RelmWorker, Widgets};
-
-use crate::gui::components::layout::LayoutModel;
-use crate::gui::server_worker::{ServerWorkerModel, ServerWorkerMsg};
+use relm4::{AppUpdate, Model, RelmComponent, Widgets};
 
 /// All data that is general to the whole application
 pub(super) struct AppModel {}
 
 /// Operations which can change [`AppModel`] data
-pub(super) enum AppMsg {
-    PropagateServerWorkerMsg(ServerWorkerMsg),
-}
+pub(super) enum AppMsg {}
 
 impl Model for AppModel {
     type Msg = AppMsg;
@@ -20,14 +16,12 @@ impl Model for AppModel {
 }
 
 impl AppUpdate for AppModel {
-    fn update(&mut self, msg: Self::Msg, components: &Self::Components, _sender: Sender<Self::Msg>) -> bool {
-        match msg {
-            AppMsg::PropagateServerWorkerMsg(msg) => components
-                .server_worker
-                .send(msg)
-                .expect("Could not send message to ServerWorker"),
-        };
-
+    fn update(
+        &mut self,
+        _msg: Self::Msg,
+        _components: &Self::Components,
+        _sender: Sender<Self::Msg>,
+    ) -> bool {
         true
     }
 }
@@ -51,7 +45,7 @@ impl Widgets<AppModel, ()> for AppWidgets {
             .default_height(800)
             .build();
 
-        app_window.set_child(Some(components.layout.root_widget()));
+        app_window.set_child(Some(components.server_holder.root_widget()));
 
         Self { window: app_window }
     }
@@ -66,6 +60,6 @@ impl Widgets<AppModel, ()> for AppWidgets {
 /// Storage struct for instantiated relm components
 #[derive(relm4::Components)]
 pub(super) struct AppComponents {
-    layout: RelmComponent<LayoutModel, AppModel>,
-    server_worker: RelmWorker<ServerWorkerModel, AppModel>,
+    server_holder: RelmComponent<ServerHolderModel, AppModel>,
+    // server_worker: RelmWorker<ServerWorkerModel, AppModel>,
 }

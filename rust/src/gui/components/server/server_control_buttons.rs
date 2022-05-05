@@ -2,7 +2,7 @@ use gtk::glib::Sender;
 use gtk::prelude::*;
 use relm4::{send, ComponentUpdate, Model, Widgets};
 
-use crate::gui::components::config_form::{ConfigFormModel, ConfigFormMsg};
+use crate::gui::components::server::server_config_form::{ConfigFormModel, ConfigFormMsg};
 
 /// State of the *ControlButtons* component.
 ///

@@ -1,25 +1,24 @@
+//! The *ConfigForm* is rendered at the top of the server GUI and allows the user to configure
+//! server properties
+
 use std::str::FromStr;
 
 use gtk::glib::Sender;
 use gtk::prelude::*;
 use relm4::{send, ComponentUpdate, Components, Model, RelmComponent, WidgetPlus, Widgets};
 
-use crate::gui::components::control_buttons::{ControlButtonsModel, ControlButtonsMsg};
-use crate::gui::components::layout::LayoutModel;
-use crate::gui::components::layout::LayoutMsg;
-use crate::gui::server_worker::ServerWorkerMsg;
+use crate::gui::components::server::server_control_buttons::{ControlButtonsModel, ControlButtonsMsg};
+use crate::gui::components::server::server_layout::ServerLayoutModel;
+use crate::gui::components::server::server_layout::ServerLayoutMsg;
 
 /// Available pixelflut network protocols that can be chosen in the GUI
 #[derive(Debug, Copy, Clone)]
-pub(in crate::gui) enum ProtocolChoice {
+pub(crate) enum ProtocolChoice {
     TCP,
     UDP,
 }
 
 /// State of the *ConfigForm* component
-///
-/// The *ConfigForm* is rendered at the top of the main window and allows the user to configure
-/// the application.
 pub(in crate::gui) struct ConfigFormModel {
     /// Whether user input is currently frozen (not possible) or enabled.
     ///
@@ -55,8 +54,8 @@ impl Model for ConfigFormModel {
     type Components = ConfigFormComponents;
 }
 
-impl ComponentUpdate<LayoutModel> for ConfigFormModel {
-    fn init_model(_parent_model: &LayoutModel) -> Self {
+impl ComponentUpdate<ServerLayoutModel> for ConfigFormModel {
+    fn init_model(_parent_model: &ServerLayoutModel) -> Self {
         Self {
             is_input_frozen: false,
             selected_port: Some(9876),
@@ -69,7 +68,7 @@ impl ComponentUpdate<LayoutModel> for ConfigFormModel {
         msg: Self::Msg,
         components: &Self::Components,
         _sender: Sender<Self::Msg>,
-        parent_sender: Sender<<LayoutModel as Model>::Msg>,
+        parent_sender: Sender<<ServerLayoutModel as Model>::Msg>,
     ) {
         match msg {
             ConfigFormMsg::SetSelectedProtocol(protocol) => self.selected_protocol = protocol,
@@ -79,18 +78,19 @@ impl ComponentUpdate<LayoutModel> for ConfigFormModel {
                 self.is_input_frozen = true;
                 send!(
                     parent_sender,
-                    LayoutMsg::PropagateServerWorkerMsg(ServerWorkerMsg::StartServer {
+                    ServerLayoutMsg::StartServer {
                         protocol: self.selected_protocol.expect(
                             "Selected protocol is None but this message should not be received in that case"
                         ),
                         port: self.selected_port.expect(
                             "Selected port is None but this message should not be received in that case"
-                        ),
-                    })
+                        )
+                    }
                 );
             }
             ConfigFormMsg::SendStopServer => {
                 self.is_input_frozen = false;
+                send!(parent_sender, ServerLayoutMsg::StopServer);
             }
         }
 
@@ -112,7 +112,7 @@ pub(in crate::gui) struct ConfigFormWidgets {
     port_input: gtk::Entry,
 }
 
-impl Widgets<ConfigFormModel, LayoutModel> for ConfigFormWidgets {
+impl Widgets<ConfigFormModel, ServerLayoutModel> for ConfigFormWidgets {
     type Root = gtk::Box;
 
     fn init_view(

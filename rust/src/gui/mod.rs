@@ -3,7 +3,6 @@ use relm4::RelmApp;
 
 mod app;
 mod components;
-mod server_worker;
 
 pub fn start_gui<S>(args: &[S])
 where
