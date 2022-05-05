@@ -21,6 +21,9 @@ gui = ["gtk", "libadwaita", "relm4", "relm4-components", "pretty_env_logger", "c
 [profile.release]
 lto = true
 
+[profile.bench]
+debug = true
+
 [lib]
 path = "src/lib.rs"
 
