@@ -7,8 +7,8 @@
 //! which periodically re-encode a pixmap.
 //!
 
-use std::future::Future;
-
+use std::sync::Arc;
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 pub use encodings::*;
@@ -20,26 +20,15 @@ pub mod rgb64;
 pub mod rgba64;
 
 /// Start background tasks for all encoding algorithms and return join handles to those tasks
-pub fn start_encoders<P>(encodings: SharedMultiEncodings, pixmap: SharedPixmap<P>) -> Vec<JoinHandle<()>>
+pub fn start_encoders<P>(
+    encodings: SharedMultiEncodings,
+    pixmap: SharedPixmap<P>,
+) -> Vec<(JoinHandle<()>, Arc<Notify>)>
 where
     P: Pixmap + Send + Sync + 'static,
 {
     vec![
-        start_encoder(encodings.clone(), pixmap.clone(), rgb64::run_encoder),
-        start_encoder(encodings, pixmap, rgba64::run_encoder),
+        rgb64::start_encoder(encodings.clone(), pixmap.clone()),
+        rgba64::start_encoder(encodings.clone(), pixmap.clone()),
     ]
-}
-
-fn start_encoder<
-    P: Send + Sync + 'static,
-    F: FnOnce(SharedMultiEncodings, SharedPixmap<P>) -> G + Send + 'static,
-    G: Future<Output = ()> + Send,
->(
-    encodings: SharedMultiEncodings,
-    pixmap: SharedPixmap<P>,
-    encoder_function: F,
-) -> JoinHandle<()> {
-    tokio::spawn(async move {
-        encoder_function(encodings, pixmap).await;
-    })
 }

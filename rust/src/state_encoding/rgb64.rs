@@ -5,6 +5,10 @@
 //!
 
 use anyhow::Result;
+use std::sync::Arc;
+use tokio::select;
+use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 use tokio::time::{interval, Duration};
 
 use crate::pixmap::{Color, Pixmap, SharedPixmap};
@@ -16,24 +20,51 @@ static LOG_TARGET: &str = "pixelflut.encoder.rgb64";
 /// *RGB64* encoded pixmap canvas data
 pub type Encoding = String;
 
+/// Start the *RGB64* encoding algorithm on a new task.
+///
+/// Effectively, this periodically re-encodes the provided *pixmap*'s data into the given
+/// *encodings* storage in the background.
+pub fn start_encoder<P>(
+    encodings: SharedMultiEncodings,
+    pixmap: SharedPixmap<P>,
+) -> (JoinHandle<()>, Arc<Notify>)
+where
+    P: Pixmap + Send + Sync + 'static,
+{
+    let notify = Arc::new(Notify::new());
+    let notify2 = notify.clone();
+    let handle = tokio::spawn(async move { run_encoder(encodings, pixmap, notify2).await });
+
+    (handle, notify)
+}
+
 /// Run the *RGB64* encoding algorithm in a loop.
 ///
 /// Effectively, this periodically re-encodes the provided *pixmap*'s data into the given
 /// *encodings* storage.
-pub async fn run_encoder<P>(encodings: SharedMultiEncodings, pixmap: SharedPixmap<P>)
-where
+pub async fn run_encoder<P>(
+    encodings: SharedMultiEncodings,
+    pixmap: SharedPixmap<P>,
+    notify_stop: Arc<Notify>,
+) where
     P: Pixmap,
 {
     info!(target: LOG_TARGET, "Starting rgb64 encoder");
 
-    let mut int = interval(Duration::from_millis(100));
+    let mut timer = interval(Duration::from_millis(100));
     loop {
-        int.tick().await;
-        let encoding = encode(&pixmap);
-
-        {
-            let mut lock = encodings.rgb64.lock().unwrap();
-            (*lock) = encoding;
+        select! {
+            _ = timer.tick() => {
+                let encoding = encode(&pixmap);
+                {
+                    let mut lock = encodings.rgb64.lock().unwrap();
+                    (*lock) = encoding;
+                }
+            },
+            _ = notify_stop.notified() => {
+                log::info!("Stopping rgb64 encoder");
+                break
+            }
         }
     }
 }

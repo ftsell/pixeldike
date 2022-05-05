@@ -139,6 +139,6 @@ async fn start_server(
         let _ = tokio::join!(handle);
     }
     for handle in encoder_handles {
-        let _ = tokio::join!(handle);
+        let _ = tokio::join!(handle.0);
     }
 }
