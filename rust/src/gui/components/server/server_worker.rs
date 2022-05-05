@@ -94,9 +94,21 @@ impl ComponentUpdate<ParentModel> for ServerWorkerModel {
                     run_synchronizer(pixmap2, parent_sender2, sync_stopper2).await;
                 });
 
+                // spawn encoders
+                let encodings2 = encodings.clone();
+                let pixmap2 = pixmap.clone();
+                let mut stoppers: Vec<_> = self
+                    .runtime
+                    .block_on(async move { pixelflut::state_encoding::start_encoders(encodings2, pixmap2) })
+                    .iter()
+                    .map(|h| &h.1)
+                    .cloned()
+                    .collect();
+
                 // set running server on self
+                stoppers.extend(vec![server_stopper, sync_stopper]);
                 self.running_server = Some(PixelflutServer {
-                    stoppers: vec![server_stopper, sync_stopper],
+                    stoppers,
                     pixmap,
                     encodings,
                 });
