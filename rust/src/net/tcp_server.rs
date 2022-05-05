@@ -3,12 +3,16 @@
 //!
 
 use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use anyhow::Error;
 use bytes::buf::Take;
 use bytes::{Buf, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::select;
+use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
@@ -31,19 +35,40 @@ impl Default for TcpOptions {
     }
 }
 
-/// Start the tcp server
+/// Start the tcp server on a new task.
 ///
-/// This binds to the socket address specified via *options* with TCP.
+/// This binds to the socket address specified via *options* with TCP and
+/// uses the provided *pixmap* as a pixel data storage and *encodings* for reading cached state command results.
 ///
-/// It uses the provided *pixmap* as a pixel data storage and *encodings* for reading cached state command results.
+/// It returns a JoinHandle to the task that is executing the server logic as well as a
+/// Notify instance that can be used to stop the server.
+pub fn start_listener<P>(
+    pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
+    options: TcpOptions,
+) -> (JoinHandle<tokio::io::Result<()>>, Arc<Notify>)
+where
+    P: Pixmap + Send + Sync + 'static,
+{
+    let notify = Arc::new(Notify::new());
+    let notify2 = notify.clone();
+    let handle = tokio::spawn(async move { listen(pixmap, encodings, options, notify2).await });
+
+    (handle, notify)
+}
+
+/// Listen on the tcp port defined through *options* while using the given *pixmap* and *encodings*
+/// as backing data storage
 pub async fn listen<P>(
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
     options: TcpOptions,
+    notify_stop: Arc<Notify>,
 ) -> tokio::io::Result<()>
 where
     P: Pixmap + Send + Sync + 'static,
 {
+    let mut connection_stop_notifies = Vec::new();
     let listener = TcpListener::bind(options.listen_address).await?;
     info!(
         target: LOG_TARGET,
@@ -52,12 +77,31 @@ where
     );
 
     loop {
-        let (socket, _) = listener.accept().await?;
-        let pixmap = pixmap.clone();
-        let encodings = encodings.clone();
-        tokio::spawn(async move {
-            process_connection(TcpConnection::new(socket), pixmap, encodings).await;
-        });
+        select! {
+            res = listener.accept() => {
+                let (socket, _) = res?;
+                let pixmap = pixmap.clone();
+                let encodings = encodings.clone();
+                let connection_stop_notify = Arc::new(Notify::new());
+                connection_stop_notifies.push(connection_stop_notify.clone());
+                tokio::spawn(async move {
+                    process_connection(
+                        TcpConnection::new(socket),
+                        pixmap,
+                        encodings,
+                        connection_stop_notify,
+                    )
+                    .await;
+                });
+            },
+            _ = notify_stop.notified() => {
+                log::info!("Stopping tcp server on {}", listener.local_addr().unwrap());
+                for i_notify in connection_stop_notifies.iter() {
+                    i_notify.notify_one();
+                }
+                break Ok(());
+            }
+        };
     }
 }
 
@@ -65,6 +109,7 @@ async fn process_connection<P>(
     mut connection: TcpConnection,
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
+    notify_stop: Arc<Notify>,
 ) where
     P: Pixmap,
 {
@@ -75,24 +120,35 @@ async fn process_connection<P>(
     );
     loop {
         // receive a frame from the client
-        match connection.read_frame().await {
-            Err(e) => {
-                warn!(target: LOG_TARGET, "Error reading frame: {}", e);
-                return;
-            }
-            Ok(frame) => {
-                // handle the frame
-                match super::handle_frame(frame, &pixmap, &encodings) {
-                    None => {}
-                    Some(response) => {
-                        // send back a response
-                        match connection.write_frame(response).await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                warn!(target: LOG_TARGET, "Error writing frame: {}", e)
+        select! {
+            frame = connection.read_frame() => {
+                match frame {
+                    Err(e) => {
+                        warn!(target: LOG_TARGET, "Error reading frame: {}", e);
+                        return;
+                    }
+                    Ok(frame) => {
+                        // handle the frame
+                        match super::handle_frame(frame, &pixmap, &encodings) {
+                            None => {}
+                            Some(response) => {
+                                // send back a response
+                                match connection.write_frame(response).await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        warn!(target: LOG_TARGET, "Error writing frame: {}", e)
+                                    }
+                                }
                             }
                         }
                     }
+                }
+            },
+            _ = notify_stop.notified() => {
+                log::info!("Closing connection to {}", connection.stream.peer_addr().unwrap());
+                match connection.stream.shutdown().await {
+                    Ok(_) => {}
+                    Err(e) => log::warn!("Error closing connection: {}", e)
                 }
             }
         }

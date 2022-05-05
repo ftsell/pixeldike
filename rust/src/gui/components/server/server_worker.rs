@@ -11,6 +11,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tokio::time::MissedTickBehavior;
 use tokio::{runtime, time};
@@ -32,7 +33,7 @@ pub(in crate::gui) struct ServerWorkerModel {
 struct PixelflutServer {
     encodings: SharedMultiEncodings,
     pixmap: Arc<InMemoryPixmap>,
-    join_handles: Vec<JoinHandle<()>>,
+    stopper: Arc<Notify>,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -80,28 +81,31 @@ impl ComponentUpdate<ParentModel> for ServerWorkerModel {
                 // spawn server task
                 let pixmap2 = pixmap.clone();
                 let encodings2 = encodings.clone();
-                let server_handle = self.runtime.spawn(async move {
-                    run_server(protocol, port as u16, pixmap2, encodings2).await;
-                });
+                let (_, stopper) = self
+                    .runtime
+                    .block_on(async move { run_server(protocol, port as u16, pixmap2, encodings2) });
 
                 // spawn synchronizer task
                 let pixmap2 = pixmap.clone();
                 let parent_sender2 = parent_sender.clone();
-                let synchronizer_handle = self.runtime.spawn(async move {
+                let _synchronizer_handle = self.runtime.spawn(async move {
                     run_synchronizer(pixmap2, parent_sender2).await;
                 });
 
                 // set running server on self
                 self.running_server = Some(PixelflutServer {
-                    join_handles: vec![server_handle, synchronizer_handle],
+                    stopper,
                     pixmap,
                     encodings,
                 });
             }
-            ServerWorkerMsg::StopServer => {
-                self.running_server = None;
-                // TODO perform a clean shutdown
-            }
+            ServerWorkerMsg::StopServer => match &self.running_server {
+                None => {}
+                Some(server) => {
+                    server.stopper.notify_one();
+                    self.running_server = None;
+                }
+            },
         }
     }
 }
@@ -120,33 +124,30 @@ async fn run_synchronizer(pixmap: Arc<InMemoryPixmap>, parent_sender: Sender<<Pa
     }
 }
 
-async fn run_server(
+fn run_server(
     protocol: ProtocolChoice,
     port: u16,
     pixmap: Arc<InMemoryPixmap>,
     encodings: SharedMultiEncodings,
-) {
+) -> (JoinHandle<tokio::io::Result<()>>, Arc<Notify>) {
     match protocol {
-        ProtocolChoice::TCP => {
-            net::tcp_server::listen(
-                pixmap,
-                encodings,
-                net::tcp_server::TcpOptions {
-                    listen_address: SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port),
-                },
-            )
-            .await
-        }
+        ProtocolChoice::TCP => net::tcp_server::start_listener(
+            pixmap,
+            encodings,
+            net::tcp_server::TcpOptions {
+                listen_address: SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port),
+            },
+        ),
         ProtocolChoice::UDP => {
-            net::udp_server::listen(
-                pixmap,
-                encodings,
-                net::udp_server::UdpOptions {
-                    listen_address: SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port),
-                },
-            )
-            .await
+            todo!()
+            // net::udp_server::listen(
+            //     pixmap,
+            //     encodings,
+            //     net::udp_server::UdpOptions {
+            //         listen_address: SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port),
+            //     },
+            // )
+            // .await
         }
     }
-    .expect("Could not run server listener");
 }

@@ -89,61 +89,56 @@ async fn start_server(
         pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
     );
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
-    let mut handles = Vec::new();
+    let mut server_handles = Vec::new();
 
     if let Some(tcp_port) = tcp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        handles.push(tokio::spawn(async move {
-            pixelflut::net::tcp_server::listen(
-                pixmap,
-                encodings,
-                pixelflut::net::tcp_server::TcpOptions {
-                    listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", tcp_port))
-                        .expect("could not build SocketAddr"),
-                },
-            )
-            .await
-            .expect("Could not run TCP listener");
-        }));
+        let (handle, _) = pixelflut::net::tcp_server::start_listener(
+            pixmap,
+            encodings,
+            pixelflut::net::tcp_server::TcpOptions {
+                listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", tcp_port))
+                    .expect("could not build SocketAddr"),
+            },
+        );
+        server_handles.push(handle);
     }
 
     if let Some(udp_port) = udp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        handles.push(tokio::spawn(async move {
-            pixelflut::net::udp_server::listen(
-                pixmap,
-                encodings,
-                pixelflut::net::udp_server::UdpOptions {
-                    listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", udp_port))
-                        .expect("could not build SocketAddr"),
-                },
-            )
-            .await
-            .expect("Could not run UDP listener");
-        }))
+        let (handle, _) = pixelflut::net::udp_server::start_listener(
+            pixmap,
+            encodings,
+            pixelflut::net::udp_server::UdpOptions {
+                listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", udp_port))
+                    .expect("could not build SocketAddr"),
+            },
+        );
+        server_handles.push(handle);
     }
 
     if let Some(ws_port) = ws_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        handles.push(tokio::spawn(async move {
-            pixelflut::net::ws_server::listen(
-                pixmap.clone(),
-                encodings.clone(),
-                pixelflut::net::ws_server::WsOptions {
-                    listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", ws_port))
-                        .expect("could not build SocketAddr"),
-                },
-            )
-            .await;
-        }))
+        let (handle, _) = pixelflut::net::ws_server::start_listener(
+            pixmap.clone(),
+            encodings.clone(),
+            pixelflut::net::ws_server::WsOptions {
+                listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", ws_port))
+                    .expect("could not build SocketAddr"),
+            },
+        );
+        server_handles.push(handle);
     }
 
-    handles.extend(pixelflut::state_encoding::start_encoders(encodings, pixmap));
+    let encoder_handles = pixelflut::state_encoding::start_encoders(encodings, pixmap);
 
-    for handle in handles {
+    for handle in server_handles {
+        let _ = tokio::join!(handle);
+    }
+    for handle in encoder_handles {
         let _ = tokio::join!(handle);
     }
 }

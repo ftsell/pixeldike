@@ -7,6 +7,9 @@ use std::sync::Arc;
 
 use bytes::{Buf, BytesMut};
 use tokio::net::UdpSocket;
+use tokio::select;
+use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 
 use crate::net::framing::Frame;
 use crate::pixmap::{Pixmap, SharedPixmap};
@@ -29,15 +32,35 @@ impl Default for UdpOptions {
     }
 }
 
-/// Start the udp server
+/// Start the udp server on a new task
 ///
-/// This binds to the socket address specified via *options* with UDP.
+/// This binds to the socket address specified via *options* with UDP and
+/// uses the provided *pixmap* as pixel data storage and *encodings* for reading cached state command results.
 ///
-/// It uses the provided *pixmap* as pixel data storage and *encodings* for reading cached state command results.
+/// It returns a JoinHandle to the task that is executing the server logic as well as a Notify
+/// instance that can be used to stop the server.
+pub fn start_listener<P>(
+    pixmap: SharedPixmap<P>,
+    encodings: SharedMultiEncodings,
+    options: UdpOptions,
+) -> (JoinHandle<tokio::io::Result<()>>, Arc<Notify>)
+where
+    P: Pixmap + Send + Sync + 'static,
+{
+    let notify = Arc::new(Notify::new());
+    let notify2 = notify.clone();
+    let handle = tokio::spawn(async move { listen(pixmap, encodings, options, notify2).await });
+
+    (handle, notify)
+}
+
+/// Listen on the udp port defined through *options* while using the given *pixmap* and *encodings*
+/// as backing data storage
 pub async fn listen<P>(
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
     options: UdpOptions,
+    notify_stop: Arc<Notify>,
 ) -> tokio::io::Result<()>
 where
     P: Pixmap + Send + Sync + 'static,
@@ -54,11 +77,19 @@ where
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         let mut buffer = BytesMut::with_capacity(1024);
-        let (_num_read, origin) = socket.recv_from(&mut buffer[..]).await?;
 
-        tokio::spawn(async move {
-            process_received(buffer, origin, socket, pixmap, encodings).await;
-        });
+        select! {
+            res = socket.recv_from(&mut buffer[..]) => {
+                let (_num_read, origin) = res?;
+                tokio::spawn(async move {
+                    process_received(buffer, origin, socket, pixmap, encodings).await;
+                });
+            },
+            _ = notify_stop.notified() => {
+                log::info!("Stopping udp server on {}", socket.local_addr().unwrap());
+                break Ok(());
+            }
+        }
     }
 }
 
