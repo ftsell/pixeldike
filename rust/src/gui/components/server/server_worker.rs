@@ -31,8 +31,6 @@ pub(in crate::gui) struct ServerWorkerModel {
 }
 
 struct PixelflutServer {
-    encodings: SharedMultiEncodings,
-    pixmap: Arc<InMemoryPixmap>,
     stoppers: Vec<Arc<Notify>>,
 }
 
@@ -107,11 +105,7 @@ impl ComponentUpdate<ParentModel> for ServerWorkerModel {
 
                 // set running server on self
                 stoppers.extend(vec![server_stopper, sync_stopper]);
-                self.running_server = Some(PixelflutServer {
-                    stoppers,
-                    pixmap,
-                    encodings,
-                });
+                self.running_server = Some(PixelflutServer { stoppers });
             }
             ServerWorkerMsg::StopServer => match &self.running_server {
                 None => {}
