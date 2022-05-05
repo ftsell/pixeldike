@@ -14,7 +14,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tokio::time::MissedTickBehavior;
-use tokio::{runtime, time};
+use tokio::{runtime, select, time};
 
 use pixelflut::state_encoding::SharedMultiEncodings;
 
@@ -33,7 +33,7 @@ pub(in crate::gui) struct ServerWorkerModel {
 struct PixelflutServer {
     encodings: SharedMultiEncodings,
     pixmap: Arc<InMemoryPixmap>,
-    stopper: Arc<Notify>,
+    stoppers: Vec<Arc<Notify>>,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -81,20 +81,22 @@ impl ComponentUpdate<ParentModel> for ServerWorkerModel {
                 // spawn server task
                 let pixmap2 = pixmap.clone();
                 let encodings2 = encodings.clone();
-                let (_, stopper) = self
+                let (_, server_stopper) = self
                     .runtime
-                    .block_on(async move { run_server(protocol, port as u16, pixmap2, encodings2) });
+                    .block_on(async move { start_server(protocol, port as u16, pixmap2, encodings2) });
 
                 // spawn synchronizer task
                 let pixmap2 = pixmap.clone();
                 let parent_sender2 = parent_sender.clone();
+                let sync_stopper = Arc::new(Notify::new());
+                let sync_stopper2 = sync_stopper.clone();
                 let _synchronizer_handle = self.runtime.spawn(async move {
-                    run_synchronizer(pixmap2, parent_sender2).await;
+                    run_synchronizer(pixmap2, parent_sender2, sync_stopper2).await;
                 });
 
                 // set running server on self
                 self.running_server = Some(PixelflutServer {
-                    stopper,
+                    stoppers: vec![server_stopper, sync_stopper],
                     pixmap,
                     encodings,
                 });
@@ -102,7 +104,9 @@ impl ComponentUpdate<ParentModel> for ServerWorkerModel {
             ServerWorkerMsg::StopServer => match &self.running_server {
                 None => {}
                 Some(server) => {
-                    server.stopper.notify_one();
+                    for stopper in server.stoppers.iter() {
+                        stopper.notify_one();
+                    }
                     self.running_server = None;
                 }
             },
@@ -110,21 +114,32 @@ impl ComponentUpdate<ParentModel> for ServerWorkerModel {
     }
 }
 
-async fn run_synchronizer(pixmap: Arc<InMemoryPixmap>, parent_sender: Sender<<ParentModel as Model>::Msg>) {
+async fn run_synchronizer(
+    pixmap: Arc<InMemoryPixmap>,
+    parent_sender: Sender<<ParentModel as Model>::Msg>,
+    notify_stop: Arc<Notify>,
+) {
     const FPS: f32 = 5f32;
     let mut interval = time::interval(Duration::from_secs_f32(1f32 / FPS));
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
     loop {
-        interval.tick().await;
-        send!(
-            parent_sender,
-            ServerHolderMsg::UpdatePixmap(pixmap.get_raw_data().expect("Could not get raw data"))
-        )
+        select! {
+            _ = interval.tick() => {
+                send!(
+                    parent_sender,
+                    ServerHolderMsg::UpdatePixmap(pixmap.get_raw_data().expect("Could not get raw data"))
+                )
+            },
+            _ = notify_stop.notified() => {
+                log::debug!("Stopping Synchronizer");
+                break;
+            }
+        }
     }
 }
 
-fn run_server(
+fn start_server(
     protocol: ProtocolChoice,
     port: u16,
     pixmap: Arc<InMemoryPixmap>,
