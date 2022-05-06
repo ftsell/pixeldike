@@ -134,7 +134,7 @@ async fn run_synchronizer(
             _ = interval.tick() => {
                 send!(
                     parent_sender,
-                    ServerHolderMsg::UpdatePixmap(pixmap.get_raw_data().expect("Could not get raw data"))
+                    ServerHolderMsg::UpdatePixmapData(Box::new(pixmap.get_raw_data().expect("Could not get raw data")))
                 )
             },
             _ = notify_stop.notified() => {

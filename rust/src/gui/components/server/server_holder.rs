@@ -19,7 +19,7 @@ pub(crate) struct ServerHolderModel {}
 pub(crate) enum ServerHolderMsg {
     StartServer { protocol: ProtocolChoice, port: u32 },
     StopServer,
-    UpdatePixmap(Vec<Color>),
+    UpdatePixmapData(Box<Vec<Color>>),
 }
 
 /// Sub-Components used by the *ServerHolder* component
@@ -61,7 +61,7 @@ impl ComponentUpdate<ParentModel> for ServerHolderModel {
             ServerHolderMsg::StopServer => {
                 send!(components.server_worker, ServerWorkerMsg::StopServer);
             }
-            ServerHolderMsg::UpdatePixmap(data) => {
+            ServerHolderMsg::UpdatePixmapData(data) => {
                 send!(components.layout, ServerLayoutMsg::UpdatePixmapData(data))
             }
         }

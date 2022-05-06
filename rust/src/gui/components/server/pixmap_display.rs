@@ -20,7 +20,7 @@ pub(in crate::gui) struct PixmapDisplayModel {
 /// State altering messages of the *PixmapDisplay* component
 pub(in crate::gui) enum PixmapDisplayMsg {
     SetVisibility(bool),
-    UpdatePixmapData(Vec<Color>),
+    UpdatePixmapData(Box<Vec<Color>>),
 }
 
 /// GTK widgets used to render the *PixmapDisplay* component

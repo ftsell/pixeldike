@@ -21,7 +21,7 @@ pub(in crate::gui) struct ServerLayoutModel {
 pub(in crate::gui) enum ServerLayoutMsg {
     StartServer { protocol: ProtocolChoice, port: u32 },
     StopServer,
-    UpdatePixmapData(Vec<Color>),
+    UpdatePixmapData(Box<Vec<Color>>),
 }
 
 /// GTK widgets that are directly used to render the *ServerLayout* component
