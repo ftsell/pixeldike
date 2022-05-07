@@ -6,7 +6,8 @@ use gtk::glib::Sender;
 use gtk::prelude::WidgetExt;
 use gtk::Align;
 use pixelflut::pixmap::gdk_pixbuf_pixmap::default_gdk_pixbuf_pixmap;
-use pixelflut::pixmap::{Color, Pixmap};
+use pixelflut::pixmap::paintable_pixmap::PaintablePixmap;
+use pixelflut::pixmap::{Color, InMemoryPixmap, Pixmap};
 use relm4::{ComponentUpdate, Model, Widgets};
 
 type ParentModel = ServerLayoutModel;
@@ -14,6 +15,7 @@ type ParentModel = ServerLayoutModel;
 /// State of the *PixmapDisplay* component
 pub(in crate::gui) struct PixmapDisplayModel {
     pixbuf: Pixbuf,
+    paintable_pixmap: PaintablePixmap,
     visibility: bool,
 }
 
@@ -38,6 +40,7 @@ impl ComponentUpdate<ParentModel> for PixmapDisplayModel {
     fn init_model(_parent_model: &ParentModel) -> Self {
         Self {
             pixbuf: default_gdk_pixbuf_pixmap(),
+            paintable_pixmap: PaintablePixmap::new(),
             visibility: false,
         }
     }
@@ -74,7 +77,7 @@ impl Widgets<PixmapDisplayModel, ParentModel> for PixmapDisplayWidgets {
             .valign(Align::Center)
             .visible(model.visibility)
             .build();
-        picture.set_pixbuf(Some(&model.pixbuf));
+        picture.set_paintable(Some(&model.paintable_pixmap));
 
         Self { picture }
     }
@@ -85,6 +88,6 @@ impl Widgets<PixmapDisplayModel, ParentModel> for PixmapDisplayWidgets {
 
     fn view(&mut self, model: &PixmapDisplayModel, _sender: Sender<<PixmapDisplayModel as Model>::Msg>) {
         self.picture.set_visible(model.visibility);
-        self.picture.set_pixbuf(Some(&model.pixbuf));
+        //self.picture.set_pixbuf(Some(&model.pixbuf));
     }
 }

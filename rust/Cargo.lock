@@ -1128,6 +1128,7 @@ dependencies = [
  "libadwaita",
  "log",
  "nom",
+ "once_cell",
  "pretty_env_logger",
  "quickcheck",
  "relm4",
