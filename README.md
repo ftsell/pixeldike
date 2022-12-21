@@ -32,12 +32,12 @@ cargo install --git=https://github.com/ftsell/pixelflut.git --features=default,b
 - Start a pixelflut tcp server on port 1234 with default size and persisted in the file *~/pixmap.pixmap*
  
   ```bash
-  pixelflut server --path ~/pixmap.pixmap --tcp 1234
+  pixelflut server --file ~/pixmap.pixmap --tcp 1234
   ```
 
 - Start a pixelflut udp server on port 1234 with custom size and persisted in the file *~/pixmap.pixmap*
 
   ```bash
-  pixelflut server --path ~/pixmap.pixmap --udp 1234 --width 10 --height 20
+  pixelflut server --file ~/pixmap.pixmap --udp 1234 --width 10 --height 20
   ```
 

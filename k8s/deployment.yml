@@ -27,7 +27,7 @@ spec:
               - $(WIDTH)
               - --height
               - $(HEIGHT)
-              - --path
+              - --file
               - /app/data/snapshot.pxmap
             envFrom:
               - configMapRef:
