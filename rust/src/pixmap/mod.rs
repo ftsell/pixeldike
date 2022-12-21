@@ -16,11 +16,7 @@ pub use replicating_pixmap::ReplicatingPixmap;
 
 mod color;
 mod file_backed_pixmap;
-#[cfg(feature = "gui")]
-pub mod gdk_pixbuf_pixmap;
 mod in_memory_pixmap;
-#[cfg(feature = "gui")]
-pub mod paintable_pixmap;
 mod remote_pixmap;
 mod replicating_pixmap;
 
@@ -71,16 +67,6 @@ pub trait Pixmap {
 /// row-major order
 fn pixel_coordinates_2_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<usize> {
     Ok(y * pixmap.get_size()?.0 + x)
-}
-
-/// Calculate the coordinates `(x, y)` for the pixel with the given index assuming the pixels are
-/// stored in row-major order
-#[cfg(feature = "gui")]
-fn pixel_index_2_coordinates(pixmap: &impl Pixmap, i: usize) -> Result<(usize, usize)> {
-    let (width, _height) = pixmap.get_size()?;
-    let x = i % width;
-    let y = (i - x) / width;
-    Ok((x, y))
 }
 
 /// Verify that the given coordinates are inside the given pixmap by returning an error if not
