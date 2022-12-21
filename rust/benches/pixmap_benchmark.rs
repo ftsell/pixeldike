@@ -1,5 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use pixelflut::pixmap::gdk_pixbuf_pixmap::default_gdk_pixbuf_pixmap;
 use pixelflut::pixmap::{Color, FileBackedPixmap, InMemoryPixmap, Pixmap};
 use std::time::Duration;
 use tempfile::tempdir;
@@ -12,11 +11,6 @@ fn bench_set_pixel(c: &mut Criterion) {
 
     group.bench_function("InMemoryPixmap", |b| {
         let pixmap = InMemoryPixmap::default();
-        b.iter(|| pixmap.set_pixel(42, 42, black_box(COLOR)))
-    });
-
-    group.bench_function("GdkPixbufPixmap", |b| {
-        let pixmap = default_gdk_pixbuf_pixmap();
         b.iter(|| pixmap.set_pixel(42, 42, black_box(COLOR)))
     });
 
@@ -34,12 +28,6 @@ fn bench_get_pixel(c: &mut Criterion) {
 
     group.bench_function("InMemoryPixmap", |b| {
         let pixmap = InMemoryPixmap::default();
-        pixmap.set_pixel(42, 42, COLOR).unwrap();
-        b.iter(|| pixmap.get_pixel(42, 42))
-    });
-
-    group.bench_function("GdkPixbufPixmap", |b| {
-        let pixmap = default_gdk_pixbuf_pixmap();
         pixmap.set_pixel(42, 42, COLOR).unwrap();
         b.iter(|| pixmap.get_pixel(42, 42))
     });
@@ -63,12 +51,6 @@ fn bench_get_raw_data(c: &mut Criterion) {
         b.iter(|| pixmap.get_raw_data())
     });
 
-    group.bench_function("GdkPixbufPixmap", |b| {
-        let pixmap = default_gdk_pixbuf_pixmap();
-        pixmap.put_raw_data(&vec![COLOR; 42]).unwrap();
-        b.iter(|| pixmap.get_raw_data())
-    });
-
     group.bench_function("FileBackedPixmap", |b| {
         let dir = tempdir().unwrap();
         let path = dir.path().join("pixmap.pixmap");
@@ -84,12 +66,6 @@ fn bench_put_raw_data(c: &mut Criterion) {
 
     group.bench_function("InMemoryPixmap", |b| {
         let pixmap = InMemoryPixmap::default();
-        let size = pixmap.get_size().unwrap();
-        b.iter(|| pixmap.put_raw_data(black_box(&vec![COLOR; size.0 * size.1])))
-    });
-
-    group.bench_function("GdkPixbufPixmap", |b| {
-        let pixmap = default_gdk_pixbuf_pixmap();
         let size = pixmap.get_size().unwrap();
         b.iter(|| pixmap.put_raw_data(black_box(&vec![COLOR; size.0 * size.1])))
     });
