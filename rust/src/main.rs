@@ -1,10 +1,8 @@
+use clap::Parser;
 use std::net::SocketAddr;
-use std::path::Path;
-use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use clap::value_t_or_exit;
 use pretty_env_logger;
 
 use pixelflut;
@@ -16,52 +14,20 @@ mod cli;
 async fn main() {
     pretty_env_logger::init();
 
-    let matches = cli::get_app().get_matches();
-
-    match matches.subcommand() {
-        // subcommand to start server
-        ("server", Some(sub_matches)) => {
-            start_server(
-                value_t_or_exit!(sub_matches, "width", usize),
-                value_t_or_exit!(sub_matches, "height", usize),
-                sub_matches
-                    .value_of("path")
-                    .expect("path is required but not in matches"),
-                value_t_or_exit_opt!(sub_matches, "tcp_port", usize),
-                value_t_or_exit_opt!(sub_matches, "udp_port", usize),
-                value_t_or_exit_opt!(sub_matches, "ws_port", usize),
-            )
-            .await;
-        }
-
-        // no subcommand given
-        ("", None) => {
-            println!("No subcommand given");
-            println!("Call with --help for more information");
-            exit(1);
-        }
-
-        // match exhaustion, this should not happen
-        (sub_command, sub_matches) => panic!(
-            "Unhandled subcommand '{}' with sub_matches {:?}",
-            sub_command, sub_matches
-        ),
-    }
+    let args = cli::CliOpts::parse();
+    match args.command {
+        cli::Command::Server(opts) => start_server(&opts).await,
+    };
 }
 
-async fn start_server(
-    width: usize,
-    height: usize,
-    path: &str,
-    tcp_port: Option<usize>,
-    udp_port: Option<usize>,
-    ws_port: Option<usize>,
-) {
+async fn start_server(opts: &cli::ServerOpts) {
     // create pixmap instances
-    let primary_pixmap =
-        pixelflut::pixmap::InMemoryPixmap::new(width, height).expect("could not create in memory pixmap");
-    let file_pixmap = pixelflut::pixmap::FileBackedPixmap::new(&Path::new(path), width, height, false)
-        .expect(&format!("could not create pixmap backed by file {}", path));
+    let primary_pixmap = pixelflut::pixmap::InMemoryPixmap::new(opts.width, opts.height)
+        .expect("could not create in memory pixmap");
+    let file_pixmap =
+        pixelflut::pixmap::FileBackedPixmap::new(&opts.path, opts.width, opts.height, false).expect(
+            &format!("could not create pixmap backed by file {}", opts.path.display()),
+        );
 
     // copy data from file into memory
     primary_pixmap
@@ -79,7 +45,7 @@ async fn start_server(
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
     let mut server_handles = Vec::new();
 
-    if let Some(tcp_port) = tcp_port {
+    if let Some(tcp_port) = &opts.tcp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         let (handle, _) = pixelflut::net::tcp_server::start_listener(
@@ -93,7 +59,7 @@ async fn start_server(
         server_handles.push(handle);
     }
 
-    if let Some(udp_port) = udp_port {
+    if let Some(udp_port) = &opts.udp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         let (handle, _) = pixelflut::net::udp_server::start_listener(
@@ -107,7 +73,7 @@ async fn start_server(
         server_handles.push(handle);
     }
 
-    if let Some(ws_port) = ws_port {
+    if let Some(ws_port) = &opts.ws_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         let (handle, _) = pixelflut::net::ws_server::start_listener(
@@ -119,6 +85,10 @@ async fn start_server(
             },
         );
         server_handles.push(handle);
+    }
+
+    if server_handles.len() == 0 {
+        panic!("No listeners are supposed to be started which makes no sense");
     }
 
     let encoder_handles = pixelflut::state_encoding::start_encoders(encodings, pixmap);
