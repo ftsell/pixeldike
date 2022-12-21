@@ -11,8 +11,6 @@ use pixelflut;
 use pixelflut::pixmap::Pixmap;
 
 mod cli;
-#[cfg(feature = "gui")]
-mod gui;
 
 #[tokio::main]
 async fn main() {
@@ -34,16 +32,6 @@ async fn main() {
                 value_t_or_exit_opt!(sub_matches, "ws_port", usize),
             )
             .await;
-        }
-
-        // subcommand to start gui
-        #[cfg(feature = "gui")]
-        ("gui", Some(sub_matches)) => {
-            let gtk_args = match sub_matches.values_of("gtk-args") {
-                None => Vec::new(),
-                Some(values) => values.collect(),
-            };
-            gui::start_gui(&gtk_args);
         }
 
         // no subcommand given
