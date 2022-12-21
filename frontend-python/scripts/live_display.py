@@ -46,7 +46,7 @@ def get_new_pixbuf():
     )
     render_end = time.time()
 
-    line = f"receiving: {receive_end - receive_start}s, rendering: {render_end - render_start}s, fps: {1 / ((receive_end - receive_start) + (render_end - render_start))}"
+    line = f"receiving: {receive_end - receive_start:.4f}s, rendering: {render_end - render_start:.4f}s, fps: {1 / ((receive_end - receive_start) + (render_end - render_start)):.0f}"
     print(f"\033[K{line}\033[{len(line)}D", end="", flush=True)
 
     return pixbuf
