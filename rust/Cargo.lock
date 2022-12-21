@@ -748,6 +748,7 @@ dependencies = [
  "pretty_env_logger",
  "quickcheck",
  "regex",
+ "sha1",
  "tempfile",
  "thiserror",
  "tokio",

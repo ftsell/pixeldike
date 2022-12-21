@@ -4,15 +4,19 @@
 //! This implementation is currently fairly basic and only really intended to be used by [pixelflut-js](https://github.com/ftsell/pixelflut-js)
 //!
 
+use anyhow::Error;
 use std::convert::TryInto;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use futures_util::stream::StreamExt;
+use sha1::{Digest, Sha1};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
+use tokio_tungstenite::tungstenite::handshake::server::{Callback, ErrorResponse, Request, Response};
+use tokio_tungstenite::tungstenite::http::HeaderValue;
 use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -118,7 +122,9 @@ async fn process_connection<P>(
         "Client connected {}",
         connection.peer_addr().unwrap()
     );
-    let websocket = tokio_tungstenite::accept_async(connection).await.unwrap();
+    let websocket = tokio_tungstenite::accept_hdr_async(connection, WebsocketCallback::new())
+        .await
+        .unwrap();
     let (write, read) = websocket.split();
     let future = read
         .map(|msg| process_received(msg, pixmap.clone(), encodings.clone()))
@@ -167,5 +173,58 @@ where
             warn!(target: LOG_TARGET, "Websocket error: {}", e);
             Ok(Message::Text(String::new()))
         }
+    }
+}
+
+struct WebsocketCallback {}
+
+impl WebsocketCallback {
+    const fn new() -> Self {
+        Self {}
+    }
+
+    fn calc_websocket_accept(&self, websocket_key: &str) -> Result<HeaderValue, Error> {
+        // append known string from spec
+        let accept_str = websocket_key.to_string() + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+        // hash it
+        let mut hasher = Sha1::new();
+        hasher.update(accept_str);
+        let accept_hash = hasher.finalize();
+
+        // base64 encode and return it
+        let accept_b64 = base64::encode(accept_hash);
+        HeaderValue::from_str(&accept_b64)
+            .map_err(|_| Error::msg("Could not compute Sec-WebSocket-Key header"))
+    }
+}
+
+impl Callback for WebsocketCallback {
+    fn on_request(self, request: &Request, mut response: Response) -> Result<Response, ErrorResponse> {
+        // respond with a correct Sec-WebSocket-Key header if it was requested by the client
+        if let Some(websocket_key) = request.headers().get("Sec-WebSocket-Key") {
+            match websocket_key.to_str() {
+                Ok(websocket_key) => match self.calc_websocket_accept(websocket_key) {
+                    Ok(websocket_accept) => {
+                        response
+                            .headers_mut()
+                            .insert("Sec-WebSocket-Accept", websocket_accept);
+                    }
+                    Err(e) => {
+                        log::warn!("{}", e);
+                    }
+                },
+                Err(e) => {
+                    log::warn!("Received invalid Sec-WebSocket-Key header: {}", e);
+                }
+            }
+        }
+
+        // set the used websocket sub-protocol
+        response
+            .headers_mut()
+            .insert("Sec-WebSocket-Protocol", HeaderValue::from_static("pixelflut"));
+
+        Ok(response)
     }
 }

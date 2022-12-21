@@ -54,6 +54,7 @@ log = "0.4.17"
 nom = "7.1.1"
 pretty_env_logger = { version = "0.4.0", optional = true }
 regex = "1.7.0"
+sha1 = "0.10.5"
 thiserror = "1.0.38"
 tokio = { version = "1.23.0", features = ["full"] }
 tokio-tungstenite = "0.18.0"
