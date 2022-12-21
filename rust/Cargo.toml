@@ -38,6 +38,10 @@ required-features = ["cli"]
 name = "pixmap_benchmark"
 harness = false
 
+[[bench]]
+name = "live_server_benchmark"
+harness = false
+
 [dependencies]
 anyhow = "1.0.68"
 base64 = "0.20.0"
