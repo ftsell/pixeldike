@@ -1,4 +1,3 @@
-#![feature(result_option_inspect)]
 #![deny(trivial_numeric_casts, trivial_casts, unsafe_code)]
 #![warn(
     rustdoc::missing_crate_level_docs,
