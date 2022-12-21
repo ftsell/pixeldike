@@ -12,7 +12,8 @@ use crate::net::framing::Frame;
 use crate::pixmap::Color;
 use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
 
-use super::parsers;
+use super::fast_parsers;
+use super::nom_parsers;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Request {
@@ -27,14 +28,14 @@ impl FromStr for Request {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match parsers::parse_request(s) {
+        fast_parsers::parse_px_set(s).or_else(|_| match nom_parsers::parse_request(s) {
             Ok((_remainder, request)) => Ok(request),
             Err(e) => match e {
                 nom::Err::Error(e) => Err(e.into()),
                 nom::Err::Failure(e) => Err(e.into()),
                 nom::Err::Incomplete(_) => Err(anyhow::Error::msg("too little input")),
             },
-        }
+        })
     }
 }
 

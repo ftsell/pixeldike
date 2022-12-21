@@ -12,9 +12,7 @@ use nom::Err;
 use crate::i18n;
 use crate::net::framing::Frame;
 use crate::pixmap::Color;
-use crate::protocol::{HelpTopic, StateEncodingAlgorithm};
-
-use super::parsers;
+use crate::protocol::{nom_parsers, HelpTopic, StateEncodingAlgorithm};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Response {
@@ -28,7 +26,7 @@ impl FromStr for Response {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match parsers::parse_response(s) {
+        match nom_parsers::parse_response(s) {
             Ok((_remainder, response)) => Ok(response),
             Err(e) => match e {
                 Err::Error(e) => Err(e.into()),

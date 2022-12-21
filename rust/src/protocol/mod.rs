@@ -1,11 +1,13 @@
+//! Pixelflut protocol parser implementation
 use std::fmt::{Display, Formatter};
 
 pub use request::Request;
 pub use response::Response;
 
-mod parsers;
-mod request;
-mod response;
+mod fast_parsers;
+mod nom_parsers;
+pub mod request;
+pub mod response;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StateEncodingAlgorithm {
