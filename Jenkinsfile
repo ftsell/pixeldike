@@ -8,7 +8,7 @@ def implementation = "rust"
 pipeline {
     agent {
         kubernetes {
-          yaml genPodYaml(true, true)
+          yaml genPodYaml(false, true)
         }
     }
     options {
@@ -22,13 +22,6 @@ pipeline {
             steps {
                 checkout scm
             }
-        }
-        stage("Validate K8S") {
-          steps {
-            container("kustomize") {
-              checkKustomize()
-            }
-          }
         }
         stage("Create Container Image") {
             steps {
