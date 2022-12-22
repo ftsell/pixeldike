@@ -1,22 +1,29 @@
+use anyhow::anyhow;
 use std::fmt::{Formatter, UpperHex};
 
 #[cfg(test)]
 use quickcheck::{Arbitrary, Gen};
 
 /// Color data represented as red, green, and blue channels each having a depth of 8 bits
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 pub struct Color(pub u8, pub u8, pub u8);
-
-impl From<u32> for Color {
-    fn from(src: u32) -> Self {
-        let b = src.to_le_bytes();
-        Self(b[0], b[1], b[2])
-    }
-}
 
 impl From<[u8; 3]> for Color {
     fn from(data: [u8; 3]) -> Self {
         Self(data[0], data[1], data[2])
+    }
+}
+
+impl Into<[u8; 3]> for Color {
+    fn into(self) -> [u8; 3] {
+        [self.0, self.1, self.2]
+    }
+}
+
+impl From<u32> for Color {
+    fn from(src: u32) -> Self {
+        let b = src.to_be_bytes();
+        Self(b[1], b[2], b[3])
     }
 }
 
@@ -29,6 +36,19 @@ impl Into<u32> for Color {
 impl Into<u32> for &Color {
     fn into(self) -> u32 {
         0u32 | (self.0 as u32) | (self.1 as u32) << 8 | (self.2 as u32) << 16
+    }
+}
+
+impl TryFrom<&[u8]> for Color {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        match value.len() {
+            3 => Ok(Self(value[0], value[1], value[2])),
+            _ => Err(anyhow!(
+                "cannot convert slices of more or less than three elements to color"
+            )),
+        }
     }
 }
 
@@ -56,4 +76,13 @@ impl Arbitrary for Color {
     fn arbitrary<G: Gen>(g: &mut G) -> Self {
         u32::arbitrary(g).into()
     }
+}
+
+#[cfg(test)]
+#[test]
+fn test_u32_conversion() {
+    assert_eq!(Color::from(0u32), Color(0, 0, 0));
+    assert_eq!(Color::from(0xFFu32), Color(0, 0, 255));
+    assert_eq!(Color::from(0x00FF00u32), Color(0, 255, 0));
+    assert_eq!(Color::from(0xFF0000u32), Color(255, 0, 0));
 }
