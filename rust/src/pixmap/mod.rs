@@ -8,6 +8,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use thiserror::Error;
 
+use crate::pixmap::traits::PixmapBase;
 pub use color::*;
 pub use file_backed_pixmap::FileBackedPixmap;
 pub use in_memory_pixmap::InMemoryPixmap;
@@ -19,6 +20,7 @@ mod file_backed_pixmap;
 mod in_memory_pixmap;
 mod remote_pixmap;
 mod replicating_pixmap;
+pub mod traits;
 
 /// A [`Pixmap`] which can be used throughout multiple threads
 ///
@@ -39,38 +41,14 @@ enum GenericError {
     InvalidSize(usize, usize),
 }
 
-///
-/// Generic trait for accessing pixel data in a unified way
-///
-pub trait Pixmap {
-    /// Get the color value of the pixel at position (x,y)
-    fn get_pixel(&self, x: usize, y: usize) -> Result<Color>;
-
-    /// Set the pixel value at position (x,y) to the specified color
-    fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()>;
-
-    /// Get the size of this pixmap as (width, height) tuple
-    fn get_size(&self) -> Result<(usize, usize)>;
-
-    /// Get all of the contained pixel data
-    fn get_raw_data(&self) -> Result<Vec<Color>>;
-
-    /// Overwrite all of the contained pixel data.
-    ///
-    /// If the given *data* is too small, the remaining pixmap colors will be kept as they are.
-    ///
-    /// If the given *data* is too large, left over data will simply be ignored.
-    fn put_raw_data(&self, data: &Vec<Color>) -> Result<()>;
-}
-
 /// Calculates the index of the specified coordinates when pixels are stored in a Vector in
 /// row-major order
-fn pixel_coordinates_2_index(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<usize> {
+fn pixel_coordinates_2_index(pixmap: &impl PixmapBase, x: usize, y: usize) -> Result<usize> {
     Ok(y * pixmap.get_size()?.0 + x)
 }
 
 /// Verify that the given coordinates are inside the given pixmap by returning an error if not
-fn verify_coordinates_are_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Result<()> {
+fn verify_coordinates_are_inside(pixmap: &impl PixmapBase, x: usize, y: usize) -> Result<()> {
     let size = pixmap.get_size()?;
 
     // we don't need to check for >=0 because x and y are unsigned types
@@ -87,12 +65,13 @@ fn verify_coordinates_are_inside(pixmap: &impl Pixmap, x: usize, y: usize) -> Re
 
 #[cfg(test)]
 mod test {
+    use crate::pixmap::traits::{PixmapRawRead, PixmapRawWrite, PixmapRead, PixmapWrite};
     use quickcheck::TestResult;
 
     use super::*;
 
     pub(crate) fn test_set_and_get_pixel(
-        pixmap: impl Pixmap,
+        pixmap: impl PixmapBase + PixmapRead + PixmapWrite,
         x: usize,
         y: usize,
         color: Color,
@@ -103,7 +82,10 @@ mod test {
         }
     }
 
-    pub(crate) fn test_put_and_get_raw_data(pixmap: &impl Pixmap, color: Color) -> TestResult {
+    pub(crate) fn test_put_and_get_raw_data(
+        pixmap: &(impl PixmapBase + PixmapRawRead + PixmapRawWrite),
+        color: Color,
+    ) -> TestResult {
         // setup
         let data = vec![color; pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1];
 
@@ -117,15 +99,17 @@ mod test {
         TestResult::from_bool(data == data_out)
     }
 
-    pub(crate) fn test_put_raw_data_with_incorrect_size_data(pixmap: &impl Pixmap) {
+    pub(crate) fn test_put_raw_data_with_incorrect_size_data(
+        pixmap: &(impl PixmapBase + PixmapWrite + PixmapRawRead + PixmapRawWrite),
+    ) {
         // setup
         let size = pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1;
 
         // empty data
         pixmap.set_pixel(0, 0, Color(42, 42, 42)).unwrap();
         pixmap.set_pixel(1, 0, Color(43, 43, 43)).unwrap();
-        pixmap.put_raw_data(&Vec::new()).unwrap();
-        let output_data = pixmap.get_raw_data().unwrap();
+        pixmap.put_raw_data(&Vec::<Color>::new()).unwrap();
+        let output_data: Vec<_> = pixmap.get_raw_data().unwrap();
         assert_eq!(output_data[0], Color(42, 42, 42));
         assert_eq!(output_data[1], Color(43, 43, 43));
         assert_eq!(output_data[2..], vec![Color(0, 0, 0); size - 2]);
@@ -133,7 +117,7 @@ mod test {
         // too small data
         let input_data = vec![Color(42, 42, 42); 10];
         pixmap.put_raw_data(&input_data).unwrap();
-        let output_data = pixmap.get_raw_data().unwrap();
+        let output_data: Vec<_> = pixmap.get_raw_data().unwrap();
         assert_eq!(output_data[0..10], input_data);
         assert_eq!(output_data[10..], vec![Color(0, 0, 0); size - 10]);
 

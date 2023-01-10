@@ -6,7 +6,7 @@ use std::sync::Arc;
 use pretty_env_logger;
 
 use pixelflut;
-use pixelflut::pixmap::Pixmap;
+use pixelflut::pixmap::traits::*;
 
 mod cli;
 

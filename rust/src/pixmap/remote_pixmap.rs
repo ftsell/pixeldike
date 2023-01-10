@@ -1,4 +1,3 @@
-use std::any::type_name;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -9,6 +8,7 @@ use crate::net::framing::Frame;
 use crate::protocol::{Request, Response, StateEncodingAlgorithm};
 use crate::state_encoding;
 
+use super::traits::*;
 use super::*;
 
 static LOG_TARGET: &str = "pixelflut.pixmap.remote";
@@ -90,7 +90,17 @@ where
     }
 }
 
-impl<I, F> Pixmap for RemotePixmap<I, F>
+impl<I, F> PixmapBase for RemotePixmap<I, F>
+where
+    I: Read,
+    F: Write,
+{
+    fn get_size(&self) -> Result<(usize, usize)> {
+        Ok((self.width, self.height))
+    }
+}
+
+impl<I, F> PixmapRead for RemotePixmap<I, F>
 where
     I: Read,
     F: Write,
@@ -114,7 +124,13 @@ where
                 ))),
             })
     }
+}
 
+impl<I, F> PixmapWrite for RemotePixmap<I, F>
+where
+    I: Read,
+    F: Write,
+{
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
         let mut lock = self.stream.lock().unwrap();
         let request = Request::PxSet(x, y, color);
@@ -127,21 +143,19 @@ where
 
         Ok(())
     }
+}
 
-    fn get_size(&self) -> Result<(usize, usize)> {
-        Ok((self.width, self.height))
-    }
-
+impl<I, F> PixmapRawRead for RemotePixmap<I, F>
+where
+    I: Read,
+    F: Write,
+{
     fn get_raw_data(&self) -> Result<Vec<Color>> {
         self.send_and_receive(Request::State(StateEncodingAlgorithm::Rgb64))
             .and_then(|response| match response {
                 Response::State(StateEncodingAlgorithm::Rgb64, data) => state_encoding::rgb64::decode(data),
                 _ => Err(Error::msg("invalid response for STATE request")),
             })
-    }
-
-    fn put_raw_data(&self, _data: &Vec<Color>) -> Result<()> {
-        Err(Error::msg("pixmap does not support put_raw_data").context(type_name::<Self>()))
     }
 }
 

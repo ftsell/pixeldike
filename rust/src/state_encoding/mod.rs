@@ -13,7 +13,8 @@ use tokio::task::JoinHandle;
 
 pub use encodings::*;
 
-use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::pixmap::traits::{PixmapBase, PixmapRawRead};
+use crate::pixmap::SharedPixmap;
 
 mod encodings;
 pub mod rgb64;
@@ -25,7 +26,7 @@ pub fn start_encoders<P>(
     pixmap: SharedPixmap<P>,
 ) -> Vec<(JoinHandle<()>, Arc<Notify>)>
 where
-    P: Pixmap + Send + Sync + 'static,
+    P: PixmapBase + PixmapRawRead + Send + Sync + 'static,
 {
     vec![
         rgb64::start_encoder(encodings.clone(), pixmap.clone()),

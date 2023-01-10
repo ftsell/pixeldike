@@ -21,7 +21,8 @@ use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::net::framing::Frame;
-use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
+use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
 
 static LOG_TARGET: &str = "pixelflut.net.ws";
@@ -58,7 +59,7 @@ pub fn start_listener<P>(
     options: WsOptions,
 ) -> (JoinHandle<tokio::io::Result<()>>, Arc<Notify>)
 where
-    P: Pixmap + Send + Sync + 'static,
+    P: PixmapBase + PixmapRead + PixmapWrite + Send + Sync + 'static,
 {
     let notify = Arc::new(Notify::new());
     let notify2 = notify.clone();
@@ -76,7 +77,7 @@ pub async fn listen<P>(
     notify_stop: Arc<Notify>,
 ) -> tokio::io::Result<()>
 where
-    P: Pixmap + Send + Sync + 'static,
+    P: PixmapBase + PixmapRead + PixmapWrite + Send + Sync + 'static,
 {
     let mut connection_stop_notifies = Vec::new();
     let listener = TcpListener::bind(options.listen_address).await.unwrap();
@@ -115,7 +116,7 @@ async fn process_connection<P>(
     encodings: SharedMultiEncodings,
     notify_stop: Arc<Notify>,
 ) where
-    P: Pixmap,
+    P: PixmapBase + PixmapRead + PixmapWrite,
 {
     debug!(
         target: LOG_TARGET,
@@ -148,7 +149,7 @@ fn process_received<P>(
     encodings: SharedMultiEncodings,
 ) -> Result<Message, WsError>
 where
-    P: Pixmap,
+    P: PixmapBase + PixmapRead + PixmapWrite,
 {
     match msg {
         Ok(msg) => match msg {

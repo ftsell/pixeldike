@@ -8,6 +8,7 @@ use anyhow::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
 
+use super::traits::*;
 use super::*;
 
 // TODO Implement handling of read-only files
@@ -237,7 +238,13 @@ impl FileBackedPixmap {
     }
 }
 
-impl Pixmap for FileBackedPixmap {
+impl PixmapBase for FileBackedPixmap {
+    fn get_size(&self) -> Result<(usize, usize)> {
+        Ok((self.header.width as usize, self.header.height as usize))
+    }
+}
+
+impl PixmapRead for FileBackedPixmap {
     fn get_pixel(&self, x: usize, y: usize) -> Result<Color> {
         verify_coordinates_are_inside(self, x, y)?;
 
@@ -245,18 +252,18 @@ impl Pixmap for FileBackedPixmap {
         let bin_data = self.read_pixel(&mut lock, x, y).unwrap();
         Ok(Color(bin_data[0], bin_data[1], bin_data[2]))
     }
+}
 
+impl PixmapWrite for FileBackedPixmap {
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
         verify_coordinates_are_inside(self, x, y)?;
 
         let mut lock = self.file.lock().unwrap();
         Ok(self.write_pixel(&mut lock, x, y, [color.0, color.1, color.2])?)
     }
+}
 
-    fn get_size(&self) -> Result<(usize, usize)> {
-        Ok((self.header.width as usize, self.header.height as usize))
-    }
-
+impl PixmapRawRead for FileBackedPixmap {
     fn get_raw_data(&self) -> Result<Vec<Color>> {
         let mut result = Vec::new();
 
@@ -275,14 +282,20 @@ impl Pixmap for FileBackedPixmap {
 
         Ok(result)
     }
+}
 
-    fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
+impl PixmapRawWrite for FileBackedPixmap {
+    fn put_raw_data(&self, data: &[Color]) -> Result<()> {
         let bin_data: Vec<u8> = data[..min(
             data.len(),
             self.header.width as usize * self.header.height as usize,
         )]
             .iter()
-            .flat_map(|color| vec![color.0, color.1, color.2])
+            .flat_map(|color| {
+                let color: Color = color.clone().into();
+
+                vec![color.0, color.1, color.2]
+            })
             .collect();
         let mut lock = self.file.lock().unwrap();
         Ok(self.write_data(&mut lock, &bin_data).unwrap())

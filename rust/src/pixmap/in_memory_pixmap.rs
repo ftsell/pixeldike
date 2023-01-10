@@ -3,6 +3,7 @@ use std::sync::atomic::Ordering;
 
 use anyhow::Result;
 
+use super::traits::*;
 use super::GenericError as Error;
 use super::*;
 
@@ -33,14 +34,22 @@ impl InMemoryPixmap {
     }
 }
 
-impl Pixmap for InMemoryPixmap {
+impl PixmapBase for InMemoryPixmap {
+    fn get_size(&self) -> Result<(usize, usize)> {
+        Ok((self.width, self.height))
+    }
+}
+
+impl PixmapRead for InMemoryPixmap {
     fn get_pixel(&self, x: usize, y: usize) -> Result<Color> {
         verify_coordinates_are_inside(self, x, y)?;
 
         let i = pixel_coordinates_2_index(self, x, y)?;
         Ok(Color::from(self.data[i].load(Ordering::Relaxed)))
     }
+}
 
+impl PixmapWrite for InMemoryPixmap {
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
         verify_coordinates_are_inside(self, x, y)?;
 
@@ -48,11 +57,9 @@ impl Pixmap for InMemoryPixmap {
         self.data[i].store(color.into(), Ordering::SeqCst);
         Ok(())
     }
+}
 
-    fn get_size(&self) -> Result<(usize, usize)> {
-        Ok((self.width, self.height))
-    }
-
+impl PixmapRawRead for InMemoryPixmap {
     fn get_raw_data(&self) -> Result<Vec<Color>> {
         Ok(self
             .data
@@ -61,12 +68,15 @@ impl Pixmap for InMemoryPixmap {
             .map(|v| Color::from(v))
             .collect())
     }
+}
 
-    fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
+impl PixmapRawWrite for InMemoryPixmap {
+    fn put_raw_data(&self, data: &[Color]) -> Result<()> {
         for (i, color) in data[..min(data.len(), self.width * self.height)]
             .iter()
             .enumerate()
         {
+            let color: Color = color.clone().into();
             self.data[i].store(color.into(), Ordering::Relaxed);
         }
 

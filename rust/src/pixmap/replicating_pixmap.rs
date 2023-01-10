@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 
+use super::traits::*;
 use super::*;
 
 const LOG_TARGET: &str = "pixelflut.pixmap.replica";
@@ -17,7 +18,7 @@ enum Error {
     ReplicationThreadAlreadyStarted,
 }
 
-type ReplicaList = Vec<Box<dyn Pixmap + Send + Sync>>;
+type ReplicaList = Vec<Box<dyn PixmapRawWrite + Send + Sync>>;
 
 struct ReplicationThreadHandler {
     #[allow(dead_code)]
@@ -31,7 +32,7 @@ struct ReplicationThreadHandler {
 ///
 pub struct ReplicatingPixmap<P>
 where
-    P: Pixmap + Send + Sync + 'static,
+    P: PixmapRawRead + Send + Sync + 'static,
 {
     primary: Arc<P>,
     replicas: Arc<ReplicaList>,
@@ -41,7 +42,7 @@ where
 
 impl<P> ReplicatingPixmap<P>
 where
-    P: Pixmap + Send + Sync + 'static,
+    P: PixmapRawRead + Send + Sync + 'static,
 {
     /// Create a new replicating pixmap from the given parameters.
     pub fn new(primary: P, replicas: ReplicaList, frequency: f64) -> Result<Self> {
@@ -159,41 +160,61 @@ where
 
 impl<P> Drop for ReplicatingPixmap<P>
 where
-    P: Pixmap + Send + Sync + 'static,
+    P: PixmapRawRead + Send + Sync + 'static,
 {
     fn drop(&mut self) {
         self.stop_replication()
     }
 }
 
-impl<P> Pixmap for ReplicatingPixmap<P>
+impl<P> PixmapBase for ReplicatingPixmap<P>
 where
-    P: Pixmap + Send + Sync,
+    P: PixmapBase + PixmapRawRead + Send + Sync,
+{
+    fn get_size(&self) -> Result<(usize, usize)> {
+        self.primary.get_size()
+    }
+}
+
+impl<P> PixmapRead for ReplicatingPixmap<P>
+where
+    P: PixmapRead + PixmapRawRead + Send + Sync,
 {
     fn get_pixel(&self, x: usize, y: usize) -> Result<Color> {
         self.primary.get_pixel(x, y)
     }
+}
 
+impl<P> PixmapWrite for ReplicatingPixmap<P>
+where
+    P: PixmapWrite + PixmapRawRead + Send + Sync,
+{
     fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<()> {
         self.primary.set_pixel(x, y, color)
     }
+}
 
-    fn get_size(&self) -> Result<(usize, usize)> {
-        self.primary.get_size()
-    }
-
+impl<P> PixmapRawRead for ReplicatingPixmap<P>
+where
+    P: PixmapRawRead + Send + Sync,
+{
     fn get_raw_data(&self) -> Result<Vec<Color>> {
         self.primary.get_raw_data()
     }
+}
 
-    fn put_raw_data(&self, data: &Vec<Color>) -> Result<()> {
+impl<P> PixmapRawWrite for ReplicatingPixmap<P>
+where
+    P: PixmapRawWrite + PixmapRawRead + Send + Sync,
+{
+    fn put_raw_data(&self, data: &[Color]) -> Result<()> {
         self.primary.put_raw_data(data)
     }
 }
 
 impl<P> Debug for ReplicatingPixmap<P>
 where
-    P: Pixmap + Send + Sync + Debug,
+    P: PixmapRawRead + Send + Sync + Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(

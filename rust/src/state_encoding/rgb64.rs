@@ -11,7 +11,8 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tokio::time::{interval, Duration};
 
-use crate::pixmap::{Color, Pixmap, SharedPixmap};
+use crate::pixmap::traits::{PixmapBase, PixmapRawRead};
+use crate::pixmap::{Color, SharedPixmap};
 
 use super::SharedMultiEncodings;
 
@@ -29,7 +30,7 @@ pub fn start_encoder<P>(
     pixmap: SharedPixmap<P>,
 ) -> (JoinHandle<()>, Arc<Notify>)
 where
-    P: Pixmap + Send + Sync + 'static,
+    P: PixmapBase + PixmapRawRead + Send + Sync + 'static,
 {
     let notify = Arc::new(Notify::new());
     let notify2 = notify.clone();
@@ -47,7 +48,7 @@ pub async fn run_encoder<P>(
     pixmap: SharedPixmap<P>,
     notify_stop: Arc<Notify>,
 ) where
-    P: Pixmap,
+    P: PixmapBase + PixmapRawRead,
 {
     info!(target: LOG_TARGET, "Starting rgb64 encoder");
 
@@ -71,7 +72,7 @@ pub async fn run_encoder<P>(
 
 fn encode<P>(pixmap: &SharedPixmap<P>) -> Encoding
 where
-    P: Pixmap,
+    P: PixmapBase + PixmapRawRead,
 {
     let mut data = Vec::with_capacity(pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1 * 3);
 

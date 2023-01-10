@@ -8,7 +8,8 @@ use anyhow::Result;
 use bytes::{Buf, Bytes};
 
 use crate::net::framing::Frame;
-use crate::pixmap::{Pixmap, SharedPixmap};
+use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
+use crate::pixmap::SharedPixmap;
 use crate::protocol::{Request, Response, StateEncodingAlgorithm};
 use crate::state_encoding::SharedMultiEncodings;
 
@@ -26,7 +27,7 @@ fn handle_frame<P, B>(
     encodings: &SharedMultiEncodings,
 ) -> Option<Frame<Bytes>>
 where
-    P: Pixmap,
+    P: PixmapBase + PixmapRead + PixmapWrite,
     B: Buf,
 {
     // try parse the received frame as request
@@ -46,7 +47,7 @@ fn handle_request<P>(
     encodings: &SharedMultiEncodings,
 ) -> Result<Option<Response>>
 where
-    P: Pixmap,
+    P: PixmapBase + PixmapRead + PixmapWrite,
 {
     match request {
         Request::Size => Ok(Some(Response::Size(pixmap.get_size()?.0, pixmap.get_size()?.1))),
