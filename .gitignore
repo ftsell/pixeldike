@@ -1,6 +1,7 @@
 **/target
 **/*.rs.bk
 **/.idea
+**/.vscode
 **/.pyenv
 **/__pycache__
 **/snapshot.pxmap

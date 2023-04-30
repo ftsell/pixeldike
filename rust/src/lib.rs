@@ -1,4 +1,4 @@
-#![deny(trivial_numeric_casts, trivial_casts, unsafe_code)]
+#![deny(trivial_numeric_casts, trivial_casts)]
 #![warn(
     rustdoc::missing_crate_level_docs,
     rustdoc::broken_intra_doc_links,
@@ -23,6 +23,7 @@ extern crate log;
 #[macro_use]
 extern crate quickcheck;
 
+pub mod gui;
 mod i18n;
 pub mod net;
 pub mod pixmap;

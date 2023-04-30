@@ -40,4 +40,8 @@ pub(crate) struct ServerOpts {
     /// file path into which the pixmap is persisted and from which it is read on startup
     #[arg(short = 'f', long = "file")]
     pub path: PathBuf,
+    
+    /// whether a gui should be shown
+    #[arg(long = "gui")]
+    pub show_gui: bool,
 }

@@ -45,6 +45,11 @@ async fn start_server(opts: &cli::ServerOpts) {
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
     let mut server_handles = Vec::new();
 
+    if opts.show_gui {
+        let (handle, proxy) = pixelflut::gui::GuiThread::start(pixmap.clone());
+        handle.thread.await;
+    }
+
     if let Some(tcp_port) = &opts.tcp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
