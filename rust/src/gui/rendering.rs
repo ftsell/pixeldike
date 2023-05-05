@@ -1,24 +1,39 @@
 use anyhow::{Context, Result};
-
+use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
+use winit::window::Window;
 
 use super::utils::async_to_sync;
 
-
 pub(super) struct RenderState {
+    /// The instance is the first thing created when using wgpu.
+    /// Its main purpose is to create Adapters and Surfaces.
     wgpu_instance: wgpu::Instance,
+
+    /// The surface is the part of the window that we draw to. We need it to draw directly to the screen.
+    /// The window needs to implement [`HasRawWindowHandle`](raw_window_handle::HasRawWindowHandle) trait to create a surface.
+    /// Fortunately, *winit*'s Window fits the bill.
+    /// We also need it to request our adapter.
     surface: wgpu::Surface,
+
     device: wgpu::Device,
     queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
-    //size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
+
+    /// The configuration which was used to create the surface.
+    /// Required for resizing.
+    config: wgpu::SurfaceConfiguration,
+
+    /// The physical size of the underlying window.
+    /// Required for resizing.
+    size: winit::dpi::PhysicalSize<u32>,
+
+    background_color: wgpu::Color,
 }
 
 impl RenderState {
-    pub fn new<W>(window: &W) -> Result<Self>
-    where
-        W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle,
-    {
+    pub fn new(window: &Window) -> Result<Self> {
+        let size = window.inner_size();
+
         let wgpu_instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
         let surface = unsafe {
@@ -27,6 +42,9 @@ impl RenderState {
                 .with_context(|| "Could not create rendering surface")?
         };
 
+        // The adapter is a handle to our actual graphics card.
+        // It can be uses to get information about the graphics card such as its name and what backend the adapter uses.
+        // We use this to create our Device and Queue.
         let adapter = async_to_sync(wgpu_instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             force_fallback_adapter: false,
@@ -94,9 +112,42 @@ impl RenderState {
             device,
             queue,
             config,
-            //size,
+            size,
             render_pipeline,
+            background_color: wgpu::Color::BLACK,
         })
+    }
+
+    /// Handle resizing of the underlying window by adjusting the render config
+    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        if new_size.width > 0 && new_size.height > 0 {
+            self.size = new_size;
+            self.config.width = new_size.width;
+            self.config.height = new_size.height;
+            self.surface.configure(&self.device, &self.config);
+        }
+    }
+
+    /// Process an input event and return whether it has been fully processed.
+    pub fn input(&mut self, input: &KeyboardInput) {
+        match input {
+            KeyboardInput {
+                state: ElementState::Pressed,
+                virtual_keycode: Some(VirtualKeyCode::Space),
+                ..
+            } => {
+                if self.background_color == wgpu::Color::BLACK {
+                    self.background_color = wgpu::Color::WHITE;
+                } else {
+                    self.background_color = wgpu::Color::BLACK;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn update(&mut self) {
+        // Nothing to do yet
     }
 
     pub fn render(&mut self) {
@@ -117,7 +168,7 @@ impl RenderState {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(self.background_color),
                         store: true,
                     },
                 })],

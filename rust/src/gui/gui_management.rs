@@ -2,8 +2,8 @@
 
 use anyhow::{Context, Result};
 use wgpu::{
-    include_wgsl, Adapter, Device, DeviceDescriptor, InstanceDescriptor, PowerPreference, Queue,
-    RequestAdapterOptions, ShaderModule, Surface, Instance,
+    include_wgsl, Adapter, Device, DeviceDescriptor, Instance, InstanceDescriptor, PowerPreference, Queue,
+    RequestAdapterOptions, ShaderModule, Surface,
 };
 use winit::{
     dpi::{PhysicalSize, Size},
@@ -62,6 +62,22 @@ impl GuiContext {
                         control_flow.set_exit();
                     }
 
+                    // handle resizing when the window size changes
+                    Event::WindowEvent {
+                        event: WindowEvent::Resized(physical_size),
+                        ..
+                    } => {
+                        self.render_state.resize(physical_size);
+                    }
+
+                    // handle resizing when the window scaling changes
+                    Event::WindowEvent {
+                        event: WindowEvent::ScaleFactorChanged { new_inner_size, .. },
+                        ..
+                    } => {
+                        self.render_state.resize(*new_inner_size);
+                    }
+
                     // schedule a redraw when polled
                     Event::NewEvents(StartCause::Poll) => {
                         //self.window.request_redraw();
@@ -69,7 +85,17 @@ impl GuiContext {
 
                     // redraw the canvas if something determined that to be required
                     Event::RedrawRequested(_) => {
+                        self.render_state.update();
                         self.render_state.render();
+                    }
+
+                    // forward keyboard events to the rendering logic
+                    Event::WindowEvent {
+                        event: WindowEvent::KeyboardInput { input, .. },
+                        ..
+                    } => {
+                        self.render_state.input(&input);
+                        self.window.request_redraw();
                     }
 
                     // ignore all other events
