@@ -1,4 +1,4 @@
-//! Management code for handling windows and executing an event loop
+//! Blocking managament code for windows and gpu handles
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -24,7 +24,8 @@ use super::rendering::RenderState;
 pub(super) struct GuiContext<P: PixmapRawRead> {
     window: Window,
     event_loop: Option<EventLoop<()>>,
-    render_state: RenderState<P>,
+    render_state: RenderState,
+    pixmap: Arc<P>,
 }
 
 impl<P: PixmapRawRead + 'static> GuiContext<P> {
@@ -42,12 +43,13 @@ impl<P: PixmapRawRead + 'static> GuiContext<P> {
             .build(&event_loop)
             .with_context(|| "Could not construct window")?;
 
-        let render_state = RenderState::new(&window, pixmap)?;
+        let render_state = RenderState::new(&window)?;
 
         Ok(Self {
             window,
             event_loop: Some(event_loop),
             render_state,
+            pixmap,
         })
     }
 
@@ -92,7 +94,7 @@ impl<P: PixmapRawRead + 'static> GuiContext<P> {
 
                     // redraw the canvas if something determined that to be required
                     Event::RedrawRequested(_) => {
-                        self.render_state.render();
+                        self.render_state.render(&self.pixmap);
                     }
 
                     // forward keyboard events to the rendering logic

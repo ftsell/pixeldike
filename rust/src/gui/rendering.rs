@@ -10,7 +10,7 @@ use winit::window::Window;
 
 use super::utils::async_to_sync;
 
-pub(super) struct RenderState<P: PixmapRawRead> {
+pub(super) struct RenderState {
     /// The instance is the first thing created when using wgpu.
     /// Its main purpose is to create Adapters and Surfaces.
     wgpu_instance: wgpu::Instance,
@@ -25,7 +25,8 @@ pub(super) struct RenderState<P: PixmapRawRead> {
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
 
-    pixel_texture: wgpu::Texture,
+    /// A buffer to store vertex data
+    vertex_buffer: wgpu::Buffer,
 
     /// The configuration which was used to create the surface.
     /// Required for resizing.
@@ -35,13 +36,11 @@ pub(super) struct RenderState<P: PixmapRawRead> {
     /// Required for resizing.
     size: winit::dpi::PhysicalSize<u32>,
 
-    pixmap: Arc<P>,
-
     background_color: wgpu::Color,
 }
 
-impl<P: PixmapRawRead> RenderState<P> {
-    pub fn new(window: &Window, pixmap: Arc<P>) -> Result<Self> {
+impl RenderState {
+    pub fn new(window: &Window) -> Result<Self> {
         let size = window.inner_size();
 
         let wgpu_instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
@@ -81,20 +80,10 @@ impl<P: PixmapRawRead> RenderState<P> {
             push_constant_ranges: &[],
         });
 
-        let (pixmap_width, pixmap_height) = pixmap.get_size()?;
-        let pixel_texture = device.create_texture(&wgpu::TextureDescriptor {
-            size: wgpu::Extent3d {
-                width: pixmap_width as u32,
-                height: pixmap_height as u32,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Uint,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            label: Some("Pixmap"),
-            view_formats: &[],
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: &[],
+            usage: wgpu::BufferUsages::VERTEX,
         });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -103,7 +92,7 @@ impl<P: PixmapRawRead> RenderState<P> {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[],
+                buffers: &[shader::Vertex::desc()],
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -140,8 +129,7 @@ impl<P: PixmapRawRead> RenderState<P> {
             config,
             size,
             render_pipeline,
-            pixel_texture,
-            pixmap,
+            vertex_buffer,
             background_color: wgpu::Color::BLACK,
         })
     }
@@ -172,14 +160,14 @@ impl<P: PixmapRawRead> RenderState<P> {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, pixmap: &Arc<impl PixmapRawRead>) {
         debug!("========== REDRAWING PIXMAP ==========");
+        pixmap.fill_vertex_buffer(&mut self.vertex_buffer);
 
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         // render from the gpu buffer onto the texture
-        self.pixmap.write_gpu_texture(&self.queue, &self.pixel_texture);
         let mut cmd_encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -199,7 +187,8 @@ impl<P: PixmapRawRead> RenderState<P> {
 
             self.device.poll(Maintain::Poll);
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..4, 0..1)
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..0, 0..1)
         }
         self.queue.submit(Some(cmd_encoder.finish()));
 
