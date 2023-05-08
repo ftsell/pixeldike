@@ -1,9 +1,9 @@
-mod gpu_rendering;
-mod gui_thread;
 mod gui_proxy;
-mod gui_management;
+mod gui_thread;
 mod rendering;
+mod shader;
 mod utils;
+mod window_management;
 
 pub use gui_proxy::GuiProxy;
 pub use gui_thread::GuiThread;

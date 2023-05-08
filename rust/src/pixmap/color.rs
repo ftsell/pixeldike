@@ -8,18 +8,28 @@ use quickcheck::{Arbitrary, Gen};
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 pub struct Color(pub u8, pub u8, pub u8);
 
+// From RGB channels
 impl From<[u8; 3]> for Color {
     fn from(data: [u8; 3]) -> Self {
         Self(data[0], data[1], data[2])
     }
 }
 
-impl Into<[u8; 3]> for Color {
-    fn into(self) -> [u8; 3] {
-        [self.0, self.1, self.2]
+// Into RGB channels
+impl From<Color> for [u8; 3] {
+    fn from(value: Color) -> Self {
+        [value.0, value.1, value.2]
     }
 }
 
+// Into RGBA channels
+impl From<Color> for [u8; 4] {
+    fn from(value: Color) -> Self {
+        [value.0, value.1, value.2, 0]
+    }
+}
+
+// From RGBA channels as u32
 impl From<u32> for Color {
     fn from(src: u32) -> Self {
         let b = src.to_be_bytes();
@@ -27,9 +37,10 @@ impl From<u32> for Color {
     }
 }
 
-impl Into<u32> for Color {
-    fn into(self) -> u32 {
-        0u32 | (self.0 as u32) | (self.1 as u32) << 8 | (self.2 as u32) << 16
+// Into RGBA channels as u32
+impl From<Color> for u32 {
+    fn from(value: Color) -> Self {
+        u32::from_be_bytes([value.0, value.1, value.2, 0])
     }
 }
 

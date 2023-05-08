@@ -1,7 +1,7 @@
 //! Code related to running the whole GUI on a separate thread or task
 
-use std::sync::Arc;
 use anyhow::Result;
+use std::sync::Arc;
 
 use tokio::{
     sync::{mpsc, oneshot},
@@ -10,7 +10,7 @@ use tokio::{
 
 use crate::pixmap::traits::PixmapRawRead;
 
-use super::{gui_management::GuiContext, GuiProxy};
+use super::{window_management::GuiContext, GuiProxy};
 
 /// An owning and authorative handle to the running Gui Thread
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl GuiThread {
 
         // spawn the gui handling code on a task that is intended for blocking code
         let join_handle = spawn_blocking(move || {
-            GuiContext::new().expect("Could not create Gui").run();
+            GuiContext::new(pixmap).expect("Could not create Gui").run();
         });
 
         (Self { thread: join_handle }, gui_proxy)

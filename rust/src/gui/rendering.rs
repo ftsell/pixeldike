@@ -1,10 +1,16 @@
+use crate::gui::shader;
+use crate::gui::shader::PixmapShaderInterop;
+use crate::pixmap::traits::PixmapRawRead;
 use anyhow::{Context, Result};
+use std::sync::Arc;
+use wgpu::util::DeviceExt;
+use wgpu::{Maintain, MaintainBase};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 use winit::window::Window;
 
 use super::utils::async_to_sync;
 
-pub(super) struct RenderState {
+pub(super) struct RenderState<P: PixmapRawRead> {
     /// The instance is the first thing created when using wgpu.
     /// Its main purpose is to create Adapters and Surfaces.
     wgpu_instance: wgpu::Instance,
@@ -19,6 +25,8 @@ pub(super) struct RenderState {
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
 
+    pixel_texture: wgpu::Texture,
+
     /// The configuration which was used to create the surface.
     /// Required for resizing.
     config: wgpu::SurfaceConfiguration,
@@ -27,11 +35,13 @@ pub(super) struct RenderState {
     /// Required for resizing.
     size: winit::dpi::PhysicalSize<u32>,
 
+    pixmap: Arc<P>,
+
     background_color: wgpu::Color,
 }
 
-impl RenderState {
-    pub fn new(window: &Window) -> Result<Self> {
+impl<P: PixmapRawRead> RenderState<P> {
+    pub fn new(window: &Window, pixmap: Arc<P>) -> Result<Self> {
         let size = window.inner_size();
 
         let wgpu_instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
@@ -53,22 +63,38 @@ impl RenderState {
         .with_context(|| "Could not get a GPU adapter for rendering")?;
 
         let (device, queue) = async_to_sync(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))
-            .with_context(|| "Could not setup channes to GPU")?;
+            .with_context(|| "Could not setup channel to GPU")?;
 
         let config = surface
-            .get_default_config(&adapter, 800, 600)
+            .get_default_config(&adapter, window.inner_size().width, window.inner_size().height)
             .with_context(|| "Could not configure rendering surface for the GPU")?;
         surface.configure(&device, &config);
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("PixelflutShader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            source: shader::get_shader_source(),
         });
 
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[],
             push_constant_ranges: &[],
+        });
+
+        let (pixmap_width, pixmap_height) = pixmap.get_size()?;
+        let pixel_texture = device.create_texture(&wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: pixmap_width as u32,
+                height: pixmap_height as u32,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Uint,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            label: Some("Pixmap"),
+            view_formats: &[],
         });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -114,6 +140,8 @@ impl RenderState {
             config,
             size,
             render_pipeline,
+            pixel_texture,
+            pixmap,
             background_color: wgpu::Color::BLACK,
         })
     }
@@ -130,24 +158,18 @@ impl RenderState {
 
     /// Process an input event and return whether it has been fully processed.
     pub fn input(&mut self, input: &KeyboardInput) {
-        match input {
-            KeyboardInput {
-                state: ElementState::Pressed,
-                virtual_keycode: Some(VirtualKeyCode::Space),
-                ..
-            } => {
-                if self.background_color == wgpu::Color::BLACK {
-                    self.background_color = wgpu::Color::WHITE;
-                } else {
-                    self.background_color = wgpu::Color::BLACK;
-                }
+        if let KeyboardInput {
+            state: ElementState::Pressed,
+            virtual_keycode: Some(VirtualKeyCode::Space),
+            ..
+        } = input
+        {
+            if self.background_color == wgpu::Color::BLACK {
+                self.background_color = wgpu::Color::WHITE;
+            } else {
+                self.background_color = wgpu::Color::BLACK;
             }
-            _ => {}
         }
-    }
-
-    pub fn update(&mut self) {
-        // Nothing to do yet
     }
 
     pub fn render(&mut self) {
@@ -157,6 +179,7 @@ impl RenderState {
         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         // render from the gpu buffer onto the texture
+        self.pixmap.write_gpu_texture(&self.queue, &self.pixel_texture);
         let mut cmd_encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -174,8 +197,9 @@ impl RenderState {
                 })],
             });
 
+            self.device.poll(Maintain::Poll);
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1)
+            render_pass.draw(0..4, 0..1)
         }
         self.queue.submit(Some(cmd_encoder.finish()));
 
