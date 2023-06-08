@@ -3,14 +3,14 @@
 use anyhow::Result;
 use std::sync::Arc;
 
+use crate::gui::window_management::GuiContext;
+use crate::gui::GuiProxy;
 use tokio::{
     sync::{mpsc, oneshot},
     task::{spawn_blocking, JoinHandle},
 };
 
 use crate::pixmap::traits::PixmapRawRead;
-
-use super::{window_management::GuiContext, GuiProxy};
 
 /// An owning and authorative handle to the running Gui Thread
 #[derive(Debug)]

@@ -1,10 +1,11 @@
 use crate::gui::shader;
-use crate::gui::shader::PixmapShaderInterop;
+use crate::gui::shader::{PixmapShaderInterop, Vertex, INDICES, VERTICES};
+use crate::gui::texture::TextureState;
 use crate::pixmap::traits::PixmapRawRead;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
-use wgpu::{Maintain, MaintainBase};
+use wgpu::{BindGroup, Maintain, MaintainBase, Texture};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 use winit::window::Window;
 
@@ -25,9 +26,6 @@ pub(super) struct RenderState {
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
 
-    /// A buffer to store vertex data
-    vertex_buffer: wgpu::Buffer,
-
     /// The configuration which was used to create the surface.
     /// Required for resizing.
     config: wgpu::SurfaceConfiguration,
@@ -35,6 +33,12 @@ pub(super) struct RenderState {
     /// The physical size of the underlying window.
     /// Required for resizing.
     size: winit::dpi::PhysicalSize<u32>,
+
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+
+    texture: TextureState,
+    texture_bind_group: BindGroup,
 
     background_color: wgpu::Color,
 }
@@ -64,35 +68,69 @@ impl RenderState {
         let (device, queue) = async_to_sync(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))
             .with_context(|| "Could not setup channel to GPU")?;
 
-        let config = surface
+        let surface_config = surface
             .get_default_config(&adapter, window.inner_size().width, window.inner_size().height)
             .with_context(|| "Could not configure rendering surface for the GPU")?;
-        surface.configure(&device, &config);
+        surface.configure(&device, &surface_config);
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("PixelflutShader"),
             source: shader::get_shader_source(),
         });
 
+        let texture_state = TextureState::new(&device).unwrap();
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("pixmap_texture_bind_group_layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    // This should match the filterable field of the
+                    // corresponding Texture entry above.
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("pixmap_texture_bind_group"),
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&texture_state.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&texture_state.sampler),
+                },
+            ],
+        });
+
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[],
+            bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: &[],
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
+            label: Some("pixmap_pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[shader::Vertex::desc()],
+                buffers: &[Vertex::desc()],
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -113,12 +151,26 @@ impl RenderState {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    format: surface_config.format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent::REPLACE,
+                        alpha: wgpu::BlendComponent::REPLACE,
+                    }),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
             multiview: None,
+        });
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
         });
 
         Ok(Self {
@@ -126,11 +178,14 @@ impl RenderState {
             surface,
             device,
             queue,
-            config,
+            config: surface_config,
             size,
             render_pipeline,
+            texture: texture_state,
             vertex_buffer,
-            background_color: wgpu::Color::BLACK,
+            index_buffer,
+            texture_bind_group: bind_group,
+            background_color: wgpu::Color::GREEN,
         })
     }
 
@@ -162,10 +217,12 @@ impl RenderState {
 
     pub fn render(&mut self, pixmap: &Arc<impl PixmapRawRead>) {
         debug!("========== REDRAWING PIXMAP ==========");
-        pixmap.fill_vertex_buffer(&mut self.vertex_buffer);
 
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        // update texture data
+        pixmap.write_to_texture(&mut self.queue, &self.texture.texture);
 
         // render from the gpu buffer onto the texture
         let mut cmd_encoder = self
@@ -185,10 +242,11 @@ impl RenderState {
                 })],
             });
 
-            self.device.poll(Maintain::Poll);
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..0, 0..1)
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1)
         }
         self.queue.submit(Some(cmd_encoder.finish()));
 

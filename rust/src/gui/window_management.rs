@@ -89,7 +89,7 @@ impl<P: PixmapRawRead + 'static> GuiContext<P> {
 
                     // schedule a redraw when polled
                     Event::NewEvents(StartCause::Poll) => {
-                        //self.window.request_redraw();
+                        self.window.request_redraw();
                     }
 
                     // redraw the canvas if something determined that to be required
