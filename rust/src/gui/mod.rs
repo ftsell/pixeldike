@@ -1,3 +1,5 @@
+//! GUI Management and rendering
+
 mod gui_proxy;
 mod gui_thread;
 mod rendering;

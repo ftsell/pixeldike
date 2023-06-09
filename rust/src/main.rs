@@ -46,7 +46,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     let mut server_handles = Vec::new();
 
     let gui_handle = if opts.show_gui {
-        let (handle, proxy) = pixelflut::gui::GuiThread::start(pixmap.clone());
+        let (handle, _proxy) = pixelflut::gui::GuiThread::start(pixmap.clone());
         Some(handle)
     } else {
         None
@@ -101,7 +101,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     let encoder_handles = pixelflut::state_encoding::start_encoders(encodings, pixmap);
 
     if let Some(handle) = gui_handle {
-        handle.thread.await;
+        handle.thread.await.expect("GUI seems to have crashed");
     }
     for handle in server_handles {
         let _ = tokio::join!(handle);

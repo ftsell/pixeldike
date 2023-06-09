@@ -1,21 +1,17 @@
-//! Blocking managament code for windows and gpu handles
+//! Blocking management code for windows and gpu handles
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use wgpu::{
-    include_wgsl, Adapter, Device, DeviceDescriptor, Instance, InstanceDescriptor, PowerPreference, Queue,
-    RequestAdapterOptions, ShaderModule, Surface,
-};
+
 use winit::dpi::LogicalSize;
 use winit::{
-    dpi::{PhysicalSize, Size},
+    dpi::Size,
     event::{Event, StartCause, WindowEvent},
     event_loop::{EventLoop, EventLoopBuilder},
     platform::unix::EventLoopBuilderExtUnix,
     window::{Window, WindowBuilder},
 };
 
-use crate::gui::utils::async_to_sync;
 use crate::pixmap::traits::PixmapRawRead;
 
 use super::rendering::RenderState;
@@ -24,8 +20,7 @@ use super::rendering::RenderState;
 pub(super) struct GuiContext<P: PixmapRawRead> {
     window: Window,
     event_loop: Option<EventLoop<()>>,
-    render_state: RenderState,
-    pixmap: Arc<P>,
+    render_state: RenderState<P>,
 }
 
 impl<P: PixmapRawRead + 'static> GuiContext<P> {
@@ -43,13 +38,12 @@ impl<P: PixmapRawRead + 'static> GuiContext<P> {
             .build(&event_loop)
             .with_context(|| "Could not construct window")?;
 
-        let render_state = RenderState::new(&window)?;
+        let render_state = RenderState::new(&window, pixmap.clone())?;
 
         Ok(Self {
             window,
             event_loop: Some(event_loop),
             render_state,
-            pixmap,
         })
     }
 
@@ -94,7 +88,7 @@ impl<P: PixmapRawRead + 'static> GuiContext<P> {
 
                     // redraw the canvas if something determined that to be required
                     Event::RedrawRequested(_) => {
-                        self.render_state.render(&self.pixmap);
+                        self.render_state.render();
                     }
 
                     // forward keyboard events to the rendering logic

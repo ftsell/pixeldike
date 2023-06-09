@@ -1,6 +1,7 @@
+use crate::pixmap::traits::PixmapBase;
 use anyhow::Result;
-use std::num::NonZeroU32;
 
+#[derive(Debug)]
 pub struct TextureState {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -8,32 +9,34 @@ pub struct TextureState {
 }
 
 impl TextureState {
-    pub fn new(device: &wgpu::Device) -> Result<Self> {
-        let size = wgpu::Extent3d {
-            width: 800,
-            height: 600,
-            depth_or_array_layers: 1,
-        };
-        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+    pub fn new<P: PixmapBase>(device: &wgpu::Device, pixmap: &P) -> Result<Self> {
+        let pixmap_size = pixmap.get_size()?;
+
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("pixmap_texture"),
-            size,
+            size: wgpu::Extent3d {
+                width: pixmap_size.0 as u32,
+                height: pixmap_size.1 as u32,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format,
+            format: wgpu::TextureFormat::Bgra8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("pixmap_sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
 

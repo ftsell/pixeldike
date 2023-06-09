@@ -3,18 +3,21 @@ use crate::gui::shader::{PixmapShaderInterop, Vertex, VERTEX_INDICES, VERTICES};
 use crate::gui::texture::TextureState;
 use crate::pixmap::traits::PixmapRawRead;
 use anyhow::{Context, Result};
-use std::char::decode_utf16;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
-use wgpu::{BindGroup, Maintain, MaintainBase, Texture};
-use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
+use wgpu::BindGroup;
+use winit::event::KeyboardInput;
 use winit::window::Window;
 
 use super::utils::async_to_sync;
 
-pub(super) struct RenderState {
+pub(super) struct RenderState<P>
+where
+    P: PixmapRawRead,
+{
     /// The instance is the first thing created when using wgpu.
     /// Its main purpose is to create Adapters and Surfaces.
+    #[allow(unused)]
     wgpu_instance: wgpu::Instance,
 
     /// The surface is the part of the window that we draw to. We need it to draw directly to the screen.
@@ -40,10 +43,15 @@ pub(super) struct RenderState {
 
     texture: TextureState,
     texture_bind_group: BindGroup,
+
+    pixmap: Arc<P>,
 }
 
-impl RenderState {
-    pub fn new(window: &Window) -> Result<Self> {
+impl<P> RenderState<P>
+where
+    P: PixmapRawRead,
+{
+    pub fn new(window: &Window, pixmap: Arc<P>) -> Result<Self> {
         let size = window.inner_size();
 
         let wgpu_instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
@@ -77,7 +85,7 @@ impl RenderState {
             source: shader::get_shader_source(),
         });
 
-        let texture_state = TextureState::new(&device).unwrap();
+        let texture_state = TextureState::new(&device, pixmap.as_ref()).unwrap();
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("pixmap_texture_bind_group_layout"),
@@ -184,6 +192,7 @@ impl RenderState {
             vertex_buffer,
             index_buffer,
             texture_bind_group: bind_group,
+            pixmap,
         })
     }
 
@@ -198,20 +207,21 @@ impl RenderState {
     }
 
     /// Process an input event and return whether it has been fully processed.
-    pub fn input(&mut self, input: &KeyboardInput) {
+    pub fn input(&mut self, _input: &KeyboardInput) {
         // TODO Implement showing / hiding of GUI
     }
 
-    pub fn render(&mut self, pixmap: &Arc<impl PixmapRawRead>) {
+    pub fn render(&mut self) {
         debug!("========== REDRAWING PIXMAP ==========");
 
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        // update texture data
-        pixmap.write_to_texture(&mut self.queue, &self.texture.texture);
+        // load the pixmap data into the texture
+        self.pixmap
+            .write_to_texture(&mut self.queue, &self.texture.texture);
 
-        // perform a render pass to render the pixmap onto the screen
+        // encode a single render pass which renders the pixmap state onto the surface
         let mut cmd_encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -235,9 +245,9 @@ impl RenderState {
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..VERTEX_INDICES.len() as u32, 0, 0..1)
         }
-        self.queue.submit(Some(cmd_encoder.finish()));
 
+        // execute the render pass and present the finished frame
+        self.queue.submit(Some(cmd_encoder.finish()));
         frame.present();
-        //self.wgpu_instance.poll_all(true);
     }
 }
