@@ -1,8 +1,9 @@
 use crate::gui::shader;
-use crate::gui::shader::{PixmapShaderInterop, Vertex, INDICES, VERTICES};
+use crate::gui::shader::{PixmapShaderInterop, Vertex, VERTEX_INDICES, VERTICES};
 use crate::gui::texture::TextureState;
 use crate::pixmap::traits::PixmapRawRead;
 use anyhow::{Context, Result};
+use std::char::decode_utf16;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroup, Maintain, MaintainBase, Texture};
@@ -39,8 +40,6 @@ pub(super) struct RenderState {
 
     texture: TextureState,
     texture_bind_group: BindGroup,
-
-    background_color: wgpu::Color,
 }
 
 impl RenderState {
@@ -169,7 +168,7 @@ impl RenderState {
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(VERTEX_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -185,7 +184,6 @@ impl RenderState {
             vertex_buffer,
             index_buffer,
             texture_bind_group: bind_group,
-            background_color: wgpu::Color::GREEN,
         })
     }
 
@@ -201,18 +199,7 @@ impl RenderState {
 
     /// Process an input event and return whether it has been fully processed.
     pub fn input(&mut self, input: &KeyboardInput) {
-        if let KeyboardInput {
-            state: ElementState::Pressed,
-            virtual_keycode: Some(VirtualKeyCode::Space),
-            ..
-        } = input
-        {
-            if self.background_color == wgpu::Color::BLACK {
-                self.background_color = wgpu::Color::WHITE;
-            } else {
-                self.background_color = wgpu::Color::BLACK;
-            }
-        }
+        // TODO Implement showing / hiding of GUI
     }
 
     pub fn render(&mut self, pixmap: &Arc<impl PixmapRawRead>) {
@@ -224,7 +211,7 @@ impl RenderState {
         // update texture data
         pixmap.write_to_texture(&mut self.queue, &self.texture.texture);
 
-        // render from the gpu buffer onto the texture
+        // perform a render pass to render the pixmap onto the screen
         let mut cmd_encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -236,7 +223,7 @@ impl RenderState {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.background_color),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
                         store: true,
                     },
                 })],
@@ -246,7 +233,7 @@ impl RenderState {
             render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1)
+            render_pass.draw_indexed(0..VERTEX_INDICES.len() as u32, 0, 0..1)
         }
         self.queue.submit(Some(cmd_encoder.finish()));
 
