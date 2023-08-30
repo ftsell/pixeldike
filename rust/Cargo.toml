@@ -30,18 +30,20 @@ opt-level = 2
 
 [lib]
 path = "src/lib.rs"
+bench = false       # disable default cargo benchmarks because we use criterion
 
 [[bin]]
 name = "pixelflut"
 path = "src/main.rs"
 required-features = ["cli", "gui"]
+bench = false       # disable default cargo benchmarks because we use criterion
+
+#[[bench]]
+#name = "pixmap_benchmark"
+#harness = false
 
 [[bench]]
-name = "pixmap_benchmark"
-harness = false
-
-[[bench]]
-name = "live_server_benchmark"
+name = "command_e2e_benchmark"
 harness = false
 
 [dependencies]
@@ -68,6 +70,7 @@ raw-window-handle = { version = "0.5.0", optional = true }
 bytemuck = { version = "1.13.1", optional = true, features = ["derive"] }
 
 [dev-dependencies]
-criterion = { version = "0.4.0", features = ["html_reports"] }
+criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }
 quickcheck = "0.9.2"
 tempfile = "3.3.0"
+rand = "0.8.5"

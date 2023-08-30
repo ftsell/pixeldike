@@ -20,8 +20,8 @@ pub mod ws_server;
 
 //static LOG_TARGET: &str = "pixelflut.net";
 
-/// handle a request frame and return a response frame
-fn handle_frame<P, B>(
+/// Handle a request frame and return a response frame
+pub fn handle_frame<P, B>(
     input: Frame<B>,
     pixmap: &SharedPixmap<P>,
     encodings: &SharedMultiEncodings,

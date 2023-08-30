@@ -8,7 +8,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use thiserror::Error;
 
-use crate::pixmap::traits::PixmapBase;
+use crate::pixmap::traits::{PixmapBase, PixmapRawRead, PixmapRawWrite, PixmapRead, PixmapWrite};
 pub use color::*;
 pub use file_backed_pixmap::FileBackedPixmap;
 pub use in_memory_pixmap::InMemoryPixmap;

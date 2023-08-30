@@ -1,1 +1,4 @@
 pixmap.pixmap
+target/*
+!target/criterion/
+
