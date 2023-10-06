@@ -40,8 +40,16 @@ pub(crate) struct ServerOpts {
     /// file path into which the pixmap is persisted and from which it is read on startup
     #[arg(short = 'f', long = "file")]
     pub path: PathBuf,
-    
+
     /// whether a gui should be shown
     #[arg(long = "gui")]
+    #[cfg(feature = "gui")]
     pub show_gui: bool,
+
+    #[arg(
+        long = "framebuffer",
+        help = "path to the framebuffer device on which the pixmap is live-rendered"
+    )]
+    #[cfg(feature = "framebuffer_gui")]
+    pub framebuffer: Option<PathBuf>,
 }

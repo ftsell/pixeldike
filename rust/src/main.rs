@@ -6,6 +6,7 @@ use std::sync::Arc;
 use pretty_env_logger;
 
 use pixelflut;
+use pixelflut::framebuffer_gui::FramebufferGui;
 use pixelflut::pixmap::traits::*;
 
 mod cli;
@@ -45,12 +46,24 @@ async fn start_server(opts: &cli::ServerOpts) {
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
     let mut server_handles = Vec::new();
 
-    let gui_handle = if opts.show_gui {
-        let (handle, _proxy) = pixelflut::gui::GuiThread::start(pixmap.clone());
-        Some(handle)
-    } else {
-        None
+    #[cfg(feature = "framebuffer_gui")]
+    let render_handle = match &opts.framebuffer {
+        None => None,
+        Some(fb_path) => Some(pixelflut::framebuffer_gui::start_gui_task(
+            FramebufferGui::new(fb_path.to_owned()),
+            pixmap.clone(),
+        )),
     };
+
+    // #[feature(gui)]
+    // {
+    //     let gui_handle = if opts.show_gui {
+    //         let (handle, _proxy) = pixelflut::gui::GuiThread::start(pixmap.clone());
+    //         Some(handle)
+    //     } else {
+    //         None
+    //     };
+    // }
 
     if let Some(tcp_port) = &opts.tcp_port {
         let pixmap = pixmap.clone();
@@ -100,9 +113,18 @@ async fn start_server(opts: &cli::ServerOpts) {
 
     let encoder_handles = pixelflut::state_encoding::start_encoders(encodings, pixmap);
 
-    if let Some(handle) = gui_handle {
-        handle.thread.await.expect("GUI seems to have crashed");
+    //#[feature(gui)]
+    //if let Some(handle) = gui_handle {
+    //    handle.thread.await.expect("GUI seems to have crashed");
+    //}
+
+    //if let Some
+
+    #[cfg(feature = "framebuffer_gui")]
+    if let Some((handle, _)) = render_handle {
+        let _ = tokio::join!(handle);
     }
+
     for handle in server_handles {
         let _ = tokio::join!(handle);
     }

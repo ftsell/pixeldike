@@ -1,4 +1,5 @@
-#![deny(trivial_numeric_casts, trivial_casts)]
+#![feature(never_type)]
+#![deny(trivial_casts)]
 #![warn(
     rustdoc::missing_crate_level_docs,
     rustdoc::broken_intra_doc_links,
@@ -23,9 +24,13 @@ extern crate log;
 #[macro_use]
 extern crate quickcheck;
 
-pub mod gui;
+//#[feature(gui)]
+//pub mod gui;
 mod i18n;
 pub mod net;
 pub mod pixmap;
 mod protocol;
 pub mod state_encoding;
+
+#[cfg(feature = "framebuffer_gui")]
+pub mod framebuffer_gui;
