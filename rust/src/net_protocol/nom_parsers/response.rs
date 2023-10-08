@@ -1,12 +1,10 @@
-use crate::net_protocol::dtypes::{HelpTopic, Request, Response};
+use crate::net_protocol::dtypes::Response;
 use crate::net_protocol::nom_parsers::color::parse_color;
-use crate::net_protocol::nom_parsers::{
-    parse_coordinate, parse_help_topic, parse_state_encoding_algo, ProtocolError,
-};
+use crate::net_protocol::nom_parsers::{parse_coordinate, parse_state_encoding_algo, ProtocolError};
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::space1;
-use nom::combinator::{eof, flat_map, map, rest, value};
+use nom::combinator::{map, rest};
 use nom::sequence::{pair, preceded};
 use nom::IResult;
 

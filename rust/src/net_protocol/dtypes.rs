@@ -1,6 +1,6 @@
 //! Data types that describe all protocol interactions as safe-to-use structs
 
-use crate::i18n;
+
 use crate::pixmap::Color;
 use std::fmt::{Display, Formatter};
 

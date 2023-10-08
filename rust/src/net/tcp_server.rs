@@ -2,16 +2,10 @@
 //! Server for handling the pixelflut protocol over TCP connections
 //!
 
-use std::io::Cursor;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
-use crate::net_protocol::{HelpTopic, Request, Response};
-use anyhow::Error;
 use async_trait::async_trait;
-use bytes::buf::Take;
-use bytes::{Buf, BytesMut};
-use nom::AsBytes;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::{TcpListener, TcpStream};
@@ -19,7 +13,6 @@ use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-// use crate::net::framing::{Frame, OldFrame};
 use crate::net::stream::{ReadStream, WriteStream};
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;

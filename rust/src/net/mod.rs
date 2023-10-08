@@ -2,18 +2,13 @@
 //! Networking layer for pixelflut servers and clients as well as on-the-wire protocol handling
 //!
 
-use std::convert::TryFrom;
-use std::ops::Deref;
-use std::str::Utf8Error;
+use crate::net_protocol::{Request, Response, StateEncodingAlgorithm};
 
-use crate::net_protocol::{HelpTopic, Request, Response, StateEncodingAlgorithm};
-use anyhow::Result;
-use bytes::{Buf, Bytes};
 use nom::Finish;
 
 // use crate::net::framing::{Frame, OldFrame};
 use crate::net::stream::{ReadStream, WriteStream};
-use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
+use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
 
