@@ -12,13 +12,13 @@ use crate::pixmap::traits::{PixmapBase, PixmapRawRead, PixmapRawWrite, PixmapRea
 pub use color::*;
 pub use file_backed_pixmap::FileBackedPixmap;
 pub use in_memory_pixmap::InMemoryPixmap;
-pub use remote_pixmap::RemotePixmap;
+// pub use remote_pixmap::RemotePixmap;
 pub use replicating_pixmap::ReplicatingPixmap;
 
 mod color;
 mod file_backed_pixmap;
 mod in_memory_pixmap;
-mod remote_pixmap;
+// mod remote_pixmap;
 mod replicating_pixmap;
 pub mod traits;
 

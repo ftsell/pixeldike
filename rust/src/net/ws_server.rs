@@ -20,7 +20,7 @@ use tokio_tungstenite::tungstenite::http::HeaderValue;
 use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::net::framing::Frame;
+use crate::net::framing::OldFrame;
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
@@ -157,7 +157,7 @@ where
                 debug!(target: LOG_TARGET, "Received websocket message: {}", msg);
 
                 // TODO improve websocket frame handling
-                let frame = Frame::new_from_string(msg);
+                let frame = OldFrame::new_from_string(msg);
 
                 // TODO improve by not sending empty responses
                 match super::handle_frame(frame, &pixmap, &encodings) {

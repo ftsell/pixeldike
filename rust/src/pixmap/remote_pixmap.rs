@@ -4,8 +4,7 @@ use std::sync::Mutex;
 
 use anyhow::{Error, Result};
 
-use crate::net::framing::Frame;
-use crate::protocol::{Request, Response, StateEncodingAlgorithm};
+// use crate::net::framing::OldFrame;
 use crate::state_encoding;
 
 use super::traits::*;
@@ -36,8 +35,8 @@ where
     /// Create a new instance by using the given *reader* and *writer* implementations as a
     /// communication channel.
     ///
-    /// The resulting instance will write pixelflut [`Frame`]s into *writer* and expects
-    /// corresponding [`Frame`] responses by reading from *reader*.
+    /// The resulting instance will write pixelflut [`OldFrame`]s into *writer* and expects
+    /// corresponding [`OldFrame`] responses by reading from *reader*.
     /// An example is to use a TCP socket connected to another pixelflut server and pass
     /// the [`TcpStream`](std::net::TcpStream) (after calling [`try_clone`](std::net::TcpStream::try_clone)) as both
     /// *reader* and *writer*.
@@ -59,7 +58,7 @@ where
         // send request
         debug!(target: LOG_TARGET, "Sending '{}'", request);
         lock.1
-            .write_all(&mut Frame::new_from_string(request.to_string()).encode())?;
+            .write_all(&mut OldFrame::new_from_string(request.to_string()).encode())?;
         lock.1.flush()?;
 
         // receive response
@@ -138,7 +137,7 @@ where
         // send request without waiting for response
         debug!(target: LOG_TARGET, "Sending '{}'", request);
         lock.1
-            .write_all(&Frame::new_from_string(request.to_string()).encode())?;
+            .write_all(&OldFrame::new_from_string(request.to_string()).encode())?;
         lock.1.flush()?;
 
         Ok(())

@@ -2,19 +2,25 @@
 //! Server for handling the pixelflut protocol over TCP connections
 //!
 
+use std::io::Cursor;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use crate::net_protocol::{HelpTopic, Request, Response};
 use anyhow::Error;
+use async_trait::async_trait;
 use bytes::buf::Take;
 use bytes::{Buf, BytesMut};
+use nom::AsBytes;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::net::framing::Frame;
+// use crate::net::framing::{Frame, OldFrame};
+use crate::net::stream::{ReadStream, WriteStream};
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
@@ -87,7 +93,7 @@ where
                 connection_stop_notifies.push(connection_stop_notify.clone());
                 tokio::spawn(async move {
                     process_connection(
-                        TcpConnection::new(socket),
+                        socket,
                         pixmap,
                         encodings,
                         connection_stop_notify,
@@ -106,95 +112,103 @@ where
     }
 }
 
+pub(super) struct TcpReadStream<'stream> {
+    reader: ReadHalf<'stream>,
+    read_buffer: [u8; 256],
+    fill_marker: usize,
+    msg_marker: usize,
+}
+
+impl<'stream> TcpReadStream<'stream> {
+    pub fn new(reader: ReadHalf<'stream>) -> Self {
+        Self {
+            reader,
+            /// A buffer into which bytes are read
+            read_buffer: [0u8; 256],
+            /// A marker indicating to which index the read_buffer is filled with data
+            fill_marker: 0,
+            /// A marker indicating to which index in the read_buffer messages have already been handled
+            msg_marker: 0,
+        }
+    }
+}
+
+#[async_trait]
+impl ReadStream for TcpReadStream<'_> {
+    async fn read_message(&mut self) -> std::io::Result<&[u8]> {
+        // reset the buffer
+        self.read_buffer[..self.fill_marker].rotate_left(self.msg_marker);
+        self.fill_marker -= self.msg_marker;
+        self.msg_marker = 0;
+
+        loop {
+            // if a valid frame separator (\n) is part of the buffer, return the content before that
+            if let Some((i, _)) = self.read_buffer[..self.fill_marker]
+                .iter()
+                .enumerate()
+                .find(|(_, &c)| c == '\n' as u8)
+            {
+                // return everything up until the found \n as the message (while excluding the \n itself)
+                self.msg_marker = i + 1;
+                return Ok(&self.read_buffer[..i]);
+            }
+
+            // abort if the buffer has already been filled completely
+            if self.fill_marker == self.read_buffer.len() {
+                return Err(std::io::Error::from(std::io::ErrorKind::OutOfMemory));
+            }
+
+            // read new bytes into the buffer
+            self.fill_marker += self
+                .reader
+                .read(&mut self.read_buffer[self.fill_marker..])
+                .await?;
+        }
+    }
+}
+
+pub(super) struct TcpWriteStream<'stream> {
+    writer: WriteHalf<'stream>,
+}
+
+#[async_trait]
+impl WriteStream for TcpWriteStream<'_> {
+    async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
+        self.writer.write(msg).await?;
+        Ok(())
+    }
+}
+
 async fn process_connection<P>(
-    mut connection: TcpConnection,
+    mut stream: TcpStream,
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
     notify_stop: Arc<Notify>,
 ) where
     P: PixmapBase + PixmapRead + PixmapWrite,
 {
-    debug!(
-        target: LOG_TARGET,
-        "Client connected {}",
-        connection.stream.peer_addr().unwrap()
-    );
+    let peer_addr = stream.peer_addr().unwrap();
+    debug!("Client connected {}", peer_addr);
+
+    let (tcp_reader, tcp_writer) = stream.split();
+    let mut read_stream = TcpReadStream::new(tcp_reader);
+    let mut write_stream = TcpWriteStream { writer: tcp_writer };
+
     loop {
-        // receive a frame from the client
-        select! {
-            frame = connection.read_frame() => {
-                match frame {
-                    Err(e) => {
-                        warn!(target: LOG_TARGET, "Error reading frame: {}", e);
-                        return;
-                    }
-                    Ok(frame) => {
-                        // handle the frame
-                        match super::handle_frame(frame, &pixmap, &encodings) {
-                            None => {}
-                            Some(response) => {
-                                // send back a response
-                                match connection.write_frame(response).await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        warn!(target: LOG_TARGET, "Error writing frame: {}", e)
-                                    }
-                                }
-                            }
-                        }
-                    }
+        tokio::select! {
+            result = super::handle_streams_once(&mut read_stream, Some(&mut write_stream), &pixmap, &encodings) => {
+                if let Err(e) = result {
+                    log::warn!("Could not handle message streams: {}", e);
+                    return;
                 }
             },
             _ = notify_stop.notified() => {
-                log::info!("Closing connection to {}", connection.stream.peer_addr().unwrap());
-                match connection.stream.shutdown().await {
-                    Ok(_) => {}
+                log::info!("closing connection to {}", peer_addr);
+                match write_stream.writer.shutdown().await {
+                    Ok(_) => {},
                     Err(e) => log::warn!("Error closing connection: {}", e)
                 }
             }
         }
-    }
-}
-
-pub(crate) struct TcpConnection {
-    stream: TcpStream,
-    read_buffer: BytesMut,
-}
-
-impl TcpConnection {
-    pub fn new(stream: TcpStream) -> Self {
-        Self {
-            read_buffer: BytesMut::with_capacity(256),
-            stream,
-        }
-    }
-
-    pub(self) async fn read_frame(&mut self) -> std::io::Result<Frame<Take<BytesMut>>> {
-        loop {
-            match Frame::from_input(self.read_buffer.clone()) {
-                Ok((frame, length)) => {
-                    // discard the frame from the buffer
-                    self.read_buffer.advance(length);
-                    return Ok(frame);
-                }
-                Err(_) => {
-                    let n = self.stream.read_buf(&mut self.read_buffer).await?;
-                    if n == 0 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::UnexpectedEof,
-                            Error::msg("eof while reading frame"),
-                        ));
-                    }
-                }
-            }
-        }
-    }
-
-    pub(self) async fn write_frame<B>(&mut self, frame: Frame<B>) -> std::io::Result<()>
-    where
-        B: Buf,
-    {
-        self.stream.write_buf(&mut frame.encode()).await?;
-        Ok(())
     }
 }

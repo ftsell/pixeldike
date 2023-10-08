@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion, Throughput};
 use nom::AsBytes;
-use pixelflut::net::framing::Frame;
+use pixelflut::net::framing::OldFrame;
 use pixelflut::pixmap::{InMemoryPixmap, SharedPixmap};
 use pixelflut::state_encoding::SharedMultiEncodings;
 use rand::Rng;
@@ -19,7 +19,7 @@ fn bench_commands(c: &mut Criterion) {
         let encodings = SharedMultiEncodings::default();
 
         b.iter(|| {
-            let (frame, _) = Frame::from_input(black_box(CMD_PX_SET)).unwrap();
+            let (frame, _) = OldFrame::from_input(black_box(CMD_PX_SET)).unwrap();
             pixelflut::net::handle_frame(frame, black_box(&pixmap), black_box(&encodings));
         })
     });
@@ -30,7 +30,7 @@ fn bench_commands(c: &mut Criterion) {
         let encodings = SharedMultiEncodings::default();
 
         b.iter(|| {
-            let (frame, _) = Frame::from_input(black_box(CMD_PX_GET)).unwrap();
+            let (frame, _) = OldFrame::from_input(black_box(CMD_PX_GET)).unwrap();
             pixelflut::net::handle_frame(frame, black_box(&pixmap), black_box(&encodings));
         })
     });
@@ -59,7 +59,7 @@ fn bench_commands(c: &mut Criterion) {
                 bytes::Bytes::from(cmd)
             },
             |cmd| {
-                let (frame, _) = Frame::from_input(cmd).unwrap();
+                let (frame, _) = OldFrame::from_input(cmd).unwrap();
                 pixelflut::net::handle_frame(frame, black_box(&pixmap), black_box(&encodings));
             },
             BatchSize::SmallInput,

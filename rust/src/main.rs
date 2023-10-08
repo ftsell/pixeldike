@@ -6,6 +6,8 @@ use std::sync::Arc;
 use pretty_env_logger;
 
 use pixelflut;
+
+#[cfg(feature = "framebuffer_gui")]
 use pixelflut::framebuffer_gui::FramebufferGui;
 use pixelflut::pixmap::traits::*;
 
@@ -65,6 +67,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     //     };
     // }
 
+    #[cfg(feature = "tcp_server")]
     if let Some(tcp_port) = &opts.tcp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
@@ -79,6 +82,7 @@ async fn start_server(opts: &cli::ServerOpts) {
         server_handles.push(handle);
     }
 
+    #[cfg(feature = "udp_server")]
     if let Some(udp_port) = &opts.udp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
@@ -93,6 +97,7 @@ async fn start_server(opts: &cli::ServerOpts) {
         server_handles.push(handle);
     }
 
+    #[cfg(feature = "ws_server")]
     if let Some(ws_port) = &opts.ws_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();

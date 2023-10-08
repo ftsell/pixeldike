@@ -1,4 +1,5 @@
 #![feature(never_type)]
+#![feature(cursor_remaining)]
 #![deny(trivial_casts)]
 #![warn(
     rustdoc::missing_crate_level_docs,
@@ -29,8 +30,8 @@ extern crate quickcheck;
 mod i18n;
 pub mod net;
 pub mod pixmap;
-mod protocol;
 pub mod state_encoding;
 
 #[cfg(feature = "framebuffer_gui")]
 pub mod framebuffer_gui;
+mod net_protocol;

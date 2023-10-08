@@ -19,14 +19,17 @@ pub(crate) enum Command {
 pub(crate) struct ServerOpts {
     /// port on which to start a tcp listener
     #[arg(long = "tcp")]
+    #[cfg(feature = "tcp_server")]
     pub tcp_port: Option<u16>,
 
     /// port on which to start a udp listener
     #[arg(long = "udp")]
+    #[cfg(feature = "udp_server")]
     pub udp_port: Option<u16>,
 
     /// port on which to start a websocket listener
     #[arg(long = "ws")]
+    #[cfg(feature = "ws_server")]
     pub ws_port: Option<u16>,
 
     /// width of the pixmap

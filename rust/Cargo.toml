@@ -19,6 +19,9 @@ default = ["cli"]
 cli = ["clap", "pretty_env_logger"]
 gui = ["winit", "wgpu", "raw-window-handle", "bytemuck"]
 framebuffer_gui = [ "framebuffer" ]
+tcp_server = []
+udp_server = []
+ws_server = ["tokio-tungstenite"]
 
 [profile.release]
 lto = true
@@ -62,7 +65,9 @@ regex = "1.7.0"
 sha1 = "0.10.5"
 thiserror = "1.0.38"
 tokio = { version = "1.25.0", features = ["full"] }
-tokio-tungstenite = "0.18.0"
+
+# websocket support
+tokio-tungstenite = { version = "0.18.0", optional = true }
 
 # gui
 winit = { version = "0.27.5", optional = true }
@@ -72,6 +77,7 @@ bytemuck = { version = "1.13.1", optional = true, features = ["derive"] }
 
 # framebuffer gui
 framebuffer = { version = "0.3.1", optional = true }
+async-trait = "0.1.73"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }

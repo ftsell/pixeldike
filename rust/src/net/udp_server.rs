@@ -11,7 +11,7 @@ use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::net::framing::Frame;
+use crate::net::framing::OldFrame;
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
@@ -106,7 +106,7 @@ async fn process_received<P, B>(
 {
     // extract frames from received package
     while buffer.has_remaining() {
-        match Frame::from_input(buffer.clone()) {
+        match OldFrame::from_input(buffer.clone()) {
             Err(_) => return,
             Ok((frame, length)) => {
                 buffer.advance(length);
