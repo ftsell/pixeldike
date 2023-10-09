@@ -20,13 +20,18 @@ pub struct InMemoryPixmap {
 impl InMemoryPixmap {
     /// Creates a new Pixmap with the specified dimensions.
     pub fn new(width: usize, height: usize) -> Result<Self> {
+        Self::new_with_color(width, height, Color::default())
+    }
+
+    /// Create a new pixmap with the specified dimensions and initial color
+    pub fn new_with_color(width: usize, height: usize, color: Color) -> Result<Self> {
         if width == 0 || height == 0 {
             Err(Error::InvalidSize(width, height).into())
         } else {
             let size = width * height;
 
             Ok(InMemoryPixmap {
-                data: (0..size).map(|_| AtomicU32::new(0)).collect(),
+                data: (0..size).map(|_| AtomicU32::new(color.into())).collect(),
                 width,
                 height,
             })

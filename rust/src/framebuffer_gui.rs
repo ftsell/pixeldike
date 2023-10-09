@@ -82,11 +82,6 @@ async fn render<P>(mut gui: FramebufferGui, pixmap: SharedPixmap<P>, _cancel: Ar
 where
     P: PixmapRawRead + Send + Sync + 'static,
 {
-    println!(
-        "framebuffer config {:#?}{:#?}",
-        gui.framebuffer.fix_screen_info, gui.framebuffer.var_screen_info
-    );
-
     let mut render_interval = interval(Duration::from_millis(1000 / 60));
 
     loop {
@@ -116,6 +111,7 @@ where
         gui.framebuffer.var_screen_info.xres as usize,
         gui.framebuffer.var_screen_info.yres as usize,
     );
+
     let frame = &mut gui.framebuffer.frame;
     for screen_x in 0..gui.framebuffer.var_screen_info.xres as usize {
         for screen_y in 0..gui.framebuffer.var_screen_info.yres as usize {
@@ -127,11 +123,11 @@ where
                 let mut encoded_pixel: u16 = 0;
 
                 encoded_pixel |= (pixmap_pixel.0 as u16 >> (8u16 - r_encoding.length as u16))
-                    << (r_encoding.offset as u16);
+                    << (16 - r_encoding.length as u16 - r_encoding.offset as u16);
                 encoded_pixel |= (pixmap_pixel.1 as u16 >> (8u16 - g_encoding.length as u16))
-                    << (g_encoding.offset as u16);
+                    << (16 - g_encoding.length as u16 - g_encoding.offset as u16);
                 encoded_pixel |= (pixmap_pixel.2 as u16 >> (8u16 - b_encoding.length as u16))
-                    << (b_encoding.offset as u16);
+                    << (16 - b_encoding.length as u16 - b_encoding.offset as u16);
 
                 frame[screen_i..screen_i + mem::size_of::<u16>()]
                     .copy_from_slice(&encoded_pixel.to_ne_bytes());

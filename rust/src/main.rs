@@ -4,12 +4,14 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use pretty_env_logger;
+use tokio::task::JoinHandle;
 
 use pixelflut;
 
 #[cfg(feature = "framebuffer_gui")]
 use pixelflut::framebuffer_gui::FramebufferGui;
 use pixelflut::pixmap::traits::*;
+use pixelflut::pixmap::Color;
 
 mod cli;
 
@@ -25,26 +27,15 @@ async fn main() {
 
 async fn start_server(opts: &cli::ServerOpts) {
     // create pixmap instances
-    let primary_pixmap = pixelflut::pixmap::InMemoryPixmap::new(opts.width, opts.height)
-        .expect("could not create in memory pixmap");
-    let file_pixmap =
-        pixelflut::pixmap::FileBackedPixmap::new(&opts.path, opts.width, opts.height, false).expect(
-            &format!("could not create pixmap backed by file {}", opts.path.display()),
-        );
-
-    // copy data from file into memory
-    primary_pixmap
-        .put_raw_data(
-            &file_pixmap
-                .get_raw_data()
-                .expect("could not load pixel data from file"),
-        )
-        .expect("could not put pixel data into memory");
+    let pixmap = Arc::new(
+        pixelflut::pixmap::InMemoryPixmap::new_with_color(opts.width, opts.height, Color(0xE8, 0x22, 0x6E))
+            .expect("could not create in memory pixmap"),
+    );
 
     // create final pixmap instance which automatically saves data into file
-    let pixmap = Arc::new(
-        pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
-    );
+    // let pixmap = Arc::new(
+    //     pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
+    // );
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
     let mut server_handles = Vec::new();
 
