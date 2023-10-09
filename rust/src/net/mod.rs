@@ -5,6 +5,7 @@
 use crate::net_protocol::{Request, Response, StateEncodingAlgorithm};
 
 use nom::Finish;
+use thiserror::Error;
 
 // use crate::net::framing::{Frame, OldFrame};
 use crate::net::stream::{ReadStream, WriteStream};
@@ -30,7 +31,7 @@ async fn handle_streams_once<P>(
     writer: Option<&mut impl WriteStream>,
     pixmap: &SharedPixmap<P>,
     encodings: &SharedMultiEncodings,
-) -> std::io::Result<()>
+) -> anyhow::Result<()>
 where
     P: PixmapRead + PixmapWrite,
 {
@@ -48,15 +49,15 @@ where
         Ok((_, request)) => match request {
             Request::Help(topic) => handle_response(writer, Response::Help(topic)).await,
             Request::GetSize => {
-                let (width, height) = pixmap.get_size().unwrap();
+                let (width, height) = pixmap.get_size()?;
                 handle_response(writer, Response::Size { width, height }).await
             }
             Request::GetPixel { x, y } => {
-                let color = pixmap.get_pixel(x, y).unwrap();
+                let color = pixmap.get_pixel(x, y)?;
                 handle_response(writer, Response::PxData { x, y, color }).await
             }
             Request::SetPixel { x, y, color } => {
-                pixmap.set_pixel(x, y, color).unwrap();
+                pixmap.set_pixel(x, y, color)?;
                 Ok(())
             }
             Request::GetState(alg) => match alg {
@@ -90,7 +91,7 @@ where
 async fn handle_response(
     writer: Option<&mut impl WriteStream>,
     response: Response<'_>,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
     if let Some(writer) = writer {
         writer.write_response(&response).await?
     }

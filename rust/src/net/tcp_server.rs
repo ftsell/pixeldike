@@ -191,7 +191,7 @@ async fn process_connection<P>(
         tokio::select! {
             result = super::handle_streams_once(&mut read_stream, Some(&mut write_stream), &pixmap, &encodings) => {
                 if let Err(e) = result {
-                    log::warn!("Could not handle message streams: {}", e);
+                    log::warn!("Could not handle message streams, closing connection: {}", e);
                     return;
                 }
             },

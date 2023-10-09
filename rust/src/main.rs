@@ -28,7 +28,7 @@ async fn main() {
 async fn start_server(opts: &cli::ServerOpts) {
     // create pixmap instances
     let pixmap = Arc::new(
-        pixelflut::pixmap::InMemoryPixmap::new_with_color(opts.width, opts.height, Color(0xE8, 0x22, 0x6E))
+        pixelflut::pixmap::InMemoryPixmap::new(opts.width, opts.height)
             .expect("could not create in memory pixmap"),
     );
 
