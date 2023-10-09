@@ -1,5 +1,6 @@
 use clap::{Args, Parser, Subcommand};
-use std::path::PathBuf;
+use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 
 /// Command-Line arguments as a well formatted struct, parsed using clap.
 #[derive(Parser, Debug, Clone)]
@@ -13,6 +14,8 @@ pub(crate) struct CliOpts {
 pub(crate) enum Command {
     /// Start a pixelflut server
     Server(ServerOpts),
+    /// Run a pixelflut client to project an image onto a servers pixmap
+    Client(ClientOpts),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -55,4 +58,31 @@ pub(crate) struct ServerOpts {
     )]
     #[cfg(feature = "framebuffer_gui")]
     pub framebuffer: Option<PathBuf>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub(crate) struct ClientOpts {
+    /// Address of the server to connect to
+    #[arg(long = "addr")]
+    pub addr: SocketAddr,
+
+    /// Width of the area to draw
+    #[arg(long = "width")]
+    pub width: usize,
+
+    /// Height of the area to draw
+    #[arg(long = "height")]
+    pub height: usize,
+
+    /// Offset in the x dimension to apply before drawing
+    #[arg(short = 'x')]
+    pub x_offset: usize,
+
+    /// Offset in the y dimension to apply before drawing
+    #[arg(short = 'y')]
+    pub y_offset: usize,
+
+    /// Path to an image that should be drawn
+    #[arg(long = "image")]
+    pub image: PathBuf,
 }

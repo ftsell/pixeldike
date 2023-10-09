@@ -1,16 +1,14 @@
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
-use std::str::FromStr;
 use std::sync::Mutex;
 
 use anyhow::{Error, Result};
+use tokio::io::AsyncRead;
+use crate::net_protocol::{Request, Response};
 
-// use crate::net::framing::OldFrame;
 use crate::state_encoding;
 
 use super::traits::*;
 use super::*;
-
-static LOG_TARGET: &str = "pixelflut.pixmap.remote";
 
 /// A pixmap implementation that proxies through to another pixelflut server.
 ///
@@ -56,7 +54,7 @@ where
         let mut lock = self.stream.lock().unwrap();
 
         // send request
-        debug!(target: LOG_TARGET, "Sending '{}'", request);
+        debug!("Sending '{}'", request);
         lock.1
             .write_all(&mut OldFrame::new_from_string(request.to_string()).encode())?;
         lock.1.flush()?;
@@ -72,7 +70,7 @@ where
     }
 
     fn fetch_size(&mut self) -> Result<()> {
-        let response = self.send_and_receive(Request::Size)?;
+        let response = self.send_and_receive(Request::GetSize)?;
 
         match response {
             Response::Size(width, height) => {

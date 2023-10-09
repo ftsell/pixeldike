@@ -5,6 +5,7 @@
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use crate::net::buf_msg_reader::BufferedMsgReader;
 use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{ReadHalf, WriteHalf};
@@ -13,7 +14,7 @@ use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::net::stream::{ReadStream, WriteStream};
+use crate::net::stream::{MsgReader, MsgWriter};
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
@@ -105,73 +106,6 @@ where
     }
 }
 
-pub(super) struct TcpReadStream<'stream> {
-    reader: ReadHalf<'stream>,
-    read_buffer: [u8; 256],
-    fill_marker: usize,
-    msg_marker: usize,
-}
-
-impl<'stream> TcpReadStream<'stream> {
-    pub fn new(reader: ReadHalf<'stream>) -> Self {
-        Self {
-            reader,
-            /// A buffer into which bytes are read
-            read_buffer: [0u8; 256],
-            /// A marker indicating to which index the read_buffer is filled with data
-            fill_marker: 0,
-            /// A marker indicating to which index in the read_buffer messages have already been handled
-            msg_marker: 0,
-        }
-    }
-}
-
-#[async_trait]
-impl ReadStream for TcpReadStream<'_> {
-    async fn read_message(&mut self) -> std::io::Result<&[u8]> {
-        // reset the buffer
-        self.read_buffer[..self.fill_marker].rotate_left(self.msg_marker);
-        self.fill_marker -= self.msg_marker;
-        self.msg_marker = 0;
-
-        loop {
-            // if a valid frame separator (\n) is part of the buffer, return the content before that
-            if let Some((i, _)) = self.read_buffer[..self.fill_marker]
-                .iter()
-                .enumerate()
-                .find(|(_, &c)| c == '\n' as u8)
-            {
-                // return everything up until the found \n as the message (while excluding the \n itself)
-                self.msg_marker = i + 1;
-                return Ok(&self.read_buffer[..i]);
-            }
-
-            // abort if the buffer has already been filled completely
-            if self.fill_marker == self.read_buffer.len() {
-                return Err(std::io::Error::from(std::io::ErrorKind::OutOfMemory));
-            }
-
-            // read new bytes into the buffer
-            self.fill_marker += self
-                .reader
-                .read(&mut self.read_buffer[self.fill_marker..])
-                .await?;
-        }
-    }
-}
-
-pub(super) struct TcpWriteStream<'stream> {
-    writer: WriteHalf<'stream>,
-}
-
-#[async_trait]
-impl WriteStream for TcpWriteStream<'_> {
-    async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
-        self.writer.write(msg).await?;
-        Ok(())
-    }
-}
-
 async fn process_connection<P>(
     mut stream: TcpStream,
     pixmap: SharedPixmap<P>,
@@ -183,23 +117,22 @@ async fn process_connection<P>(
     let peer_addr = stream.peer_addr().unwrap();
     debug!("Client connected {}", peer_addr);
 
-    let (tcp_reader, tcp_writer) = stream.split();
-    let mut read_stream = TcpReadStream::new(tcp_reader);
-    let mut write_stream = TcpWriteStream { writer: tcp_writer };
+    let (tcp_reader, mut tcp_writer) = stream.split();
+    let mut read_stream = BufferedMsgReader::<_, 64>::new(tcp_reader);
 
     loop {
         tokio::select! {
-            result = super::handle_streams_once(&mut read_stream, Some(&mut write_stream), &pixmap, &encodings) => {
+            result = super::handle_streams_once(&mut read_stream, Some(&mut tcp_writer), &pixmap, &encodings) => {
                 if let Err(e) = result {
                     log::warn!("Could not handle message streams, closing connection: {}", e);
-                    write_stream.write_message(format!("Error: {}", e).as_bytes()).await;
-                    write_stream.writer.shutdown().await;
+                    tcp_writer.write_message(format!("Error: {}", e).as_bytes()).await;
+                    tcp_writer.shutdown().await;
                     return;
                 }
             },
             _ = notify_stop.notified() => {
                 log::info!("closing connection to {}", peer_addr);
-                match write_stream.writer.shutdown().await {
+                match tcp_writer.shutdown().await {
                     Ok(_) => {},
                     Err(e) => log::warn!("Error closing connection: {}", e)
                 }

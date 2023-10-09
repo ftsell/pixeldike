@@ -5,16 +5,15 @@
 use crate::net_protocol::{Request, Response, StateEncodingAlgorithm};
 
 use nom::Finish;
-use thiserror::Error;
 
 // use crate::net::framing::{Frame, OldFrame};
-use crate::net::stream::{ReadStream, WriteStream};
 use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
 
-// pub mod framing;
 mod stream;
+
+pub use stream::{MsgReader, MsgWriter};
 
 #[cfg(feature = "tcp_server")]
 pub mod tcp_server;
@@ -22,13 +21,15 @@ pub mod tcp_server;
 #[cfg(feature = "udp_server")]
 pub mod udp_server;
 
+mod buf_msg_reader;
+pub mod tcp_client;
 #[cfg(feature = "ws_server")]
 pub mod ws_server;
 
 /// Handle one request from the given ReadStream and optionally write a response back into the given WriteStream.
 async fn handle_streams_once<P>(
-    reader: &mut impl ReadStream,
-    writer: Option<&mut impl WriteStream>,
+    reader: &mut impl MsgReader,
+    writer: Option<&mut impl MsgWriter>,
     pixmap: &SharedPixmap<P>,
     encodings: &SharedMultiEncodings,
 ) -> anyhow::Result<()>
@@ -88,10 +89,7 @@ where
     }
 }
 
-async fn handle_response(
-    writer: Option<&mut impl WriteStream>,
-    response: Response<'_>,
-) -> anyhow::Result<()> {
+async fn handle_response(writer: Option<&mut impl MsgWriter>, response: Response<'_>) -> anyhow::Result<()> {
     if let Some(writer) = writer {
         writer.write_response(&response).await?
     }

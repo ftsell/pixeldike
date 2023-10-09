@@ -3,13 +3,15 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use image::io::Reader as ImageReader;
 use pretty_env_logger;
-use tokio::task::JoinHandle;
 
 use pixelflut;
 
 #[cfg(feature = "framebuffer_gui")]
 use pixelflut::framebuffer_gui::FramebufferGui;
+use pixelflut::net;
+use pixelflut::net::MsgWriter;
 use pixelflut::pixmap::traits::*;
 use pixelflut::pixmap::Color;
 
@@ -22,6 +24,7 @@ async fn main() {
     let args = cli::CliOpts::parse();
     match args.command {
         cli::Command::Server(opts) => start_server(&opts).await,
+        cli::Command::Client(opts) => start_client(&opts).await,
     };
 }
 
@@ -107,7 +110,7 @@ async fn start_server(opts: &cli::ServerOpts) {
         panic!("No listeners are supposed to be started which makes no sense");
     }
 
-    let encoder_handles = pixelflut::state_encoding::start_encoders(encodings, pixmap);
+    //let encoder_handles = pixelflut::state_encoding::start_encoders(encodings, pixmap);
 
     //#[feature(gui)]
     //if let Some(handle) = gui_handle {
@@ -124,7 +127,45 @@ async fn start_server(opts: &cli::ServerOpts) {
     for handle in server_handles {
         let _ = tokio::join!(handle);
     }
-    for handle in encoder_handles {
-        let _ = tokio::join!(handle.0);
+    //for handle in encoder_handles {
+    //    let _ = tokio::join!(handle.0);
+    //}
+}
+
+async fn start_client(opts: &cli::ClientOpts) {
+    println!("Reading image");
+    let image = ImageReader::open(&opts.image)
+        .expect("Could not open image")
+        .decode()
+        .expect("Could not decode image");
+    println!("Scaling image to {}*{}", opts.width, opts.height);
+    let image = image::imageops::resize(
+        &image,
+        opts.width as u32,
+        opts.height as u32,
+        image::imageops::FilterType::Gaussian,
+    );
+
+    println!("Connecting to server");
+    let mut px_client = net::tcp_client::TcpClient::connect(&opts.addr)
+        .await
+        .expect("Could not connect to pixelflut server");
+
+    println!("Writing image to server");
+    for (x, y, color) in image.enumerate_pixels() {
+        px_client
+            .writer()
+            .write_request(&pixelflut::net_protocol::Request::SetPixel {
+                x: x as usize + opts.x_offset,
+                y: y as usize + opts.y_offset,
+                color: Color(color.0[0], color.0[1], color.0[1]),
+            })
+            .await
+            .expect("Could not write pixel to server");
     }
+    px_client
+        .flush()
+        .await
+        .expect("Could not flush the message stream to the server");
+    println!("Done");
 }

@@ -82,7 +82,7 @@ async fn render<P>(mut gui: FramebufferGui, pixmap: SharedPixmap<P>, _cancel: Ar
 where
     P: PixmapRawRead + Send + Sync + 'static,
 {
-    let mut render_interval = interval(Duration::from_millis(1000 / 60));
+    let mut render_interval = interval(Duration::from_millis(1000 / 30));
 
     loop {
         render_interval.tick().await;

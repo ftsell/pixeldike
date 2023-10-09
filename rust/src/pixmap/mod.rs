@@ -18,6 +18,7 @@ mod color;
 mod file_backed_pixmap;
 mod in_memory_pixmap;
 mod replicating_pixmap;
+//mod remote_pixmap;
 pub mod traits;
 
 /// A [`Pixmap`] which can be used throughout multiple threads
