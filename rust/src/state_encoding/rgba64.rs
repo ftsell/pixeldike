@@ -49,7 +49,7 @@ pub async fn run_encoder<P>(
 ) where
     P: PixmapBase + PixmapRawRead,
 {
-    info!(target: LOG_TARGET, "Starting rgba64 encoder");
+    tracing::info!(target: LOG_TARGET, "Starting rgba64 encoder");
 
     let mut timer = interval(Duration::from_millis(100));
     loop {
@@ -62,7 +62,7 @@ pub async fn run_encoder<P>(
                 }
             },
             _ = notify_stop.notified() => {
-                log::info!("Stopping rgba64 encoder");
+                tracing::info!("Stopping rgba64 encoder");
                 break
             }
         }

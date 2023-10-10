@@ -9,6 +9,7 @@ use nom::sequence::{pair, preceded};
 use nom::IResult;
 
 /// Parse a complete request and return the encoded form
+#[tracing::instrument(skip_all)]
 pub fn parse_response(input: &[u8]) -> IResult<&[u8], Response, ProtocolError> {
     alt((
         // SIZE $WIDTH $HEIGHT

@@ -109,7 +109,7 @@ where
             .name("pixelflut.replicator".to_string())
             .spawn(move || {
                 let interval_duration = Duration::from_secs_f64(1.0 / frequency);
-                debug!(
+                tracing::debug!(
                     target: LOG_TARGET,
                     "Starting pixmap replication once every {:?}", interval_duration
                 );
@@ -121,7 +121,7 @@ where
                     if let Err(e) = ReplicatingPixmap::replicate(&primary, &replicas)
                         .context("replicating in replication thread")
                     {
-                        error!("{}", e);
+                        tracing::error!("{}", e);
                         return;
                     }
 

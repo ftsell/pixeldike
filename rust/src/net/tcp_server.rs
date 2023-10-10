@@ -6,11 +6,9 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use crate::net::buf_msg_reader::BufferedMsgReader;
-use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
@@ -18,8 +16,6 @@ use crate::net::stream::{MsgReader, MsgWriter};
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
-
-static LOG_TARGET: &str = "pixelflut.net.tcp";
 
 /// Options which can be given to [`listen`] for detailed configuration
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -71,14 +67,10 @@ where
 {
     let mut connection_stop_notifies = Vec::new();
     let listener = TcpListener::bind(options.listen_address).await?;
-    info!(
-        target: LOG_TARGET,
-        "Started tcp server on {}",
-        listener.local_addr().unwrap()
-    );
+    tracing::info!("Started tcp server on {}", listener.local_addr().unwrap());
 
     loop {
-        select! {
+        tokio::select! {
             res = listener.accept() => {
                 let (socket, _) = res?;
                 let pixmap = pixmap.clone();
@@ -96,7 +88,7 @@ where
                 });
             },
             _ = notify_stop.notified() => {
-                log::info!("Stopping tcp server on {}", listener.local_addr().unwrap());
+                tracing::info!("Stopping tcp server on {}", listener.local_addr().unwrap());
                 for i_notify in connection_stop_notifies.iter() {
                     i_notify.notify_one();
                 }
@@ -106,6 +98,7 @@ where
     }
 }
 
+#[tracing::instrument(skip_all, fields(remote = stream.peer_addr().unwrap().to_string()))]
 async fn process_connection<P>(
     mut stream: TcpStream,
     pixmap: SharedPixmap<P>,
@@ -114,28 +107,28 @@ async fn process_connection<P>(
 ) where
     P: PixmapBase + PixmapRead + PixmapWrite,
 {
-    let peer_addr = stream.peer_addr().unwrap();
-    debug!("Client connected {}", peer_addr);
+    tracing::debug!("Client connected");
 
     let (tcp_reader, mut tcp_writer) = stream.split();
-    let mut read_stream = BufferedMsgReader::<_, 64>::new(tcp_reader);
+    let mut read_stream = BufferedMsgReader::<_, 512>::new(tcp_reader);
 
     loop {
         tokio::select! {
             result = super::handle_streams_once(&mut read_stream, Some(&mut tcp_writer), &pixmap, &encodings) => {
                 if let Err(e) = result {
-                    log::warn!("Could not handle message streams, closing connection: {}", e);
+                    tracing::warn!(error=e.to_string(), "Could not handle message streams, closing connection");
                     tcp_writer.write_message(format!("Error: {}", e).as_bytes()).await;
                     tcp_writer.shutdown().await;
-                    return;
+                    break;
                 }
             },
             _ = notify_stop.notified() => {
-                log::info!("closing connection to {}", peer_addr);
+                tracing::info!("closing connection");
                 match tcp_writer.shutdown().await {
                     Ok(_) => {},
-                    Err(e) => log::warn!("Error closing connection: {}", e)
+                    Err(e) => tracing::warn!(error=e.to_string(), "Error closing connection")
                 }
+                break
             }
         }
     }

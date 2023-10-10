@@ -100,7 +100,7 @@ where
                 });
             },
             _ = notify_stop.notified() => {
-                log::info!("Stopping ws server on {}", listener.local_addr().unwrap());
+                tracing::info!("Stopping ws server on {}", listener.local_addr().unwrap());
                 for i_notify in connection_stop_notifies.iter() {
                     i_notify.notify_one();
                 }
@@ -138,7 +138,7 @@ async fn process_connection<P>(
             }
         },
         _ = notify_stop.notified() => {
-            log::info!("Closing connection");
+            tracing::info!("Closing connection");
         }
     }
 }
@@ -212,11 +212,11 @@ impl Callback for WebsocketCallback {
                             .insert("Sec-WebSocket-Accept", websocket_accept);
                     }
                     Err(e) => {
-                        log::warn!("{}", e);
+                        tracing::warn!("{}", e);
                     }
                 },
                 Err(e) => {
-                    log::warn!("Received invalid Sec-WebSocket-Key header: {}", e);
+                    tracing::warn!("Received invalid Sec-WebSocket-Key header: {}", e);
                 }
             }
         }

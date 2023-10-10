@@ -42,8 +42,8 @@ where
     match parse_result {
         Err(_) => {
             match std::str::from_utf8(msg) {
-                Ok(msg) => log::info!("received invalid request: {:?}", msg),
-                Err(_) => log::info!("received invalid request: {:?}", msg),
+                Ok(msg) => tracing::info!("received invalid request: {:?}", msg),
+                Err(_) => tracing::info!("received invalid request: {:?}", msg),
             }
             Ok(())
         }

@@ -1,10 +1,16 @@
 use clap::Parser;
+use image::io::Reader as ImageReader;
+use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
-
-use image::io::Reader as ImageReader;
-use pretty_env_logger;
+use tracing::level_filters::LevelFilter;
+use tracing::Level;
+use tracing_subscriber;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::Layer;
 
 use pixelflut;
 
@@ -19,7 +25,14 @@ mod cli;
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    tracing_subscriber::registry()
+        .with(console_subscriber::spawn())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .event_format(tracing_subscriber::fmt::format().compact())
+                .with_filter(LevelFilter::from_level(Level::DEBUG)),
+        )
+        .init();
 
     let args = cli::CliOpts::parse();
     match args.command {

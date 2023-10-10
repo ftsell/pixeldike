@@ -11,12 +11,9 @@ use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::net::framing::OldFrame;
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
-
-static LOG_TARGET: &str = "pixelflut.net.udp";
 
 /// Options which can be given to [`listen`] for detailed configuration
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -28,7 +25,7 @@ pub struct UdpOptions {
 impl Default for UdpOptions {
     fn default() -> Self {
         Self {
-            listen_address: SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), 1234),
+            listen_address: SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), 1234),
         }
     }
 }
@@ -67,43 +64,38 @@ where
     P: PixmapBase + PixmapRead + PixmapWrite + Send + Sync + 'static,
 {
     let socket = Arc::new(UdpSocket::bind(options.listen_address).await?);
-    info!(
-        target: LOG_TARGET,
-        "Started udp listener on {}",
-        socket.local_addr().unwrap()
-    );
+    info!("Started udp listener on {}", socket.local_addr().unwrap());
 
     loop {
         let socket = socket.clone();
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        let mut buffer = BytesMut::with_capacity(1024);
+        let mut buffer = [0u8; 64];
 
         select! {
-            res = socket.recv_from(&mut buffer[..]) => {
+            res = socket.recv_from(&mut buffer) => {
                 let (_num_read, origin) = res?;
-                tokio::spawn(async move {
-                    process_received(buffer, origin, socket, pixmap, encodings).await;
-                });
+                process_received(buffer, origin, socket, pixmap, encodings).await;
             },
             _ = notify_stop.notified() => {
-                log::info!("Stopping udp server on {}", socket.local_addr().unwrap());
+                tracing::info!("Stopping udp server on {}", socket.local_addr().unwrap());
                 break Ok(());
             }
         }
     }
 }
 
-async fn process_received<P, B>(
-    mut buffer: B,
+async fn process_received<P>(
+    buf: &[u8],
     origin: SocketAddr,
     socket: Arc<UdpSocket>,
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
 ) where
     P: PixmapBase + PixmapRead + PixmapWrite,
-    B: Buf + Clone,
 {
+    let message = buf.iter().take_while(|&&b| b != '\n' as u8);
+
     // extract frames from received package
     while buffer.has_remaining() {
         match OldFrame::from_input(buffer.clone()) {

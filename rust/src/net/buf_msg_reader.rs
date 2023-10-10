@@ -56,10 +56,15 @@ where
             }
 
             // read new bytes into the buffer
-            self.fill_marker += self
+            let bytes_read = self
                 .reader
                 .read(&mut self.read_buffer[self.fill_marker..])
                 .await?;
+            if bytes_read != 0 {
+                self.fill_marker += bytes_read;
+            } else {
+                return Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof));
+            }
         }
     }
 }

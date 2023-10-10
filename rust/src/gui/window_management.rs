@@ -25,7 +25,7 @@ pub(super) struct GuiContext<P: PixmapRawRead> {
 
 impl<P: PixmapRawRead + 'static> GuiContext<P> {
     pub fn new(pixmap: Arc<P>) -> Result<Self> {
-        log::debug!("Constructing GuiContext");
+        tracing::debug!("Constructing GuiContext");
 
         let (pixmap_width, pixmap_height) = pixmap.get_size()?;
         let event_loop = EventLoopBuilder::new().with_any_thread(true).build();

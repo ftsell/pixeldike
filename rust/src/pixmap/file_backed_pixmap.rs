@@ -99,21 +99,15 @@ impl FileBackedPixmap {
                             if !overwrite {
                                 return Err(Error::IncompatiblePixmapData.into());
                             } else {
-                                debug!(target: LOG_TARGET, "Overwriting data in existing file {:?}", path);
+                                tracing::debug!("Overwriting data in existing file {:?}", path);
                             }
                         } else {
                             // and it is compatible
                             if !overwrite {
-                                debug!(
-                                    target: LOG_TARGET,
-                                    "Reusing data from existing pixmap file {:?}", path
-                                );
+                                tracing::debug!("Reusing data from existing pixmap file {:?}", path);
                                 initial_data = instance.read_data(&mut lock)?;
                             } else {
-                                debug!(
-                                    target: LOG_TARGET,
-                                    "Ignoring existing pixmap data from file {:?}", path
-                                )
+                                tracing::debug!("Ignoring existing pixmap data from file {:?}", path)
                             }
                         }
                     }
@@ -125,9 +119,9 @@ impl FileBackedPixmap {
                                     if !overwrite {
                                         return Err(Error::InvalidFileType.into());
                                     } else {
-                                        debug!(
-                                            target: LOG_TARGET,
-                                            "Overwriting existing file {:?} with pixmap data", path
+                                        tracing::debug!(
+                                            "Overwriting existing file {:?} with pixmap data",
+                                            path
                                         )
                                     }
                                 }
@@ -138,7 +132,7 @@ impl FileBackedPixmap {
                     }
                 }
             } else {
-                debug!(target: LOG_TARGET, "Creating new file {:?} for pixmap data", path)
+                tracing::debug!("Creating new file {:?} for pixmap data", path)
             }
 
             // write initial data into file
@@ -148,7 +142,7 @@ impl FileBackedPixmap {
             instance.write_data(&mut lock, &initial_data)?;
         }
 
-        info!(target: LOG_TARGET, "Created file backed pixmap at {:?}", path);
+        tracing::info!(target: LOG_TARGET, "Created file backed pixmap at {:?}", path);
         Ok(instance)
     }
 

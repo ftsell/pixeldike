@@ -10,8 +10,30 @@ use nom::sequence::{pair, preceded};
 use nom::IResult;
 
 /// Parse a complete request and return the encoded form
+#[tracing::instrument(skip_all)]
 pub fn parse_request(input: &[u8]) -> IResult<&[u8], Request, ProtocolError> {
     alt((
+        // PX
+        preceded(
+            tag_no_case("px"),
+            flat_map(
+                pair(
+                    preceded(space1, parse_coordinate),
+                    preceded(space1, parse_coordinate),
+                ),
+                |(x, y)| {
+                    alt((
+                        // PX $X $Y $COLOR
+                        preceded(
+                            space1,
+                            map(parse_color, move |color| Request::SetPixel { x, y, color }),
+                        ),
+                        // PX $X $Y
+                        value(Request::GetPixel { x, y }, eof),
+                    ))
+                },
+            ),
+        ),
         // HELP
         preceded(
             tag_no_case("help"),
@@ -28,27 +50,6 @@ pub fn parse_request(input: &[u8]) -> IResult<&[u8], Request, ProtocolError> {
         preceded(
             tag_no_case("state"),
             preceded(space1, map(parse_state_encoding_algo, Request::GetState)),
-        ),
-        // PX
-        preceded(
-            tag_no_case("px"),
-            flat_map(
-                pair(
-                    preceded(space1, parse_coordinate),
-                    preceded(space1, parse_coordinate),
-                ),
-                |(x, y)| {
-                    alt((
-                        // PX $X $Y
-                        value(Request::GetPixel { x, y }, eof),
-                        // PX $X $Y $COLOR
-                        preceded(
-                            space1,
-                            map(parse_color, move |color| Request::SetPixel { x, y, color }),
-                        ),
-                    ))
-                },
-            ),
         ),
     ))(input)
 }
