@@ -15,12 +15,12 @@ categories = ["command-line-utilities", "games"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["cli"]
+default = ["cli", "tcp_server", "udp_server"]
 cli = ["clap", "image", "tracing-subscriber", "console-subscriber"]
 gui = ["winit", "wgpu", "raw-window-handle", "bytemuck"]
 framebuffer_gui = [ "framebuffer" ]
 tcp_server = []
-udp_server = []
+udp_server = ["num_cpus"]
 ws_server = ["tokio-tungstenite"]
 
 [profile.release]
@@ -61,6 +61,9 @@ sha1 = "0.10.5"
 thiserror = "1.0.38"
 tokio = { version = "1.25.0", features = ["full", "tracing"] }
 async-trait = "0.1.73"
+
+# udp server
+num_cpus = { version = "1.16.0", optional = true }
 
 # cli
 image = { version = "0.24.7", optional = true }

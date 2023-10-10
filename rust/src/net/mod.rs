@@ -11,9 +11,9 @@ use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
 
-mod stream;
+mod msg_streams;
 
-pub use stream::{MsgReader, MsgWriter};
+pub use msg_streams::{MsgReader, MsgWriter};
 
 #[cfg(feature = "tcp_server")]
 pub mod tcp_server;
@@ -22,6 +22,7 @@ pub mod tcp_server;
 pub mod udp_server;
 
 mod buf_msg_reader;
+mod fixed_msg_stream;
 pub mod tcp_client;
 #[cfg(feature = "ws_server")]
 pub mod ws_server;

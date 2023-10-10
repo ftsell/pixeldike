@@ -12,7 +12,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
-use crate::net::stream::{MsgReader, MsgWriter};
+use crate::net::msg_streams::{MsgReader, MsgWriter};
 use crate::pixmap::traits::{PixmapBase, PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
@@ -43,7 +43,7 @@ pub fn start_listener<P>(
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
     options: TcpOptions,
-) -> (JoinHandle<tokio::io::Result<()>>, Arc<Notify>)
+) -> (JoinHandle<anyhow::Result<()>>, Arc<Notify>)
 where
     P: PixmapBase + PixmapRead + PixmapWrite + Send + Sync + 'static,
 {
@@ -61,7 +61,7 @@ pub async fn listen<P>(
     encodings: SharedMultiEncodings,
     options: TcpOptions,
     notify_stop: Arc<Notify>,
-) -> tokio::io::Result<()>
+) -> Result<(), anyhow::Error>
 where
     P: PixmapBase + PixmapRead + PixmapWrite + Send + Sync + 'static,
 {

@@ -5,8 +5,10 @@
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use crate::net::buf_msg_reader::BufferedMsgReader;
+use crate::net::fixed_msg_stream::FixedMsgStream;
 use bytes::{Buf, BytesMut};
-use tokio::net::UdpSocket;
+use tokio::net::{TcpStream, UdpSocket};
 use tokio::select;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
@@ -20,12 +22,15 @@ use crate::state_encoding::SharedMultiEncodings;
 pub struct UdpOptions {
     /// On which address the server should listen
     pub listen_address: SocketAddr,
+    /// Number of tasks that listen for udp traffic.
+    pub tasks: usize,
 }
 
 impl Default for UdpOptions {
     fn default() -> Self {
         Self {
             listen_address: SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), 1234),
+            tasks: num_cpus::get() * 2,
         }
     }
 }
@@ -37,19 +42,31 @@ impl Default for UdpOptions {
 ///
 /// It returns a JoinHandle to the task that is executing the server logic as well as a Notify
 /// instance that can be used to stop the server.
-pub fn start_listener<P>(
+pub async fn start_listeners<P>(
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
     options: UdpOptions,
-) -> (JoinHandle<tokio::io::Result<()>>, Arc<Notify>)
+) -> Vec<(JoinHandle<anyhow::Result<()>>, Arc<Notify>)>
 where
     P: PixmapBase + PixmapRead + PixmapWrite + Send + Sync + 'static,
 {
+    let mut results = Vec::new();
     let notify = Arc::new(Notify::new());
-    let notify2 = notify.clone();
-    let handle = tokio::spawn(async move { listen(pixmap, encodings, options, notify2).await });
 
-    (handle, notify)
+    let socket = Arc::new(UdpSocket::bind(options.listen_address).await.unwrap());
+    tracing::info!("Started udp listener on {}", socket.local_addr().unwrap());
+
+    for _ in 0..options.tasks {
+        let pixmap = pixmap.clone();
+        let encodings = encodings.clone();
+        let notify = notify.clone();
+        let notify2 = notify.clone();
+        let socket = socket.clone();
+        let handle = tokio::spawn(async move { listen(pixmap, encodings, notify2, socket).await });
+        results.push((handle, notify))
+    }
+
+    results
 }
 
 /// Listen on the udp port defined through *options* while using the given *pixmap* and *encodings*
@@ -57,70 +74,25 @@ where
 pub async fn listen<P>(
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
-    options: UdpOptions,
     notify_stop: Arc<Notify>,
-) -> tokio::io::Result<()>
+    socket: Arc<UdpSocket>,
+) -> anyhow::Result<()>
 where
     P: PixmapBase + PixmapRead + PixmapWrite + Send + Sync + 'static,
 {
-    let socket = Arc::new(UdpSocket::bind(options.listen_address).await?);
-    info!("Started udp listener on {}", socket.local_addr().unwrap());
-
     loop {
-        let socket = socket.clone();
-        let pixmap = pixmap.clone();
-        let encodings = encodings.clone();
-        let mut buffer = [0u8; 64];
+        let mut buffer = FixedMsgStream::<512>::new();
 
         select! {
-            res = socket.recv_from(&mut buffer) => {
-                let (_num_read, origin) = res?;
-                process_received(buffer, origin, socket, pixmap, encodings).await;
+            _ = socket.recv(buffer.get_buf_mut()) => {
+                while super::handle_streams_once(&mut buffer, Option::<&mut TcpStream>::None, &pixmap, &encodings).await.is_ok() {};
             },
             _ = notify_stop.notified() => {
                 tracing::info!("Stopping udp server on {}", socket.local_addr().unwrap());
-                break Ok(());
+                break
             }
         }
     }
-}
 
-async fn process_received<P>(
-    buf: &[u8],
-    origin: SocketAddr,
-    socket: Arc<UdpSocket>,
-    pixmap: SharedPixmap<P>,
-    encodings: SharedMultiEncodings,
-) where
-    P: PixmapBase + PixmapRead + PixmapWrite,
-{
-    let message = buf.iter().take_while(|&&b| b != '\n' as u8);
-
-    // extract frames from received package
-    while buffer.has_remaining() {
-        match OldFrame::from_input(buffer.clone()) {
-            Err(_) => return,
-            Ok((frame, length)) => {
-                buffer.advance(length);
-
-                // handle the frame
-                match super::handle_frame(frame, &pixmap, &encodings) {
-                    None => {}
-                    Some(response) => {
-                        // send back a response
-                        match socket
-                            .send_to(&response.encode(), origin) // TODO Find a cleaner way to convert frame to &[u8]
-                            .await
-                        {
-                            Err(e) => {
-                                warn!(target: LOG_TARGET, "Error writing frame: {}", e);
-                                return;
-                            }
-                            Ok(_) => {}
-                        }
-                    }
-                }
-            }
-        }
-    }
+    Ok(())
 }

@@ -4,13 +4,14 @@ use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::level_filters::LevelFilter;
-use tracing::Level;
+use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 use tracing_subscriber;
+use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
+use tracing_subscriber::{EnvFilter, Layer};
 
 use pixelflut;
 
@@ -30,7 +31,13 @@ async fn main() {
         .with(
             tracing_subscriber::fmt::layer()
                 .event_format(tracing_subscriber::fmt::format().compact())
-                .with_filter(LevelFilter::from_level(Level::DEBUG)),
+                .with_filter(
+                    EnvFilter::builder()
+                        .with_default_directive(Directive::from_str("debug").unwrap())
+                        .with_env_var(EnvFilter::DEFAULT_ENV)
+                        .from_env()
+                        .unwrap(),
+                ),
         )
         .init();
 
@@ -53,7 +60,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     //     pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
     // );
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
-    let mut server_handles = Vec::new();
+    let mut background_task_handles: Vec<(JoinHandle<anyhow::Result<()>>, Arc<Notify>)> = Vec::new();
 
     #[cfg(feature = "framebuffer_gui")]
     let render_handle = match &opts.framebuffer {
@@ -78,7 +85,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     if let Some(tcp_port) = &opts.tcp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        let (handle, _) = pixelflut::net::tcp_server::start_listener(
+        let (handle, stop) = pixelflut::net::tcp_server::start_listener(
             pixmap,
             encodings,
             pixelflut::net::tcp_server::TcpOptions {
@@ -86,22 +93,25 @@ async fn start_server(opts: &cli::ServerOpts) {
                     .expect("could not build SocketAddr"),
             },
         );
-        server_handles.push(handle);
+        background_task_handles.push((handle, stop));
     }
 
     #[cfg(feature = "udp_server")]
     if let Some(udp_port) = &opts.udp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        let (handle, _) = pixelflut::net::udp_server::start_listener(
-            pixmap,
-            encodings,
-            pixelflut::net::udp_server::UdpOptions {
-                listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", udp_port))
-                    .expect("could not build SocketAddr"),
-            },
+        background_task_handles.extend(
+            pixelflut::net::udp_server::start_listeners(
+                pixmap,
+                encodings,
+                pixelflut::net::udp_server::UdpOptions {
+                    listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", udp_port))
+                        .expect("could not build SocketAddr"),
+                    ..Default::default()
+                },
+            )
+            .await,
         );
-        server_handles.push(handle);
     }
 
     #[cfg(feature = "ws_server")]
@@ -116,10 +126,10 @@ async fn start_server(opts: &cli::ServerOpts) {
                     .expect("could not build SocketAddr"),
             },
         );
-        server_handles.push(handle);
+        background_task_handles.push(handle);
     }
 
-    if server_handles.len() == 0 {
+    if background_task_handles.len() == 0 {
         panic!("No listeners are supposed to be started which makes no sense");
     }
 
@@ -137,7 +147,7 @@ async fn start_server(opts: &cli::ServerOpts) {
         let _ = tokio::join!(handle);
     }
 
-    for handle in server_handles {
+    for (handle, _stop) in background_task_handles {
         let _ = tokio::join!(handle);
     }
     //for handle in encoder_handles {

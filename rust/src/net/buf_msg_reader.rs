@@ -1,4 +1,4 @@
-use crate::net::stream::MsgReader;
+use crate::net::msg_streams::MsgReader;
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncReadExt};
 

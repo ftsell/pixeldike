@@ -1,5 +1,5 @@
 use crate::net::buf_msg_reader::BufferedMsgReader;
-use crate::net::stream::{MsgReader, MsgWriter};
+use crate::net::msg_streams::{MsgReader, MsgWriter};
 use std::net::SocketAddr;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
