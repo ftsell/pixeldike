@@ -1,12 +1,12 @@
-use crate::net::fixed_msg_stream::FixedMsgStream;
-use crate::net::servers::gen_server::{GenServer, GenServerHandle};
-use crate::net::MsgReader;
+use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter, VoidWriter};
+use crate::net::servers::gen_server::GenServer;
 use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
+use crate::DaemonHandle;
 use async_trait::async_trait;
 use std::net::SocketAddr;
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::UdpSocket;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct UdpServerOptions {
@@ -19,27 +19,17 @@ pub struct UdpServer {
 }
 
 impl UdpServer {
+    #[tracing::instrument(skip_all)]
     async fn listen<P>(
         pixmap: SharedPixmap<P>,
         encodings: SharedMultiEncodings,
         socket: UdpSocket,
-    ) -> anyhow::Result<()>
+    ) -> anyhow::Result<!>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
-        loop {
-            let mut buffer = FixedMsgStream::<512>::new();
-            socket.recv(buffer.get_buf_mut()).await?;
-            while crate::net::handle_streams_once(
-                &mut buffer,
-                Option::<&mut TcpStream>::None,
-                &pixmap,
-                &encodings,
-            )
-            .await
-            .is_ok()
-            {}
-        }
+        let buffer = BufferedMsgReader::<512, _>::new_empty(socket);
+        super::handle_requests(buffer, Option::<VoidWriter>::None, pixmap, encodings).await
     }
 }
 
@@ -55,7 +45,7 @@ impl GenServer for UdpServer {
         self,
         pixmap: SharedPixmap<P>,
         encodings: SharedMultiEncodings,
-    ) -> anyhow::Result<GenServerHandle>
+    ) -> anyhow::Result<DaemonHandle>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
@@ -64,20 +54,26 @@ impl GenServer for UdpServer {
 
         let handle = tokio::spawn(async move { UdpServer::listen(pixmap, encodings, socket).await });
 
-        Ok(GenServerHandle::new(handle))
+        Ok(DaemonHandle::new(handle))
     }
 }
 
-struct BufferedUdpReceiver<const BUF_SIZE: usize> {
-    socket: UdpSocket,
-    buffer: [u8; BUF_SIZE],
-    fill_marker: usize,
-    msg_marker: usize,
+#[async_trait]
+impl BufferFiller for UdpSocket {
+    async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize> {
+        self.recv(buffer).await.map_err(|e| e.into())
+    }
 }
 
 #[async_trait]
-impl<const BUF_SIZE: usize> MsgReader for BufferedUdpReceiver<BUF_SIZE> {
-    async fn read_message(&mut self) -> std::io::Result<&[u8]> {
-        todo!()
+impl MsgWriter for UdpSocket {
+    async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
+        self.send(msg).await?;
+        Ok(())
+    }
+
+    async fn flush(&mut self) -> std::io::Result<()> {
+        // udp data is packet oriented so every call to send() flushes automatically
+        Ok(())
     }
 }

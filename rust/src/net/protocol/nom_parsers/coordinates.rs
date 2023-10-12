@@ -1,6 +1,6 @@
 use nom::IResult;
 
-use crate::net_protocol::nom_parsers::ProtocolError;
+use crate::net::protocol::nom_parsers::ProtocolError;
 use nom::character::complete::u64;
 
 /// Parse two digits separated by a space into a `(usize, usize)` tuple

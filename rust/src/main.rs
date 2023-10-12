@@ -23,11 +23,10 @@ use pixelflut;
 
 #[cfg(feature = "framebuffer_gui")]
 use pixelflut::framebuffer_gui::FramebufferGui;
-use pixelflut::net;
-use pixelflut::net::tcp_client::TcpClient;
-use pixelflut::net::MsgWriter;
+use pixelflut::net::servers::{GenServer, TcpServerOptions, UdpServer, UdpServerOptions};
 use pixelflut::pixmap::traits::*;
 use pixelflut::pixmap::Color;
+use pixelflut::{net, DaemonHandle};
 
 mod cli;
 
@@ -67,7 +66,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     //     pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
     // );
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
-    let mut background_task_handles: Vec<(JoinHandle<anyhow::Result<()>>, Arc<Notify>)> = Vec::new();
+    let mut background_task_handles: Vec<DaemonHandle> = Vec::new();
 
     #[cfg(feature = "framebuffer_gui")]
     let render_handle = match &opts.framebuffer {
@@ -92,49 +91,48 @@ async fn start_server(opts: &cli::ServerOpts) {
     if let Some(tcp_port) = &opts.tcp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        let (handle, stop) = pixelflut::net::tcp_server::start_listener(
-            pixmap,
-            encodings,
-            pixelflut::net::tcp_server::TcpOptions {
-                listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", tcp_port))
-                    .expect("could not build SocketAddr"),
-            },
+        let server = pixelflut::net::servers::TcpServer::new(TcpServerOptions {
+            bind_addr: SocketAddr::from_str(&format!("0.0.0.0:{}", tcp_port))
+                .expect("Could not build SOcketAddr for TcpServer binding"),
+        });
+        background_task_handles.push(
+            server
+                .start(pixmap, encodings)
+                .await
+                .expect("Could not start tcp server"),
         );
-        background_task_handles.push((handle, stop));
     }
 
     #[cfg(feature = "udp_server")]
     if let Some(udp_port) = &opts.udp_port {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
-        background_task_handles.extend(
-            pixelflut::net::udp_server::start_listeners(
-                pixmap,
-                encodings,
-                pixelflut::net::udp_server::UdpOptions {
-                    listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", udp_port))
-                        .expect("could not build SocketAddr"),
-                    ..Default::default()
-                },
-            )
-            .await,
+        let server = UdpServer::new(UdpServerOptions {
+            bind_addr: SocketAddr::from_str(&format!("0.0.0.0:{}", udp_port))
+                .expect("Could not build SocketAddr for UdpServer binding"),
+        });
+        background_task_handles.push(
+            server
+                .start(pixmap, encodings)
+                .await
+                .expect("Could not start udp server"),
         );
     }
 
-    #[cfg(feature = "ws_server")]
-    if let Some(ws_port) = &opts.ws_port {
-        let pixmap = pixmap.clone();
-        let encodings = encodings.clone();
-        let (handle, _) = pixelflut::net::ws_server::start_listener(
-            pixmap.clone(),
-            encodings.clone(),
-            pixelflut::net::ws_server::WsOptions {
-                listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", ws_port))
-                    .expect("could not build SocketAddr"),
-            },
-        );
-        background_task_handles.push(handle);
-    }
+    // #[cfg(feature = "ws_server")]
+    // if let Some(ws_port) = &opts.ws_port {
+    //     let pixmap = pixmap.clone();
+    //     let encodings = encodings.clone();
+    //     let (handle, _) = pixelflut::net::ws_server::start_listener(
+    //         pixmap.clone(),
+    //         encodings.clone(),
+    //         pixelflut::net::ws_server::WsOptions {
+    //             listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", ws_port))
+    //                 .expect("could not build SocketAddr"),
+    //         },
+    //     );
+    //     background_task_handles.push(handle);
+    // }
 
     if background_task_handles.len() == 0 {
         panic!("No listeners are supposed to be started which makes no sense");
@@ -154,76 +152,13 @@ async fn start_server(opts: &cli::ServerOpts) {
         let _ = tokio::join!(handle);
     }
 
-    for (handle, _stop) in background_task_handles {
-        let _ = tokio::join!(handle);
-    }
-    //for handle in encoder_handles {
-    //    let _ = tokio::join!(handle.0);
-    //}
-}
-
-async fn start_client(opts: &cli::ClientOpts) {
-    match (&opts.image, &opts.message) {
-        (Some(_), None) => draw_image(opts).await,
-        (None, Some(message)) => draw_message(opts).await,
-        (_, _) => {
-            tracing::error!("Either a message or an image path (but not both) must be specified so that something can be drawn")
+    for handle in background_task_handles {
+        if let Err(e) = handle.join().await {
+            tracing::error!("Error in background task: {:?}", e)
         }
     }
 }
 
-async fn draw_image(opts: &cli::ClientOpts) {
-    println!("Reading image");
-    let image = ImageReader::open(&opts.image.clone().unwrap())
-        .expect("Could not open image")
-        .decode()
-        .expect("Could not decode image");
-    println!("Scaling image to {}*{}", opts.width, opts.height);
-    let image = image::imageops::resize(
-        &image,
-        opts.width as u32,
-        opts.height as u32,
-        image::imageops::FilterType::Gaussian,
-    );
-
-    println!("Connecting to server");
-    let mut px_client = net::tcp_client::TcpClient::connect(&opts.addr)
-        .await
-        .expect("Could not connect to pixelflut server");
-
-    println!("Writing image to server");
-    for (x, y, color) in image.enumerate_pixels() {
-        px_client
-            .writer()
-            .write_request(&pixelflut::net_protocol::Request::SetPixel {
-                x: x as usize + opts.x_offset,
-                y: y as usize + opts.y_offset,
-                color: Color(color.0[0], color.0[1], color.0[1]),
-            })
-            .await
-            .expect("Could not write pixel to server");
-    }
-    //px_client
-    //    .flush()
-    //    .await
-    //    .expect("Could not flush the message stream to the server");
-    println!("Done");
-}
-
-async fn draw_message(opts: &cli::ClientOpts) {
-    println!("Connecting to server");
-    let mut px_client = net::tcp_client::TcpClient::connect(&opts.addr)
-        .await
-        .expect("Could not connect to pixelflut server");
-
-    let text = embedded_graphics::text::Text::new(
-        &opts.message.clone().unwrap(),
-        Point::new(opts.x_offset as i32, opts.y_offset as i32),
-        MonoTextStyle::new(
-            &embedded_graphics::mono_font::ascii::FONT_6X13_BOLD,
-            Rgb565::BLACK,
-        ),
-    );
-
-    todo!()
+async fn start_client(opts: &cli::ClientOpts) {
+    todo!("implement client")
 }

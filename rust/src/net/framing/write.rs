@@ -1,13 +1,7 @@
 use crate::i18n;
-use crate::net_protocol::{HelpTopic, Request, Response};
+use crate::net::protocol::{HelpTopic, Request, Response};
 use async_trait::async_trait;
-use tokio::io::{AsyncWrite, AsyncWriteExt};
-use tokio::net::TcpStream;
 
-/// An abstraction over the network layer to which pixelflut messages can be written.
-///
-/// # Implementors Note
-/// When implementing this trait, it is usually enough to implement `write_data()` and `flush()`.
 #[async_trait]
 pub trait MsgWriter: Send + Sync {
     /// Write some bytes that contain parts of a pixelflut message into the network.
@@ -81,28 +75,15 @@ pub trait MsgWriter: Send + Sync {
     }
 }
 
+pub struct VoidWriter;
+
 #[async_trait]
-impl<W> MsgWriter for W
-where
-    W: AsyncWrite + AsyncWriteExt + Send + Sync + Unpin,
-{
+impl MsgWriter for VoidWriter {
     async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
-        self.write(msg).await?;
         Ok(())
     }
 
     async fn flush(&mut self) -> std::io::Result<()> {
-        AsyncWriteExt::flush(self).await
+        Ok(())
     }
-}
-
-pub struct BufferMsgReader<const BUF_SIZE: usize> {
-    buffer: [u8; BUF_SIZE],
-}
-
-/// An abstraction over the network layer from which pixelflut messages can be read.
-#[async_trait]
-pub trait MsgReader {
-    /// Read an encoded pixelflut message from the network.
-    async fn read_message(&mut self) -> std::io::Result<&[u8]>;
 }

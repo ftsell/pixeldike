@@ -1,5 +1,5 @@
-use crate::net_protocol::dtypes::HelpTopic;
-use crate::net_protocol::nom_parsers::ProtocolError;
+use crate::net::protocol::nom_parsers::ProtocolError;
+use crate::net::protocol::HelpTopic;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::value;

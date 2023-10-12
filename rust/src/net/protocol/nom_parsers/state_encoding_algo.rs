@@ -1,5 +1,5 @@
-use crate::net_protocol::dtypes::StateEncodingAlgorithm;
-use crate::net_protocol::nom_parsers::ProtocolError;
+use crate::net::protocol::nom_parsers::ProtocolError;
+use crate::net::protocol::StateEncodingAlgorithm;
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::combinator::value;

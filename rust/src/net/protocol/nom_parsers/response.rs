@@ -1,6 +1,8 @@
-use crate::net_protocol::dtypes::Response;
-use crate::net_protocol::nom_parsers::color::parse_color;
-use crate::net_protocol::nom_parsers::{parse_coordinate, parse_state_encoding_algo, ProtocolError};
+use crate::net::protocol::nom_parsers::color::parse_color;
+use crate::net::protocol::nom_parsers::coordinates::parse_coordinate;
+use crate::net::protocol::nom_parsers::state_encoding_algo::parse_state_encoding_algo;
+use crate::net::protocol::nom_parsers::ProtocolError;
+use crate::net::protocol::Response;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::space1;

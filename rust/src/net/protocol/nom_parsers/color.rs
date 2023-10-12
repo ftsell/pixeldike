@@ -1,4 +1,4 @@
-use crate::net_protocol::nom_parsers::ProtocolError;
+use crate::net::protocol::nom_parsers::ProtocolError;
 use crate::pixmap::Color;
 use nom::branch::permutation;
 use nom::bytes::complete::{tag, take_while_m_n};
