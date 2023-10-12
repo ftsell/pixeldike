@@ -30,8 +30,4 @@ impl TcpClient {
     pub fn writer(&mut self) -> &mut impl MsgWriter {
         &mut self.msg_writer
     }
-
-    pub async fn flush(&mut self) -> std::io::Result<()> {
-        self.msg_writer.flush().await
-    }
 }

@@ -12,6 +12,7 @@ use crate::pixmap::traits::PixmapBase;
 pub use color::*;
 pub use file_backed_pixmap::FileBackedPixmap;
 pub use in_memory_pixmap::InMemoryPixmap;
+//pub use remote_pixmap::RemotePixmap;
 pub use replicating_pixmap::ReplicatingPixmap;
 
 mod color;

@@ -1,7 +1,13 @@
 use clap::Parser;
+use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::pixelcolor::Rgb565;
+use embedded_graphics::prelude::*;
+use embedded_graphics::primitives::Rectangle;
 use image::io::Reader as ImageReader;
+use image::Rgb;
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -18,6 +24,7 @@ use pixelflut;
 #[cfg(feature = "framebuffer_gui")]
 use pixelflut::framebuffer_gui::FramebufferGui;
 use pixelflut::net;
+use pixelflut::net::tcp_client::TcpClient;
 use pixelflut::net::MsgWriter;
 use pixelflut::pixmap::traits::*;
 use pixelflut::pixmap::Color;
@@ -156,8 +163,18 @@ async fn start_server(opts: &cli::ServerOpts) {
 }
 
 async fn start_client(opts: &cli::ClientOpts) {
+    match (&opts.image, &opts.message) {
+        (Some(_), None) => draw_image(opts).await,
+        (None, Some(message)) => draw_message(opts).await,
+        (_, _) => {
+            tracing::error!("Either a message or an image path (but not both) must be specified so that something can be drawn")
+        }
+    }
+}
+
+async fn draw_image(opts: &cli::ClientOpts) {
     println!("Reading image");
-    let image = ImageReader::open(&opts.image)
+    let image = ImageReader::open(&opts.image.clone().unwrap())
         .expect("Could not open image")
         .decode()
         .expect("Could not decode image");
@@ -186,9 +203,27 @@ async fn start_client(opts: &cli::ClientOpts) {
             .await
             .expect("Could not write pixel to server");
     }
-    px_client
-        .flush()
-        .await
-        .expect("Could not flush the message stream to the server");
+    //px_client
+    //    .flush()
+    //    .await
+    //    .expect("Could not flush the message stream to the server");
     println!("Done");
+}
+
+async fn draw_message(opts: &cli::ClientOpts) {
+    println!("Connecting to server");
+    let mut px_client = net::tcp_client::TcpClient::connect(&opts.addr)
+        .await
+        .expect("Could not connect to pixelflut server");
+
+    let text = embedded_graphics::text::Text::new(
+        &opts.message.clone().unwrap(),
+        Point::new(opts.x_offset as i32, opts.y_offset as i32),
+        MonoTextStyle::new(
+            &embedded_graphics::mono_font::ascii::FONT_6X13_BOLD,
+            Rgb565::BLACK,
+        ),
+    );
+
+    todo!()
 }

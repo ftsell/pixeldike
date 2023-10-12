@@ -84,5 +84,9 @@ pub(crate) struct ClientOpts {
 
     /// Path to an image that should be drawn
     #[arg(long = "image")]
-    pub image: PathBuf,
+    pub image: Option<PathBuf>,
+
+    /// A text message that should be drawn
+    #[arg(long = "message")]
+    pub message: Option<String>,
 }
