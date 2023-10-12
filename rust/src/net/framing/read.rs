@@ -8,16 +8,6 @@ pub trait BufferFiller: Sized {
     async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize>;
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct NoRefill;
-
-#[async_trait]
-impl BufferFiller for NoRefill {
-    async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize> {
-        Err(anyhow::anyhow!("cannot refill buffer"))
-    }
-}
-
 /// A struct for reading pixelflut messages from an internal buffer
 #[derive(Debug, Eq, PartialEq)]
 pub struct BufferedMsgReader<const BUF_SIZE: usize, T: BufferFiller> {
@@ -31,6 +21,8 @@ pub struct BufferedMsgReader<const BUF_SIZE: usize, T: BufferFiller> {
 }
 
 impl<const BUF_SIZE: usize, T: BufferFiller> BufferedMsgReader<BUF_SIZE, T> {
+    /// Create a new `BufferedMsgReader` with empty content that uses the given refiller to refill its buffer
+    /// when it is empty.
     pub fn new_empty(refiller: T) -> Self {
         Self {
             buffer: [0; BUF_SIZE],
@@ -75,6 +67,46 @@ impl<const BUF_SIZE: usize, T: BufferFiller> BufferedMsgReader<BUF_SIZE, T> {
                 .refiller
                 .fill_buffer(&mut self.buffer[self.fill_marker..])
                 .await?;
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_read_multiple_commands() {
+        struct StaticFiller<'a> {
+            already_read: bool,
+            content: &'a [u8],
+        }
+        #[async_trait]
+        impl BufferFiller for StaticFiller<'_> {
+            async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize> {
+                if !self.already_read {
+                    self.already_read = true;
+                    assert!(buffer.len() >= self.content.len());
+                    buffer[..self.content.len()].copy_from_slice(self.content);
+                    Ok(self.content.len())
+                } else {
+                    Err(anyhow!("StaticReader content has already been read"))
+                }
+            }
+        }
+
+        let static_filler = StaticFiller {
+            already_read: false,
+            content: "HELP\nHELP\n".as_bytes(),
+        };
+        let mut reader = BufferedMsgReader::<32, _>::new_empty(static_filler);
+        {
+            let content1 = reader.read_msg().await.unwrap();
+            assert_eq!(content1, "HELP".as_bytes());
+        }
+        {
+            let content2 = reader.read_msg().await.unwrap();
+            assert_eq!(content2, "HELP".as_bytes());
         }
     }
 }

@@ -2,6 +2,7 @@ use crate::i18n;
 use crate::net::protocol::{HelpTopic, Request, Response};
 use async_trait::async_trait;
 
+/// A trait for structs that support writing pixelflut messages into them
 #[async_trait]
 pub trait MsgWriter: Send + Sync {
     /// Write some bytes that contain parts of a pixelflut message into the network.
@@ -75,11 +76,13 @@ pub trait MsgWriter: Send + Sync {
     }
 }
 
+/// A `MsgWriter` implementation that writes messages into the void as a noop.
+#[derive(Debug, Copy, Clone)]
 pub struct VoidWriter;
 
 #[async_trait]
 impl MsgWriter for VoidWriter {
-    async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
+    async fn write_data(&mut self, _msg: &[u8]) -> std::io::Result<()> {
         Ok(())
     }
 

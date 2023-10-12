@@ -1,3 +1,5 @@
+//! Server implementations for different transport protocols
+
 mod gen_server;
 
 pub use gen_server::GenServer;
@@ -26,7 +28,7 @@ pub use tcp_server::{TcpServer, TcpServerOptions};
 /// The connection to the server implementation done via the `BufferedMsgReader` and `impl MsgWriter` arguments.
 async fn handle_requests<const READ_BUF_SIZE: usize, P, R>(
     mut reader: BufferedMsgReader<READ_BUF_SIZE, R>,
-    mut writer: Option<impl MsgWriter>,
+    mut writer: impl MsgWriter,
     pixmap: SharedPixmap<P>,
     encodings: SharedMultiEncodings,
 ) -> anyhow::Result<!>
@@ -44,14 +46,14 @@ where
                 Err(_) => tracing::info!("received invalid request: {:?}", msg),
             },
             Ok((_, request)) => match request {
-                Request::Help(topic) => handle_response(&mut writer, Response::Help(topic)).await?,
+                Request::Help(topic) => writer.write_response(&Response::Help(topic)).await?,
                 Request::GetSize => {
                     let (width, height) = pixmap.get_size()?;
-                    handle_response(&mut writer, Response::Size { width, height }).await?
+                    writer.write_response(&Response::Size { width, height }).await?
                 }
                 Request::GetPixel { x, y } => {
                     let color = pixmap.get_pixel(x, y)?;
-                    handle_response(&mut writer, Response::PxData { x, y, color }).await?
+                    writer.write_response(&Response::PxData { x, y, color }).await?
                 }
                 Request::SetPixel { x, y, color } => {
                     pixmap.set_pixel(x, y, color)?;
@@ -59,36 +61,24 @@ where
                 Request::GetState(alg) => match alg {
                     StateEncodingAlgorithm::Rgb64 => {
                         let state = { encodings.rgb64.lock().unwrap().clone() };
-                        handle_response(
-                            &mut writer,
-                            Response::State {
+                        writer
+                            .write_response(&Response::State {
                                 alg,
                                 data: state.as_bytes(),
-                            },
-                        )
-                        .await?
+                            })
+                            .await?
                     }
                     StateEncodingAlgorithm::Rgba64 => {
                         let state = { encodings.rgba64.lock().unwrap().clone() };
-                        handle_response(
-                            &mut writer,
-                            Response::State {
+                        writer
+                            .write_response(&Response::State {
                                 alg,
                                 data: state.as_bytes(),
-                            },
-                        )
-                        .await?
+                            })
+                            .await?
                     }
                 },
             },
         }
     }
-}
-
-/// Handle a response by writing it into the response writer (if one is present)
-async fn handle_response(writer: &mut Option<impl MsgWriter>, response: Response<'_>) -> anyhow::Result<()> {
-    if let Some(writer) = writer {
-        writer.write_response(&response).await?
-    }
-    Ok(())
 }

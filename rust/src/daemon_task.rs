@@ -1,5 +1,6 @@
 use tokio::task::JoinHandle;
 
+/// A handle to a background task that can be used to control it
 #[derive(Debug)]
 pub struct DaemonHandle {
     join_handle: JoinHandle<anyhow::Result<!>>,

@@ -8,11 +8,16 @@ use async_trait::async_trait;
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 
+/// Options with which the `UdpServer` is configured
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct UdpServerOptions {
+    /// The address to which the server binds
     pub bind_addr: SocketAddr,
 }
 
+/// A server implementation using UDP to receive pixelflut messages.
+///
+/// *Note*: This server **never** sends data back.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct UdpServer {
     options: UdpServerOptions,
@@ -29,7 +34,7 @@ impl UdpServer {
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
         let buffer = BufferedMsgReader::<512, _>::new_empty(socket);
-        super::handle_requests(buffer, Option::<VoidWriter>::None, pixmap, encodings).await
+        super::handle_requests(buffer, VoidWriter, pixmap, encodings).await
     }
 }
 

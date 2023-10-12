@@ -1,13 +1,12 @@
-use crate::pixmap::traits::{PixmapBase, PixmapRawRead};
+//! Code for rendering pixmaps on framebuffer devices
+
+use crate::pixmap::traits::PixmapRawRead;
 use crate::pixmap::SharedPixmap;
+use crate::DaemonHandle;
 use framebuffer::Framebuffer;
 use std::mem;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::Notify;
-use tokio::task::JoinHandle;
-use tokio::time::interval;
+use tokio::time::Interval;
 
 struct Sampler {
     /// Width of the source buffer from which a pixel is sampled
@@ -42,16 +41,23 @@ impl Sampler {
     }
 }
 
+/// A struct for controlling the rendering of a pixmap on a framebuffer device
 #[derive(Debug)]
 pub struct FramebufferGui {
     framebuffer: Framebuffer,
+    render_interval: Interval,
 }
 
 impl FramebufferGui {
-    pub fn new(path: PathBuf) -> Self {
+    /// Create a `FramebufferGui` that draws on the framebuffer device located at `path`
+    pub fn new(path: PathBuf, render_interval: Interval) -> Self {
         // configure framebuffer on the given path
-        let framebuffer =
-            Framebuffer::new(&path).expect("Could not obtain handle to the framebuffer device /dev/fb");
+        let framebuffer = Framebuffer::new(&path).unwrap_or_else(|_| {
+            panic!(
+                "Could not obtain handle to the framebuffer device {}",
+                path.to_string_lossy()
+            )
+        });
         let mut var_screeninfo = framebuffer.var_screen_info.clone();
         var_screeninfo.xres = var_screeninfo.xres_virtual;
         var_screeninfo.yres = var_screeninfo.yres_virtual;
@@ -60,82 +66,77 @@ impl FramebufferGui {
 
         // re-read framebuffer struct from applied configuration
         Self {
-            framebuffer: Framebuffer::new(&path)
-                .expect("Could not obtain handle to the framebuffer device /dev/fb"),
+            framebuffer: Framebuffer::new(&path).unwrap_or_else(|_| {
+                panic!(
+                    "Could not obtain handle to the framebuffer device {}",
+                    path.to_string_lossy()
+                )
+            }),
+            render_interval,
         }
     }
-}
 
-/// Start an async task that renders the current pixmap state to a framebuffer gui
-pub fn start_gui_task<P>(gui: FramebufferGui, pixmap: SharedPixmap<P>) -> (JoinHandle<()>, Arc<Notify>)
-where
-    P: PixmapRawRead + Send + Sync + 'static,
-{
-    let notify = Arc::new(Notify::new());
-    let notify2 = notify.clone();
-    let handle = tokio::spawn(async move { render(gui, pixmap, notify2).await });
-
-    (handle, notify)
-}
-
-async fn render<P>(mut gui: FramebufferGui, pixmap: SharedPixmap<P>, _cancel: Arc<Notify>)
-where
-    P: PixmapRawRead + Send + Sync + 'static,
-{
-    let mut render_interval = interval(Duration::from_millis(1000 / 30));
-
-    loop {
-        render_interval.tick().await;
-        render_one_frame(&mut gui, &pixmap);
+    /// Start a background thread that renders this `FramebufferGui`
+    pub fn start_render_task<P>(self, pixmap: SharedPixmap<P>) -> DaemonHandle
+    where
+        P: PixmapRawRead + Send + Sync + 'static,
+    {
+        let join_handle = tokio::spawn(async move { self.render(pixmap).await });
+        DaemonHandle::new(join_handle)
     }
-}
 
-fn render_one_frame<P>(gui: &mut FramebufferGui, pixmap: &SharedPixmap<P>)
-where
-    P: PixmapRawRead + Send + Sync + 'static,
-{
-    let pixel_data = pixmap.get_raw_data().unwrap();
-    let (pixmap_width, pixmap_height) = pixmap.get_size().unwrap();
+    /// Render the current pixmap state in a loop
+    async fn render<P>(mut self, pixmap: SharedPixmap<P>) -> anyhow::Result<!>
+    where
+        P: PixmapRawRead,
+    {
+        loop {
+            self.render_interval.tick().await;
 
-    let r_encoding = &gui.framebuffer.var_screen_info.red;
-    let g_encoding = &gui.framebuffer.var_screen_info.green;
-    let b_encoding = &gui.framebuffer.var_screen_info.blue;
+            let pixel_data = pixmap.get_raw_data().unwrap();
+            let (pixmap_width, pixmap_height) = pixmap.get_size().unwrap();
 
-    let bits_per_pixel = gui.framebuffer.var_screen_info.bits_per_pixel as usize;
-    let bytes_per_pixel = (bits_per_pixel / 8) as usize;
-    let line_length = gui.framebuffer.fix_screen_info.line_length as usize;
+            let r_encoding = &self.framebuffer.var_screen_info.red;
+            let g_encoding = &self.framebuffer.var_screen_info.green;
+            let b_encoding = &self.framebuffer.var_screen_info.blue;
 
-    let sampler = Sampler::new(
-        pixmap_width,
-        pixmap_height,
-        gui.framebuffer.var_screen_info.xres as usize,
-        gui.framebuffer.var_screen_info.yres as usize,
-    );
+            let bits_per_pixel = self.framebuffer.var_screen_info.bits_per_pixel as usize;
+            let bytes_per_pixel = (bits_per_pixel / 8) as usize;
+            let line_length = self.framebuffer.fix_screen_info.line_length as usize;
 
-    let frame = &mut gui.framebuffer.frame;
-    for screen_x in 0..gui.framebuffer.var_screen_info.xres as usize {
-        for screen_y in 0..gui.framebuffer.var_screen_info.yres as usize {
-            let (px_x, px_y) = sampler.sample(screen_x, screen_y);
-            let pixmap_pixel = &pixel_data[px_y * pixmap_width + px_x];
-            let screen_i = screen_y * line_length + screen_x * bytes_per_pixel;
+            let sampler = Sampler::new(
+                pixmap_width,
+                pixmap_height,
+                self.framebuffer.var_screen_info.xres as usize,
+                self.framebuffer.var_screen_info.yres as usize,
+            );
 
-            if bits_per_pixel == 16 {
-                let mut encoded_pixel: u16 = 0;
+            let frame = &mut self.framebuffer.frame;
+            for screen_x in 0..self.framebuffer.var_screen_info.xres as usize {
+                for screen_y in 0..self.framebuffer.var_screen_info.yres as usize {
+                    let (px_x, px_y) = sampler.sample(screen_x, screen_y);
+                    let pixmap_pixel = &pixel_data[px_y * pixmap_width + px_x];
+                    let screen_i = screen_y * line_length + screen_x * bytes_per_pixel;
 
-                encoded_pixel |= (pixmap_pixel.0 as u16 >> (8u16 - r_encoding.length as u16))
-                    << (16 - r_encoding.length as u16 - r_encoding.offset as u16);
-                encoded_pixel |= (pixmap_pixel.1 as u16 >> (8u16 - g_encoding.length as u16))
-                    << (16 - g_encoding.length as u16 - g_encoding.offset as u16);
-                encoded_pixel |= (pixmap_pixel.2 as u16 >> (8u16 - b_encoding.length as u16))
-                    << (16 - b_encoding.length as u16 - b_encoding.offset as u16);
+                    if bits_per_pixel == 16 {
+                        let mut encoded_pixel: u16 = 0;
 
-                frame[screen_i..screen_i + mem::size_of::<u16>()]
-                    .copy_from_slice(&encoded_pixel.to_ne_bytes());
-            } else {
-                panic!(
-                    "Framebuffer has unsupported bits_per_pixel {}",
-                    gui.framebuffer.var_screen_info.bits_per_pixel
-                )
+                        encoded_pixel |= (pixmap_pixel.0 as u16 >> (8u16 - r_encoding.length as u16))
+                            << (16 - r_encoding.length as u16 - r_encoding.offset as u16);
+                        encoded_pixel |= (pixmap_pixel.1 as u16 >> (8u16 - g_encoding.length as u16))
+                            << (16 - g_encoding.length as u16 - g_encoding.offset as u16);
+                        encoded_pixel |= (pixmap_pixel.2 as u16 >> (8u16 - b_encoding.length as u16))
+                            << (16 - b_encoding.length as u16 - b_encoding.offset as u16);
+
+                        frame[screen_i..screen_i + mem::size_of::<u16>()]
+                            .copy_from_slice(&encoded_pixel.to_ne_bytes());
+                    } else {
+                        panic!(
+                            "Framebuffer has unsupported bits_per_pixel {}",
+                            self.framebuffer.var_screen_info.bits_per_pixel
+                        )
+                    }
+                }
             }
         }
     }

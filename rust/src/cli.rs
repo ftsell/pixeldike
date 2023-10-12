@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Command-Line arguments as a well formatted struct, parsed using clap.
 #[derive(Parser, Debug, Clone)]
@@ -20,15 +20,15 @@ pub(crate) enum Command {
 
 #[derive(Args, Debug, Clone)]
 pub(crate) struct ServerOpts {
-    /// port on which to start a tcp listener
+    /// bind address on which a tcp server should be started
     #[arg(long = "tcp")]
     #[cfg(feature = "tcp_server")]
-    pub tcp_port: Option<u16>,
+    pub tcp_bind_addr: Option<SocketAddr>,
 
-    /// port on which to start a udp listener
+    /// bind address on which a tcp server should be started
     #[arg(long = "udp")]
     #[cfg(feature = "udp_server")]
-    pub udp_port: Option<u16>,
+    pub udp_bind_addr: Option<SocketAddr>,
 
     /// port on which to start a websocket listener
     #[arg(long = "ws")]

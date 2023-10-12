@@ -5,6 +5,7 @@
 //!
 
 use anyhow::Result;
+use base64::Engine;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::Notify;
@@ -84,7 +85,7 @@ where
         data.push(color[2]);
     }
 
-    base64::encode(&data)
+    base64::engine::general_purpose::STANDARD.encode(&data)
 }
 
 /// Decode data that was encoded using the *RGB64* algorithm into a list of Colors
@@ -92,7 +93,11 @@ pub fn decode(data: Encoding) -> Result<Vec<Color>> {
     let mut result = Vec::new();
 
     let mut color = [0u8; 3];
-    for (i, i_value) in base64::decode(data)?.iter().enumerate() {
+    for (i, i_value) in base64::engine::general_purpose::STANDARD
+        .decode(&data)?
+        .iter()
+        .enumerate()
+    {
         if i % 3 == 0 {
             color[0] = *i_value;
         } else if i % 3 == 1 {

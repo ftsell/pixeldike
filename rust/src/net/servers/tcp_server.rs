@@ -4,18 +4,20 @@ use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
 use crate::DaemonHandle;
-use anyhow::anyhow;
 use async_trait::async_trait;
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{ReadHalf, WriteHalf};
-use tokio::net::{TcpListener, TcpSocket, TcpStream};
+use tokio::net::{TcpListener, TcpStream};
 
+/// Options with which the `TcpServer` is configured
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct TcpServerOptions {
+    /// The address to which the server binds
     pub bind_addr: SocketAddr,
 }
 
+/// A server implementation using TCP to transport pixelflut messages.
 #[derive(Debug, Copy, Clone)]
 pub struct TcpServer {
     options: TcpServerOptions,
@@ -54,7 +56,7 @@ impl TcpServer {
         tracing::debug!("Client connected");
         let (read_stream, write_stream) = stream.split();
         let buffer = BufferedMsgReader::<512, _>::new_empty(read_stream);
-        match super::handle_requests(buffer, Some(write_stream), pixmap, encodings).await {
+        match super::handle_requests(buffer, write_stream, pixmap, encodings).await {
             Ok(_) => Ok(()),
             Err(e) => {
                 // handle known errors which are expected and known to be okay

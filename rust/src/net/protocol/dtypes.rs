@@ -1,12 +1,14 @@
 //! Data types that describe all protocol interactions as safe-to-use structs
 
 use crate::pixmap::Color;
-use std::borrow::Borrow;
 use std::fmt::{Display, Formatter};
 
+/// The encoding algorithms that the whole canvas can be encoded in
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StateEncodingAlgorithm {
+    /// *RGB then Base64* encoding
     Rgb64,
+    /// *RGBA then Base64* encoding
     Rgba64,
 }
 
@@ -19,20 +21,43 @@ impl Display for StateEncodingAlgorithm {
     }
 }
 
+/// The help topics that can be requested from the server
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum HelpTopic {
+    /// Help about the general pixelflut protocol and links to further topics
     General,
+    /// Help about the *SIZE* command
     Size,
+    /// Help about the *PX* command (both set and get variants)
     Px,
+    /// Help about the *STATE* command (including all encodings)
     State,
 }
 
+/// A request to a pixelflut server
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Request {
+    /// Request help about a specific topic
     Help(HelpTopic),
+    /// Get the size of the canvas
     GetSize,
-    GetPixel { x: usize, y: usize },
-    SetPixel { x: usize, y: usize, color: Color },
+    /// Get the color of one pixel from the server
+    GetPixel {
+        /// The x coordinate of the pixel
+        x: usize,
+        /// The y coordinate of the pixel
+        y: usize,
+    },
+    /// Set the color of one pixel
+    SetPixel {
+        /// The x coordinate of the pixel
+        x: usize,
+        /// The y coordinate of the pixel
+        y: usize,
+        /// The color to which the pixel should be set
+        color: Color,
+    },
+    /// Get the complete canvas in a specific encoding
     GetState(StateEncodingAlgorithm),
 }
 
@@ -53,25 +78,38 @@ impl Display for Request {
     }
 }
 
+/// The response of a pixelflut server
 #[derive(Debug, Eq, PartialEq)]
 pub enum Response<'data> {
+    /// Help about a specific topic with more information about that topic
     Help(HelpTopic),
+    /// Size information about the servers canvas
     Size {
+        /// Width of the canvas in number of pixels
         width: usize,
+        /// Heigh of the canvas in number of pixels
         height: usize,
     },
+    /// Color data of a specific pixel
     PxData {
+        /// X coordinate of the pixel
         x: usize,
+        /// Y coordinate of the pixel
         y: usize,
+        /// The color of the pixel
         color: Color,
     },
+    /// State of the complete canvas in a specific encoding algorithm
     State {
+        /// The algorithm with which the canvas is encoded
         alg: StateEncodingAlgorithm,
+        /// Data describing the canvas encoded using `alg`
         data: &'data [u8],
     },
 }
 
 impl Response<'_> {
+    /// Transform the response into an owned version using an allocation.
     pub fn to_owned(&self) -> OwnedResponse {
         match self {
             Response::Help(topic) => OwnedResponse::Help(*topic),
@@ -92,6 +130,10 @@ impl Response<'_> {
     }
 }
 
+/// An owned version of `Response`.
+///
+/// See [`Response`] for detailed description of the enum variants and their fields.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum OwnedResponse {
     Help(HelpTopic),

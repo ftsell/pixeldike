@@ -4,6 +4,7 @@
 // At the end everything is base64 encoded.
 //!
 
+use base64::Engine;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::Notify;
@@ -85,7 +86,7 @@ where
         data.push(255);
     }
 
-    base64::encode(&data)
+    base64::engine::general_purpose::STANDARD.encode(&data)
 }
 
 #[cfg(test)]

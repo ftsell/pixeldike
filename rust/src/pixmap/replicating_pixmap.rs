@@ -239,7 +239,6 @@ mod test {
 
     use super::super::test;
     use super::*;
-    use crate::pixmap::PixmapRead;
 
     quickcheck! {
         fn test_set_and_get_pixel(width: usize, height: usize, x: usize, y: usize, color: Color) -> TestResult {

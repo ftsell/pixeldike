@@ -1,32 +1,15 @@
 use clap::Parser;
-use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::Rectangle;
-use image::io::Reader as ImageReader;
-use image::Rgb;
-use std::fmt::Debug;
-use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::sync::Notify;
-use tokio::task::JoinHandle;
-use tracing_subscriber;
+use std::time::Duration;
+use tokio::time::interval;
 use tracing_subscriber::filter::Directive;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
-use pixelflut;
-
-#[cfg(feature = "framebuffer_gui")]
-use pixelflut::framebuffer_gui::FramebufferGui;
 use pixelflut::net::servers::{GenServer, TcpServerOptions, UdpServer, UdpServerOptions};
-use pixelflut::pixmap::traits::*;
-use pixelflut::pixmap::Color;
-use pixelflut::{net, DaemonHandle};
+use pixelflut::DaemonHandle;
 
 mod cli;
 
@@ -66,16 +49,17 @@ async fn start_server(opts: &cli::ServerOpts) {
     //     pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
     // );
     let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
-    let mut background_task_handles: Vec<DaemonHandle> = Vec::new();
+    let mut daemon_tasks: Vec<DaemonHandle> = Vec::new();
 
     #[cfg(feature = "framebuffer_gui")]
-    let render_handle = match &opts.framebuffer {
-        None => None,
-        Some(fb_path) => Some(pixelflut::framebuffer_gui::start_gui_task(
-            FramebufferGui::new(fb_path.to_owned()),
-            pixmap.clone(),
-        )),
-    };
+    if let Some(framebuffer_dev) = &opts.framebuffer {
+        let framebuffer = pixelflut::framebuffer_gui::FramebufferGui::new(
+            framebuffer_dev.to_owned(),
+            interval(Duration::from_millis(1_000 / 40)),
+        );
+        let handle = framebuffer.start_render_task(pixmap.clone());
+        daemon_tasks.push(handle)
+    }
 
     // #[feature(gui)]
     // {
@@ -88,14 +72,13 @@ async fn start_server(opts: &cli::ServerOpts) {
     // }
 
     #[cfg(feature = "tcp_server")]
-    if let Some(tcp_port) = &opts.tcp_port {
+    if let Some(bind_addr) = &opts.tcp_bind_addr {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         let server = pixelflut::net::servers::TcpServer::new(TcpServerOptions {
-            bind_addr: SocketAddr::from_str(&format!("0.0.0.0:{}", tcp_port))
-                .expect("Could not build SOcketAddr for TcpServer binding"),
+            bind_addr: bind_addr.to_owned(),
         });
-        background_task_handles.push(
+        daemon_tasks.push(
             server
                 .start(pixmap, encodings)
                 .await
@@ -104,14 +87,13 @@ async fn start_server(opts: &cli::ServerOpts) {
     }
 
     #[cfg(feature = "udp_server")]
-    if let Some(udp_port) = &opts.udp_port {
+    if let Some(udp_bind_addr) = &opts.udp_bind_addr {
         let pixmap = pixmap.clone();
         let encodings = encodings.clone();
         let server = UdpServer::new(UdpServerOptions {
-            bind_addr: SocketAddr::from_str(&format!("0.0.0.0:{}", udp_port))
-                .expect("Could not build SocketAddr for UdpServer binding"),
+            bind_addr: udp_bind_addr.to_owned(),
         });
-        background_task_handles.push(
+        daemon_tasks.push(
             server
                 .start(pixmap, encodings)
                 .await
@@ -134,7 +116,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     //     background_task_handles.push(handle);
     // }
 
-    if background_task_handles.len() == 0 {
+    if daemon_tasks.len() == 0 {
         panic!("No listeners are supposed to be started which makes no sense");
     }
 
@@ -147,12 +129,7 @@ async fn start_server(opts: &cli::ServerOpts) {
 
     //if let Some
 
-    #[cfg(feature = "framebuffer_gui")]
-    if let Some((handle, _)) = render_handle {
-        let _ = tokio::join!(handle);
-    }
-
-    for handle in background_task_handles {
+    for handle in daemon_tasks {
         if let Err(e) = handle.join().await {
             tracing::error!("Error in background task: {:?}", e)
         }

@@ -59,7 +59,7 @@ pub fn parse_request(input: &[u8]) -> IResult<&[u8], Request, ProtocolError> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::byte_protocol::dtypes::StateEncodingAlgorithm;
+    use crate::net::protocol::StateEncodingAlgorithm;
     use crate::pixmap::Color;
 
     #[test]
