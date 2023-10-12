@@ -212,7 +212,7 @@ where
     }
 
     pub fn render(&mut self) {
-        debug!("========== REDRAWING PIXMAP ==========");
+        tracing::trace!("========== REDRAWING PIXMAP ==========");
 
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());

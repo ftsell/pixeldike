@@ -25,7 +25,7 @@ pub(super) struct GuiContext<P: PixmapRawRead> {
 
 impl<P: PixmapRawRead + 'static> GuiContext<P> {
     pub fn new(pixmap: Arc<P>) -> Result<Self> {
-        tracing::debug!("Constructing GuiContext");
+        tracing::trace!("Constructing GuiContext");
 
         let (pixmap_width, pixmap_height) = pixmap.get_size()?;
         let event_loop = EventLoopBuilder::new().with_any_thread(true).build();
@@ -47,7 +47,7 @@ impl<P: PixmapRawRead + 'static> GuiContext<P> {
         })
     }
 
-    pub fn run(mut self) {
+    pub fn run(mut self) -> ! {
         self.event_loop
             .take()
             .unwrap()

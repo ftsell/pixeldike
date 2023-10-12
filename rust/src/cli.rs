@@ -43,10 +43,9 @@ pub(crate) struct ServerOpts {
     #[arg(short = 'y', long = "height", default_value = "600")]
     pub height: usize,
 
-    /// file path into which the pixmap is persisted and from which it is read on startup
+    // file path into which the pixmap is persisted and from which it is read on startup
     //#[arg(short = 'f', long = "file")]
     //pub path: PathBuf,
-
     /// whether a gui should be shown
     #[arg(long = "gui")]
     #[cfg(feature = "gui")]
@@ -62,9 +61,13 @@ pub(crate) struct ServerOpts {
 
 #[derive(Args, Debug, Clone)]
 pub(crate) struct ClientOpts {
-    /// Address of the server to connect to
-    #[arg(long = "addr")]
-    pub addr: SocketAddr,
+    /// Hostname of the server to connect to
+    #[arg(long = "host")]
+    pub host: String,
+
+    /// Port to connect to on the server
+    #[arg(long = "port", default_value = "1234")]
+    pub port: u16,
 
     /// Width of the area to draw
     #[arg(long = "width")]

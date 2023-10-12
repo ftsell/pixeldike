@@ -2048,7 +2048,6 @@ dependencies = [
  "image",
  "lazy_static",
  "nom",
- "num_cpus",
  "quickcheck",
  "rand 0.8.5",
  "raw-window-handle 0.5.2",
