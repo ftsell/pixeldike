@@ -1,10 +1,12 @@
 use clap::Parser;
 use nom::Finish;
+use std::mem;
 use std::net::ToSocketAddrs;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
+use tokio_tungstenite::tungstenite::client;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -141,12 +143,6 @@ async fn draw_image(opts: &cli::ClientOpts) {
         .unwrap()
         .next()
         .unwrap();
-    let mut udp_client =
-        pixelflut::net::clients::UdpClient::<512>::connect(pixelflut::net::clients::UdpClientOptions {
-            server_addr,
-        })
-        .await
-        .expect("Could not connect pixelflut client (udp) to server");
     let mut tcp_client =
         pixelflut::net::clients::TcpClient::<512>::connect(pixelflut::net::clients::TcpClientOptions {
             server_addr,
@@ -180,36 +176,16 @@ async fn draw_image(opts: &cli::ClientOpts) {
         server_config
     );
 
-    for x in 0..opts.width {
-        for y in 0..opts.height {
-            let msg = Request::SetPixel {
-                x: x + opts.x_offset,
-                y: y + opts.y_offset,
-                color: Color(0xFF, 0x00, 0x00),
-            };
-
-            // if client.get_msg_writer().free_space() < mem::size_of::<Request>() {
-            //     client
-            //         .get_msg_writer()
-            //         .flush()
-            //         .await
-            //         .expect("Could not write pixelflut messages");
-            // }
-
-            udp_client
-                .get_msg_writer()
-                .write_request(&Request::SetPixel {
+    loop {
+        for x in 0..opts.width {
+            for y in 0..opts.height {
+                let msg = Request::SetPixel {
                     x: x + opts.x_offset,
                     y: y + opts.y_offset,
                     color: Color(0xFF, 0x00, 0x00),
-                })
-                .await
-                .unwrap();
-            udp_client
-                .get_msg_writer()
-                .flush()
-                .await
-                .expect("Could not write pixelflut messages");
+                };
+                tcp_client.get_msg_writer().write_request(&msg).await.unwrap();
+            }
         }
     }
 }
