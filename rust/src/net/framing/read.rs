@@ -8,6 +8,15 @@ pub trait BufferFiller: Sized {
     async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize>;
 }
 
+pub struct NullFiller;
+
+#[async_trait]
+impl BufferFiller for NullFiller {
+    async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize> {
+        Err(anyhow!("NullFiller cannot refill buffers"))
+    }
+}
+
 /// A struct for reading pixelflut messages from an internal buffer
 #[derive(Debug, Eq, PartialEq)]
 pub struct BufferedMsgReader<const BUF_SIZE: usize, T: BufferFiller> {

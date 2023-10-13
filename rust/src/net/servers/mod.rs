@@ -10,17 +10,23 @@ mod tcp_server;
 mod udp_server;
 
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
-use crate::net::protocol::{parse_request, Request, Response, StateEncodingAlgorithm};
+use crate::net::protocol::{parse_request, Request, Response, ServerConfig, StateEncodingAlgorithm};
 use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::state_encoding::SharedMultiEncodings;
 use nom::Finish;
 
 #[cfg(feature = "udp_server")]
+pub(crate) use udp_server::{UdpBufferFiller, UdpPacketAssembler};
+#[cfg(feature = "udp_server")]
 pub use udp_server::{UdpServer, UdpServerOptions};
 
 #[cfg(feature = "tcp_server")]
 pub use tcp_server::{TcpServer, TcpServerOptions};
+
+pub const SERVER_CONFIG: ServerConfig = ServerConfig {
+    max_udp_packet_size: 512,
+};
 
 /// Handle requests in a loop.
 ///
@@ -78,6 +84,11 @@ where
                             .await?
                     }
                 },
+                Request::GetConfig => {
+                    writer
+                        .write_response(&Response::ServerConfig(SERVER_CONFIG))
+                        .await?
+                }
             },
         }
     }

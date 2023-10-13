@@ -48,6 +48,8 @@ pub fn parse_request(input: &[u8]) -> IResult<&[u8], Request, ProtocolError> {
         ),
         // SIZE
         value(Request::GetSize, tag_no_case("size")),
+        // CONFIG
+        value(Request::GetConfig, tag_no_case("config")),
         // STATE
         preceded(
             tag_no_case("state"),
@@ -109,5 +111,12 @@ mod test {
                 color: Color(0xFF, 0x00, 0xAA)
             }
         );
+    }
+
+    #[test]
+    fn test_get_config() {
+        let (remainder, request) = parse_request("CONFIG".as_bytes()).unwrap();
+        assert_eq!(remainder.len(), 0);
+        assert_eq!(request, Request::GetConfig,)
     }
 }

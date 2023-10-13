@@ -1,5 +1,6 @@
 use crate::net::protocol::nom_parsers::color::parse_color;
 use crate::net::protocol::nom_parsers::coordinates::parse_coordinate;
+use crate::net::protocol::nom_parsers::server_config::parse_server_config;
 use crate::net::protocol::nom_parsers::state_encoding_algo::parse_state_encoding_algo;
 use crate::net::protocol::nom_parsers::ProtocolError;
 use crate::net::protocol::Response;
@@ -37,6 +38,11 @@ pub fn parse_response(input: &[u8]) -> IResult<&[u8], Response, ProtocolError> {
                 |(x, y, color)| Response::PxData { x, y, color },
             ),
         ),
+        // CONFIG
+        preceded(
+            tag_no_case("config"),
+            preceded(space1, map(parse_server_config, Response::ServerConfig)),
+        ),
         // STATE
         preceded(
             tag_no_case("state"),
@@ -54,8 +60,10 @@ pub fn parse_response(input: &[u8]) -> IResult<&[u8], Response, ProtocolError> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::net::protocol::dtypes::ServerConfig;
     use crate::net::protocol::StateEncodingAlgorithm;
     use crate::pixmap::Color;
+    use nom::AsBytes;
 
     #[test]
     fn test_size_data() {
@@ -95,5 +103,17 @@ mod test {
                 color: Color(0xFF, 0x00, 0xAA)
             }
         );
+    }
+
+    #[test]
+    fn test_server_config() {
+        let (remainder, response) = parse_response("CONFIG max_udp_packet_size=512".as_bytes()).unwrap();
+        assert_eq!(remainder.len(), 0);
+        assert_eq!(
+            response,
+            Response::ServerConfig(ServerConfig {
+                max_udp_packet_size: 512,
+            })
+        )
     }
 }

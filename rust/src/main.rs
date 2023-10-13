@@ -1,4 +1,6 @@
 use clap::Parser;
+use nom::Finish;
+use std::mem;
 use std::net::ToSocketAddrs;
 use std::path::Path;
 use std::str::FromStr;
@@ -12,7 +14,7 @@ use tracing_subscriber::{EnvFilter, Layer};
 
 use pixelflut::net::clients::GenClient;
 use pixelflut::net::framing::MsgWriter;
-use pixelflut::net::protocol::Request;
+use pixelflut::net::protocol::{parse_response, Request};
 use pixelflut::net::servers::{GenServer, TcpServerOptions, UdpServer, UdpServerOptions};
 use pixelflut::pixmap::Color;
 use pixelflut::DaemonHandle;
@@ -141,27 +143,80 @@ async fn start_client(opts: &cli::ClientOpts) {
 }
 
 async fn draw_image(opts: &cli::ClientOpts) {
-    let mut client = pixelflut::net::clients::UdpClient::connect(pixelflut::net::clients::UdpClientOptions {
-        server_addr: format!("{}:{}", opts.host, opts.port)
-            .to_socket_addrs()
-            .unwrap()
-            .next()
-            .unwrap(),
-    })
-    .await
-    .expect("Could not connect pixelflut client to server");
+    let server_addr = format!("{}:{}", opts.host, opts.port)
+        .to_socket_addrs()
+        .unwrap()
+        .next()
+        .unwrap();
+    let mut udp_client =
+        pixelflut::net::clients::UdpClient::<512>::connect(pixelflut::net::clients::UdpClientOptions {
+            server_addr,
+        })
+        .await
+        .expect("Could not connect pixelflut client (udp) to server");
+    let mut tcp_client =
+        pixelflut::net::clients::TcpClient::<512>::connect(pixelflut::net::clients::TcpClientOptions {
+            server_addr,
+        })
+        .await
+        .expect("Could not connect pixelflut client (tcp) to server");
 
-    for x in 100usize..400 {
-        for y in 100usize..400 {
-            client
+    // fetch config from server
+    tcp_client
+        .get_msg_writer()
+        .write_request(&Request::GetConfig)
+        .await
+        .unwrap();
+    let server_config = tcp_client.get_msg_reader().read_msg().await.unwrap();
+    let (_, server_config) = parse_response(server_config).finish().unwrap();
+    let server_config = server_config.to_owned();
+
+    // fetch size from server
+    tcp_client
+        .get_msg_writer()
+        .write_request(&Request::GetSize)
+        .await
+        .unwrap();
+    let size = tcp_client.get_msg_reader().read_msg().await.unwrap();
+    let (_, size) = parse_response(size).finish().unwrap();
+    let size = size.to_owned();
+
+    tracing::info!(
+        "Connected to server with canvas {:?} and {:?}",
+        size,
+        server_config
+    );
+
+    for x in 0..opts.width {
+        for y in 0..opts.height {
+            let msg = Request::SetPixel {
+                x: x + opts.x_offset,
+                y: y + opts.y_offset,
+                color: Color(0xFF, 0x00, 0x00),
+            };
+
+            // if client.get_msg_writer().free_space() < mem::size_of::<Request>() {
+            //     client
+            //         .get_msg_writer()
+            //         .flush()
+            //         .await
+            //         .expect("Could not write pixelflut messages");
+            // }
+
+            udp_client
                 .get_msg_writer()
                 .write_request(&Request::SetPixel {
-                    x,
-                    y,
+                    x: x + opts.x_offset,
+                    y: y + opts.y_offset,
                     color: Color(0xFF, 0x00, 0x00),
                 })
                 .await
-                .expect("Could not write pixel data")
+                .unwrap();
+            udp_client
+                .get_msg_writer()
+                .flush()
+                .await
+                .expect("Could not write pixelflut messages");
         }
     }
 }
