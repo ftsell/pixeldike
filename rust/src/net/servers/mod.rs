@@ -24,7 +24,7 @@ pub use udp_server::{UdpServer, UdpServerOptions};
 #[cfg(feature = "tcp_server")]
 pub use tcp_server::{TcpServer, TcpServerOptions};
 
-pub const SERVER_CONFIG: ServerConfig = ServerConfig {
+pub(crate) const SERVER_CONFIG: ServerConfig = ServerConfig {
     max_udp_packet_size: 512,
 };
 

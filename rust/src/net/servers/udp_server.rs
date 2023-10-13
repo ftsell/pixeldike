@@ -6,6 +6,7 @@ use crate::state_encoding::SharedMultiEncodings;
 use crate::DaemonHandle;
 use async_trait::async_trait;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::UdpSocket;
 
 /// Options with which the `UdpServer` is configured
@@ -24,11 +25,42 @@ pub struct UdpServer {
 }
 
 impl UdpServer {
+    /// Start `n` server processes
+    pub async fn start_many<P>(
+        self,
+        pixmap: SharedPixmap<P>,
+        encodings: SharedMultiEncodings,
+        n: usize,
+    ) -> anyhow::Result<Vec<DaemonHandle>>
+    where
+        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
+    {
+        let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
+        let handles = (0..n)
+            .into_iter()
+            .map(|_| {
+                let pixmap = pixmap.clone();
+                let encodings = encodings.clone();
+                let socket = socket.clone();
+                let join_handle =
+                    tokio::spawn(async move { UdpServer::listen(pixmap, encodings, socket).await });
+                DaemonHandle::new(join_handle)
+            })
+            .collect::<Vec<_>>();
+
+        tracing::info!(
+            "Started UDP server with {} tasks on {}",
+            n,
+            self.options.bind_addr
+        );
+        Ok(handles)
+    }
+
     #[tracing::instrument(skip_all)]
     async fn listen<P>(
         pixmap: SharedPixmap<P>,
         encodings: SharedMultiEncodings,
-        socket: UdpSocket,
+        socket: Arc<UdpSocket>,
     ) -> anyhow::Result<!>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
@@ -56,7 +88,7 @@ impl GenServer for UdpServer {
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
-        let socket = UdpSocket::bind(self.options.bind_addr).await?;
+        let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
         tracing::info!("Started UDP Server on {}", self.options.bind_addr);
 
         let handle = tokio::spawn(async move { UdpServer::listen(pixmap, encodings, socket).await });
@@ -71,12 +103,12 @@ impl GenServer for UdpServer {
 /// the `UdpBufferFiller` generic constant, then checking if the last byte is a \n and then only filling the given
 /// buffer if that is the case.
 pub(crate) struct UdpBufferFiller<const TMP_BUF_SIZE: usize> {
-    socket: UdpSocket,
+    socket: Arc<UdpSocket>,
     tmp_buffer: [u8; TMP_BUF_SIZE],
 }
 
 impl<const TMP_BUF_SIZE: usize> UdpBufferFiller<TMP_BUF_SIZE> {
-    fn new(socket: UdpSocket) -> Self {
+    fn new(socket: Arc<UdpSocket>) -> Self {
         Self {
             socket,
             tmp_buffer: [0u8; TMP_BUF_SIZE],

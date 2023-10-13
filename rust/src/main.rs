@@ -1,16 +1,15 @@
 use clap::Parser;
 use nom::Finish;
-use std::mem;
 use std::net::ToSocketAddrs;
-use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
-use tracing_subscriber::filter::Directive;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, Layer};
+use tracing_subscriber::Layer;
 
 use pixelflut::net::clients::GenClient;
 use pixelflut::net::framing::MsgWriter;
@@ -24,17 +23,11 @@ mod cli;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
-        .with(console_subscriber::spawn())
+        .with(tracing_subscriber::fmt::layer())
         .with(
-            tracing_subscriber::fmt::layer()
-                .event_format(tracing_subscriber::fmt::format().compact())
-                .with_filter(
-                    EnvFilter::builder()
-                        .with_default_directive(Directive::from_str("debug").unwrap())
-                        .with_env_var(EnvFilter::DEFAULT_ENV)
-                        .from_env()
-                        .unwrap(),
-                ),
+            EnvFilter::builder()
+                .parse("debug,wgpu_core=warn,wgpu_hal=warn,naga=warn")
+                .unwrap(),
         )
         .init();
 
@@ -96,9 +89,9 @@ async fn start_server(opts: &cli::ServerOpts) {
         let server = UdpServer::new(UdpServerOptions {
             bind_addr: udp_bind_addr.to_owned(),
         });
-        daemon_tasks.push(
+        daemon_tasks.extend(
             server
-                .start(pixmap, encodings)
+                .start_many(pixmap, encodings, 32)
                 .await
                 .expect("Could not start udp server"),
         );

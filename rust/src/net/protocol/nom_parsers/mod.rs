@@ -14,4 +14,4 @@ pub use response::parse_response;
 #[cfg(debug_assertions)]
 type ProtocolError<'a> = VerboseError<&'a [u8]>;
 #[cfg(not(debug_assertions))]
-type ProtocolError = ();
+type ProtocolError<'a> = ();
