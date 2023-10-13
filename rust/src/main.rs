@@ -1,17 +1,13 @@
 use clap::Parser;
 use nom::Finish;
-use std::mem;
 use std::net::ToSocketAddrs;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
-use tokio_tungstenite::tungstenite::client;
-use tracing::level_filters::LevelFilter;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
 
 use pixelflut::net::clients::GenClient;
 use pixelflut::net::framing::MsgWriter;

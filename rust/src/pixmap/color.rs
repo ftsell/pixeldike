@@ -23,19 +23,13 @@ impl From<Color> for [u8; 3] {
 impl From<u32> for Color {
     fn from(src: u32) -> Self {
         let b = src.to_be_bytes();
-        Self(b[1], b[2], b[3])
+        Self(b[0], b[1], b[2])
     }
 }
 
 impl From<Color> for u32 {
     fn from(value: Color) -> Self {
-        0u32 | (value.0 as u32) | (value.1 as u32) << 8 | (value.2 as u32) << 16
-    }
-}
-
-impl Into<u32> for &Color {
-    fn into(self) -> u32 {
-        0u32 | (self.0 as u32) | (self.1 as u32) << 8 | (self.2 as u32) << 16
+        (value.0 as u32) << 24 | (value.1 as u32) << 16 | (value.2 as u32) << 8
     }
 }
 
@@ -79,10 +73,10 @@ impl Arbitrary for Color {
 }
 
 #[cfg(test)]
-#[test]
-fn test_u32_conversion() {
-    assert_eq!(Color::from(0u32), Color(0, 0, 0));
-    assert_eq!(Color::from(0xFFu32), Color(0, 0, 255));
-    assert_eq!(Color::from(0x00FF00u32), Color(0, 255, 0));
-    assert_eq!(Color::from(0xFF0000u32), Color(255, 0, 0));
+quickcheck! {
+    fn test_u32_conversion(color: Color) -> bool {
+        let c_enc: u32 = color.into();
+        let c_dec: Color = Color::from(c_enc);
+        c_dec == color
+    }
 }

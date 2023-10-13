@@ -122,11 +122,11 @@ impl FramebufferGui {
                         let mut encoded_pixel: u16 = 0;
 
                         encoded_pixel |= (pixmap_pixel.0 as u16 >> (8u16 - r_encoding.length as u16))
-                            << (16 - r_encoding.length as u16 - r_encoding.offset as u16);
+                            << (r_encoding.offset as u16);
                         encoded_pixel |= (pixmap_pixel.1 as u16 >> (8u16 - g_encoding.length as u16))
-                            << (16 - g_encoding.length as u16 - g_encoding.offset as u16);
+                            << (g_encoding.offset as u16);
                         encoded_pixel |= (pixmap_pixel.2 as u16 >> (8u16 - b_encoding.length as u16))
-                            << (16 - b_encoding.length as u16 - b_encoding.offset as u16);
+                            << (b_encoding.offset as u16);
 
                         frame[screen_i..screen_i + mem::size_of::<u16>()]
                             .copy_from_slice(&encoded_pixel.to_ne_bytes());
