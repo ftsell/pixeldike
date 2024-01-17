@@ -15,8 +15,8 @@ categories = ["command-line-utilities", "games"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["cli", "tcp_server", "udp_server", "tcp_client", "udp_client"]
-cli = ["clap", "image", "tracing-subscriber", "embedded-graphics"]
+default = ["cli", "tcp_server", "udp_server"]
+cli = ["clap", "tracing-subscriber"]
 gui = ["winit", "wgpu", "raw-window-handle", "bytemuck"]
 framebuffer_gui = [ "framebuffer" ]
 tcp_server = []

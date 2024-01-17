@@ -21,7 +21,7 @@ impl DaemonHandle {
         !self.join_handle.is_finished()
     }
 
-    /// Join the execution of this server into the current task
+    /// Join the execution of this background into the currently running task
     pub async fn join(self) -> anyhow::Result<()> {
         match self.join_handle.await {
             Ok(task_result) => match task_result {

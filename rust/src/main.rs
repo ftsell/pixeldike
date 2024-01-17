@@ -32,7 +32,8 @@ async fn main() {
     let args = cli::CliOpts::parse();
     match args.command {
         cli::Command::Server(opts) => start_server(&opts).await,
-        cli::Command::Client(opts) => start_client(&opts).await,
+        //cli::Command::Client(opts) => start_client(&opts).await,
+        _ => unimplemented!(),
     };
 }
 
@@ -123,65 +124,65 @@ async fn start_server(opts: &cli::ServerOpts) {
     }
 }
 
-async fn start_client(opts: &cli::ClientOpts) {
-    match (&opts.image, &opts.message) {
-        (Some(image_path), None) => draw_image(opts).await,
-        (None, Some(message)) => todo!(),
-        _ => {
-            tracing::error!("Either an image path or a message (but not both) must be passed as pixel source")
-        }
-    }
-}
-
-async fn draw_image(opts: &cli::ClientOpts) {
-    let server_addr = format!("{}:{}", opts.host, opts.port)
-        .to_socket_addrs()
-        .unwrap()
-        .next()
-        .unwrap();
-    let mut tcp_client =
-        pixelflut::net::clients::TcpClient::<512>::connect(pixelflut::net::clients::TcpClientOptions {
-            server_addr,
-        })
-        .await
-        .expect("Could not connect pixelflut client (tcp) to server");
-
-    // fetch config from server
-    tcp_client
-        .get_msg_writer()
-        .write_request(&Request::GetConfig)
-        .await
-        .unwrap();
-    let server_config = tcp_client.get_msg_reader().read_msg().await.unwrap();
-    let (_, server_config) = parse_response(server_config).finish().unwrap();
-    let server_config = server_config.to_owned();
-
-    // fetch size from server
-    tcp_client
-        .get_msg_writer()
-        .write_request(&Request::GetSize)
-        .await
-        .unwrap();
-    let size = tcp_client.get_msg_reader().read_msg().await.unwrap();
-    let (_, size) = parse_response(size).finish().unwrap();
-    let size = size.to_owned();
-
-    tracing::info!(
-        "Connected to server with canvas {:?} and {:?}",
-        size,
-        server_config
-    );
-
-    loop {
-        for x in 0..opts.width {
-            for y in 0..opts.height {
-                let msg = Request::SetPixel {
-                    x: x + opts.x_offset,
-                    y: y + opts.y_offset,
-                    color: Color(0xFF, 0x00, 0x00),
-                };
-                tcp_client.get_msg_writer().write_request(&msg).await.unwrap();
-            }
-        }
-    }
-}
+// async fn start_client(opts: &cli::ClientOpts) {
+//     match (&opts.image, &opts.message) {
+//         (Some(image_path), None) => draw_image(opts).await,
+//         (None, Some(message)) => todo!(),
+//         _ => {
+//             tracing::error!("Either an image path or a message (but not both) must be passed as pixel source")
+//         }
+//     }
+// }
+//
+// async fn draw_image(opts: &cli::ClientOpts) {
+//     let server_addr = format!("{}:{}", opts.host, opts.port)
+//         .to_socket_addrs()
+//         .unwrap()
+//         .next()
+//         .unwrap();
+//     let mut tcp_client =
+//         pixelflut::net::clients::TcpClient::<512>::connect(pixelflut::net::clients::TcpClientOptions {
+//             server_addr,
+//         })
+//         .await
+//         .expect("Could not connect pixelflut client (tcp) to server");
+//
+//     // fetch config from server
+//     tcp_client
+//         .get_msg_writer()
+//         .write_request(&Request::GetConfig)
+//         .await
+//         .unwrap();
+//     let server_config = tcp_client.get_msg_reader().read_msg().await.unwrap();
+//     let (_, server_config) = parse_response(server_config).finish().unwrap();
+//     let server_config = server_config.to_owned();
+//
+//     // fetch size from server
+//     tcp_client
+//         .get_msg_writer()
+//         .write_request(&Request::GetSize)
+//         .await
+//         .unwrap();
+//     let size = tcp_client.get_msg_reader().read_msg().await.unwrap();
+//     let (_, size) = parse_response(size).finish().unwrap();
+//     let size = size.to_owned();
+//
+//     tracing::info!(
+//         "Connected to server with canvas {:?} and {:?}",
+//         size,
+//         server_config
+//     );
+//
+//     loop {
+//         for x in 0..opts.width {
+//             for y in 0..opts.height {
+//                 let msg = Request::SetPixel {
+//                     x: x + opts.x_offset,
+//                     y: y + opts.y_offset,
+//                     color: Color(0xFF, 0x00, 0x00),
+//                 };
+//                 tcp_client.get_msg_writer().write_request(&msg).await.unwrap();
+//             }
+//         }
+//     }
+// }
