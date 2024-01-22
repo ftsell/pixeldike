@@ -1,13 +1,12 @@
 use crate::net::protocol::nom_parsers::color::parse_color;
 use crate::net::protocol::nom_parsers::coordinates::parse_coordinate;
 use crate::net::protocol::nom_parsers::server_config::parse_server_config;
-use crate::net::protocol::nom_parsers::state_encoding_algo::parse_state_encoding_algo;
 use crate::net::protocol::nom_parsers::ProtocolError;
 use crate::net::protocol::Response;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::space1;
-use nom::combinator::{map, rest};
+use nom::combinator::map;
 use nom::sequence::{pair, preceded};
 use nom::IResult;
 
@@ -42,17 +41,6 @@ pub fn parse_response(input: &[u8]) -> IResult<&[u8], Response, ProtocolError> {
         preceded(
             tag_no_case("config"),
             preceded(space1, map(parse_server_config, Response::ServerConfig)),
-        ),
-        // STATE
-        preceded(
-            tag_no_case("state"),
-            map(
-                pair(
-                    preceded(space1, parse_state_encoding_algo),
-                    preceded(space1, rest),
-                ),
-                |(alg, data)| Response::State { alg, data },
-            ),
         ),
     ))(input)
 }

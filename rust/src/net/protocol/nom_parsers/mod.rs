@@ -4,7 +4,6 @@ mod help_topic;
 mod request;
 mod response;
 mod server_config;
-mod state_encoding_algo;
 
 use nom::error::VerboseError;
 

@@ -8,11 +8,12 @@ pub trait BufferFiller: Sized {
     async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize>;
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct NullFiller;
 
 #[async_trait]
 impl BufferFiller for NullFiller {
-    async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize> {
+    async fn fill_buffer(&mut self, _buffer: &mut [u8]) -> anyhow::Result<usize> {
         Err(anyhow!("NullFiller cannot refill buffers"))
     }
 }

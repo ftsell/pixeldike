@@ -10,10 +10,9 @@ mod tcp_server;
 mod udp_server;
 
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
-use crate::net::protocol::{parse_request, Request, Response, ServerConfig, StateEncodingAlgorithm};
+use crate::net::protocol::{parse_request, Request, Response, ServerConfig};
 use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
-use crate::state_encoding::SharedMultiEncodings;
 use nom::Finish;
 
 #[cfg(feature = "udp_server")]
@@ -36,7 +35,6 @@ async fn handle_requests<const READ_BUF_SIZE: usize, P, R>(
     mut reader: BufferedMsgReader<READ_BUF_SIZE, R>,
     mut writer: impl MsgWriter,
     pixmap: SharedPixmap<P>,
-    encodings: SharedMultiEncodings,
 ) -> anyhow::Result<!>
 where
     P: PixmapRead + PixmapWrite,
@@ -64,26 +62,6 @@ where
                 Request::SetPixel { x, y, color } => {
                     pixmap.set_pixel(x, y, color)?;
                 }
-                Request::GetState(alg) => match alg {
-                    StateEncodingAlgorithm::Rgb64 => {
-                        let state = { encodings.rgb64.lock().unwrap().clone() };
-                        writer
-                            .write_response(&Response::State {
-                                alg,
-                                data: state.as_bytes(),
-                            })
-                            .await?
-                    }
-                    StateEncodingAlgorithm::Rgba64 => {
-                        let state = { encodings.rgba64.lock().unwrap().clone() };
-                        writer
-                            .write_response(&Response::State {
-                                alg,
-                                data: state.as_bytes(),
-                            })
-                            .await?
-                    }
-                },
                 Request::GetConfig => {
                     writer
                         .write_response(&Response::ServerConfig(SERVER_CONFIG))

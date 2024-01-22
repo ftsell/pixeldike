@@ -2,7 +2,6 @@ use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::servers::GenServer;
 use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
-use crate::state_encoding::SharedMultiEncodings;
 use crate::DaemonHandle;
 use async_trait::async_trait;
 use std::net::SocketAddr;
@@ -25,21 +24,14 @@ pub struct TcpServer {
 
 impl TcpServer {
     #[tracing::instrument(skip_all)]
-    async fn handle_listener<P>(
-        listener: TcpListener,
-        pixmap: SharedPixmap<P>,
-        encodings: SharedMultiEncodings,
-    ) -> anyhow::Result<!>
+    async fn handle_listener<P>(listener: TcpListener, pixmap: SharedPixmap<P>) -> anyhow::Result<!>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
         loop {
             let (stream, remote_addr) = listener.accept().await?;
             let pixmap = pixmap.clone();
-            let encodings = encodings.clone();
-            tokio::spawn(async move {
-                TcpServer::handle_connection(stream, remote_addr, pixmap, encodings).await
-            });
+            tokio::spawn(async move { TcpServer::handle_connection(stream, remote_addr, pixmap).await });
         }
     }
 
@@ -48,7 +40,6 @@ impl TcpServer {
         mut stream: TcpStream,
         _remote_addr: SocketAddr,
         pixmap: SharedPixmap<P>,
-        encodings: SharedMultiEncodings,
     ) -> anyhow::Result<()>
     where
         P: PixmapRead + PixmapWrite,
@@ -56,7 +47,7 @@ impl TcpServer {
         tracing::debug!("Client connected");
         let (read_stream, write_stream) = stream.split();
         let buffer = BufferedMsgReader::<512, _>::new_empty(read_stream);
-        match super::handle_requests(buffer, write_stream, pixmap, encodings).await {
+        match super::handle_requests(buffer, write_stream, pixmap).await {
             Ok(_) => Ok(()),
             Err(e) => {
                 // handle known errors which are expected and known to be okay
@@ -87,11 +78,7 @@ impl GenServer for TcpServer {
         Self { options }
     }
 
-    async fn start<P>(
-        self,
-        pixmap: SharedPixmap<P>,
-        encodings: SharedMultiEncodings,
-    ) -> anyhow::Result<DaemonHandle>
+    async fn start<P>(self, pixmap: SharedPixmap<P>) -> anyhow::Result<DaemonHandle>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
@@ -99,7 +86,7 @@ impl GenServer for TcpServer {
         tracing::info!("Started TCP Server on {}", self.options.bind_addr);
 
         let handle = tokio::spawn(async move {
-            TcpServer::handle_listener(listener, pixmap, encodings).await?;
+            TcpServer::handle_listener(listener, pixmap).await?;
         });
         Ok(DaemonHandle::new(handle))
     }

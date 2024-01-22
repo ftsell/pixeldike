@@ -11,7 +11,6 @@ pub(super) fn parse_help_topic(input: &[u8]) -> IResult<&[u8], HelpTopic, Protoc
         value(HelpTopic::General, tag_no_case("help")),
         value(HelpTopic::Size, tag_no_case("size")),
         value(HelpTopic::Px, tag_no_case("px")),
-        value(HelpTopic::State, tag_no_case("state")),
     ))(input)
 }
 

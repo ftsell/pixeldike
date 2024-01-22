@@ -1,7 +1,6 @@
 use crate::net::protocol::nom_parsers::color::parse_color;
 use crate::net::protocol::nom_parsers::coordinates::parse_coordinate;
 use crate::net::protocol::nom_parsers::help_topic::parse_help_topic;
-use crate::net::protocol::nom_parsers::state_encoding_algo::parse_state_encoding_algo;
 use crate::net::protocol::nom_parsers::ProtocolError;
 use crate::net::protocol::{HelpTopic, Request};
 use nom::branch::alt;
@@ -50,11 +49,6 @@ pub fn parse_request(input: &[u8]) -> IResult<&[u8], Request, ProtocolError> {
         value(Request::GetSize, tag_no_case("size")),
         // CONFIG
         value(Request::GetConfig, tag_no_case("config")),
-        // STATE
-        preceded(
-            tag_no_case("state"),
-            preceded(space1, map(parse_state_encoding_algo, Request::GetState)),
-        ),
     ))(input)
 }
 

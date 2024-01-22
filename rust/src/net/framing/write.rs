@@ -32,7 +32,6 @@ pub trait MsgWriter: Send + Sync {
                 HelpTopic::General => self.write_message("HELP".as_bytes()).await,
                 HelpTopic::Size => self.write_message("HELP SIZE".as_bytes()).await,
                 HelpTopic::Px => self.write_message("HELP PX".as_bytes()).await,
-                HelpTopic::State => self.write_message("HELP STATE".as_bytes()).await,
             },
             Request::GetSize => self.write_message("SIZE".as_bytes()).await,
             Request::GetPixel { x, y } => {
@@ -41,10 +40,6 @@ pub trait MsgWriter: Send + Sync {
             }
             Request::SetPixel { x, y, color } => {
                 let msg = format!("PX {} {} #{:X}", x, y, color);
-                self.write_message(msg.as_bytes()).await
-            }
-            Request::GetState(alg) => {
-                let msg = format!("STATE {}", alg);
                 self.write_message(msg.as_bytes()).await
             }
             Request::GetConfig => self.write_message("CONFIG".as_bytes()).await,
@@ -58,7 +53,6 @@ pub trait MsgWriter: Send + Sync {
                 HelpTopic::General => self.write_message(i18n::HELP_GENERAL.as_bytes()).await,
                 HelpTopic::Size => self.write_message(i18n::HELP_SIZE.as_bytes()).await,
                 HelpTopic::Px => self.write_message(i18n::HELP_PX.as_bytes()).await,
-                HelpTopic::State => self.write_message(i18n::HELP_STATE.as_bytes()).await,
             },
             Response::Size { width, height } => {
                 let msg = format!("SIZE {} {}", width, height);
@@ -67,11 +61,6 @@ pub trait MsgWriter: Send + Sync {
             Response::PxData { x, y, color } => {
                 let msg = format!("PX {} {} #{:X}", x, y, color);
                 self.write_message(msg.as_bytes()).await
-            }
-            Response::State { alg, data } => {
-                self.write_data(format!("STATE {} ", alg).as_bytes()).await?;
-                self.write_data(data).await?;
-                self.write_message_delimiter().await
             }
             Response::ServerConfig(config) => {
                 let msg = format!("CONFIG max_udp_packet_size={}", config.max_udp_packet_size);

@@ -1,19 +1,10 @@
 use clap::Parser;
-use nom::Finish;
-use std::net::ToSocketAddrs;
-use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::interval;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use pixelflut::net::clients::GenClient;
-use pixelflut::net::framing::MsgWriter;
-use pixelflut::net::protocol::{parse_response, Request};
 use pixelflut::net::servers::{GenServer, TcpServerOptions, UdpServer, UdpServerOptions};
-use pixelflut::pixmap::Color;
 use pixelflut::DaemonHandle;
 
 mod cli;
@@ -48,7 +39,6 @@ async fn start_server(opts: &cli::ServerOpts) {
     // let pixmap = Arc::new(
     //     pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
     // );
-    let encodings = pixelflut::state_encoding::SharedMultiEncodings::default();
     let mut daemon_tasks: Vec<DaemonHandle> = Vec::new();
 
     #[cfg(feature = "framebuffer_gui")]
@@ -69,28 +59,21 @@ async fn start_server(opts: &cli::ServerOpts) {
     #[cfg(feature = "tcp_server")]
     if let Some(bind_addr) = &opts.tcp_bind_addr {
         let pixmap = pixmap.clone();
-        let encodings = encodings.clone();
         let server = pixelflut::net::servers::TcpServer::new(TcpServerOptions {
             bind_addr: bind_addr.to_owned(),
         });
-        daemon_tasks.push(
-            server
-                .start(pixmap, encodings)
-                .await
-                .expect("Could not start tcp server"),
-        );
+        daemon_tasks.push(server.start(pixmap).await.expect("Could not start tcp server"));
     }
 
     #[cfg(feature = "udp_server")]
     if let Some(udp_bind_addr) = &opts.udp_bind_addr {
         let pixmap = pixmap.clone();
-        let encodings = encodings.clone();
         let server = UdpServer::new(UdpServerOptions {
             bind_addr: udp_bind_addr.to_owned(),
         });
         daemon_tasks.extend(
             server
-                .start_many(pixmap, encodings, 32)
+                .start_many(pixmap, 16)
                 .await
                 .expect("Could not start udp server"),
         );

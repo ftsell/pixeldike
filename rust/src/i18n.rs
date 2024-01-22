@@ -29,19 +29,3 @@ It it is not present, the current color will be returned.\n\
 <x>\t- X position on the canvas counted from the left side\n\
 <y>\t- Y position on the canvas counted from the top\n\
 <rgb>\t- HEX encoded rgb color (000000 - FFFFFF)";
-
-pub static HELP_STATE: &str = "Syntax:\t\tSTATE <algorithm>\n\
-Response:\tSTATE <algorithm> <data>\n\
-\n\
-Retrieves the complete canvas in an encoding chosen by <algorithm>.\n\
-Currently implemented algorithms are the following.\n\
-\n\
-rgb64:\n\
-Each pixel is encoded into 3 bytes for the color channels red, green and blue.\n\
-Those bytes are then simply appended to each other in row-major order.\n\
-At the end everything is base64 encoded.\n\
-\n\
-rgba64:\n\
-Each pixel is encoded into 4 bytes for the color channels red, green, blue and alpha whereby alpha is always 255.\n\
-These bytes are then simply appended to each other in row-major order.\n\
-At the end everything is base64 encoded.";

@@ -2,7 +2,6 @@ use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter, VoidWriter
 use crate::net::servers::gen_server::GenServer;
 use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
-use crate::state_encoding::SharedMultiEncodings;
 use crate::DaemonHandle;
 use async_trait::async_trait;
 use std::net::SocketAddr;
@@ -26,12 +25,7 @@ pub struct UdpServer {
 
 impl UdpServer {
     /// Start `n` server processes
-    pub async fn start_many<P>(
-        self,
-        pixmap: SharedPixmap<P>,
-        encodings: SharedMultiEncodings,
-        n: usize,
-    ) -> anyhow::Result<Vec<DaemonHandle>>
+    pub async fn start_many<P>(self, pixmap: SharedPixmap<P>, n: usize) -> anyhow::Result<Vec<DaemonHandle>>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
@@ -40,10 +34,8 @@ impl UdpServer {
             .into_iter()
             .map(|_| {
                 let pixmap = pixmap.clone();
-                let encodings = encodings.clone();
                 let socket = socket.clone();
-                let join_handle =
-                    tokio::spawn(async move { UdpServer::listen(pixmap, encodings, socket).await });
+                let join_handle = tokio::spawn(async move { UdpServer::listen(pixmap, socket).await });
                 DaemonHandle::new(join_handle)
             })
             .collect::<Vec<_>>();
@@ -57,18 +49,14 @@ impl UdpServer {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn listen<P>(
-        pixmap: SharedPixmap<P>,
-        encodings: SharedMultiEncodings,
-        socket: Arc<UdpSocket>,
-    ) -> anyhow::Result<!>
+    async fn listen<P>(pixmap: SharedPixmap<P>, socket: Arc<UdpSocket>) -> anyhow::Result<!>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
         const BUF_SIZE: usize = 256;
         let filler = UdpBufferFiller::<BUF_SIZE>::new(socket);
         let reader = BufferedMsgReader::<{ BUF_SIZE * 2 * 2 * 2 }, _>::new_empty(filler);
-        super::handle_requests(reader, VoidWriter, pixmap, encodings).await
+        super::handle_requests(reader, VoidWriter, pixmap).await
     }
 }
 
@@ -80,18 +68,14 @@ impl GenServer for UdpServer {
         Self { options }
     }
 
-    async fn start<P>(
-        self,
-        pixmap: SharedPixmap<P>,
-        encodings: SharedMultiEncodings,
-    ) -> anyhow::Result<DaemonHandle>
+    async fn start<P>(self, pixmap: SharedPixmap<P>) -> anyhow::Result<DaemonHandle>
     where
         P: PixmapRead + PixmapWrite + Send + Sync + 'static,
     {
         let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
         tracing::info!("Started UDP Server on {}", self.options.bind_addr);
 
-        let handle = tokio::spawn(async move { UdpServer::listen(pixmap, encodings, socket).await });
+        let handle = tokio::spawn(async move { UdpServer::listen(pixmap, socket).await });
 
         Ok(DaemonHandle::new(handle))
     }

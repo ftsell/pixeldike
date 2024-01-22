@@ -27,7 +27,6 @@ mod daemon_task;
 mod i18n;
 pub mod net;
 pub mod pixmap;
-pub mod state_encoding;
 
 #[cfg(feature = "gui")]
 pub mod gui;
