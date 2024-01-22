@@ -62,7 +62,7 @@ impl TcpServer {
                 // handle unknown errors by logging and returning them
                 tracing::debug!(
                     error = e.to_string(),
-                    "Got unexpected error while handling client streams"
+                    "Got unexpected error while handling client sinks"
                 );
                 return Err(e);
             }

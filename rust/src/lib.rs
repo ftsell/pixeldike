@@ -27,6 +27,7 @@ mod daemon_task;
 mod i18n;
 pub mod net;
 pub mod pixmap;
+pub mod sinks;
 
 #[cfg(feature = "gui")]
 pub mod gui;

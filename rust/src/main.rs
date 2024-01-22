@@ -5,6 +5,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use pixelflut::net::servers::{GenServer, TcpServerOptions, UdpServer, UdpServerOptions};
+use pixelflut::sinks::rtsp_stream::RtspOptions;
 use pixelflut::DaemonHandle;
 
 mod cli;
@@ -40,6 +41,19 @@ async fn start_server(opts: &cli::ServerOpts) {
     //     pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
     // );
     let mut daemon_tasks: Vec<DaemonHandle> = Vec::new();
+
+    // TODO Put behind a cli flag
+    {
+        let pixmap = pixmap.clone();
+        let sink = pixelflut::sinks::rtsp_stream::RtspStream::new(
+            RtspOptions {
+                server_addr: "rtsp://localhost:8554/pixelflut".to_string(),
+                fps: 5,
+            },
+            pixmap,
+        );
+        daemon_tasks.push(sink.start().await.expect("Could not start RtmpStream sink"))
+    }
 
     #[cfg(feature = "framebuffer_gui")]
     if let Some(framebuffer_dev) = &opts.framebuffer {
