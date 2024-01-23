@@ -43,20 +43,28 @@ pub(crate) struct ServerOpts {
     #[arg(short = 'y', long = "height", default_value = "600")]
     pub height: usize,
 
-    // file path into which the pixmap is persisted and from which it is read on startup
-    //#[arg(short = 'f', long = "file")]
-    //pub path: PathBuf,
-    /// whether a gui should be shown
-    #[arg(long = "gui")]
-    #[cfg(feature = "gui")]
-    pub show_gui: bool,
+    #[command(flatten)]
+    pub sink_opts: SinkOpts,
+}
 
-    #[arg(
-        long = "framebuffer",
-        help = "path to the framebuffer device on which the pixmap is live-rendered"
-    )]
-    #[cfg(feature = "framebuffer_gui")]
-    pub framebuffer: Option<PathBuf>,
+/// Specific options for sinking the pixmap data into something else (e.g. streaming it somewhere)
+#[derive(Args, Debug, Clone)]
+pub(crate) struct SinkOpts {
+    /// An RTMP url to which pixmap data should be streamed
+    ///
+    /// Must be in a form understood by ffmpeg i.e. `rtmp://[username:password@]server[:port][/app][/instance][/playpath]`
+    #[arg(long = "rtmp-stream")]
+    pub rtmp_dst_addr: Option<String>,
+
+    /// An RTSP url to which pixmap data should be streamed
+    ///
+    /// Must be in a form understood by ffmpeg i.e. `rtsp://hostname[:port]/path`
+    #[arg(long = "rtsp-stream")]
+    pub rtsp_dst_addr: Option<String>,
+
+    /// The target framerate with which the pixmap stream should be emitted
+    #[arg(long = "stream-framerate", default_value = "30")]
+    pub framerate: usize,
 }
 
 #[derive(Args, Debug, Clone)]

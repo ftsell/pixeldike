@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Stream can be viewed via any of the following mechanisms:"
+echo "Stream can be accessed (read as well as write) via any of the following mechanisms:"
 echo "  Browser:    http://localhost:8889/pixelflut"
+echo "  RTSP:       rtsp://localhost:8554/pixelflut"
+echo "  RTMP:       rtmp://localhost:1935/pixelflut"
 echo
 echo
 

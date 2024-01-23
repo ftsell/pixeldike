@@ -1,5 +1,5 @@
 use crate::net::clients::GenClient;
-use crate::net::framing::{BufferedMsgReader, MsgWriter, NullFiller};
+use crate::net::framing::{BufferedMsgReader, NullFiller};
 use crate::net::servers::UdpPacketAssembler;
 use async_trait::async_trait;
 use std::net::SocketAddr;
@@ -16,7 +16,7 @@ pub struct UdpClientOptions {
 /// A client that interacts with a pixelflut server over the UDP transport protocol
 #[derive(Debug)]
 pub struct UdpClient<const WRITE_BUF_SIZE: usize> {
-    options: UdpClientOptions,
+    _options: UdpClientOptions,
     writer: UdpPacketAssembler<WRITE_BUF_SIZE>,
 }
 
@@ -32,7 +32,7 @@ impl<const WRITE_BUF_SIZE: usize> GenClient<0> for UdpClient<WRITE_BUF_SIZE> {
         tracing::info!("Configured UDP client to send to {}", &options.server_addr);
         Ok(Self {
             writer: UdpPacketAssembler::new(socket),
-            options,
+            _options: options,
         })
     }
 

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::net::{TcpSocket, TcpStream};
+use tokio::net::TcpStream;
 
 /// Options with which a `TcpClient` is configured
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -16,7 +16,7 @@ pub struct TcpClientOptions {
 /// A client that interacts with a pixelflut server over the TCP transport protocol
 #[derive(Debug)]
 pub struct TcpClient<const READ_BUF_SIZE: usize> {
-    options: TcpClientOptions,
+    _options: TcpClientOptions,
     reader: BufferedMsgReader<READ_BUF_SIZE, OwnedReadHalf>,
     writer: OwnedWriteHalf,
 }
@@ -31,7 +31,7 @@ impl<const READ_BUF_SIZE: usize> GenClient<READ_BUF_SIZE> for TcpClient<READ_BUF
         let (reader, writer) = TcpStream::connect(options.server_addr).await?.into_split();
 
         Ok(Self {
-            options,
+            _options: options,
             writer,
             reader: BufferedMsgReader::new_empty(reader),
         })

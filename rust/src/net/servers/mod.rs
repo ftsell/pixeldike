@@ -16,7 +16,7 @@ use crate::pixmap::SharedPixmap;
 use nom::Finish;
 
 #[cfg(feature = "udp_server")]
-pub(crate) use udp_server::{UdpBufferFiller, UdpPacketAssembler};
+pub(crate) use udp_server::UdpPacketAssembler;
 #[cfg(feature = "udp_server")]
 pub use udp_server::{UdpServer, UdpServerOptions};
 

@@ -58,7 +58,7 @@ pub struct FfmpegOptions {
     /// Valid values are 'quiet', 'panic', 'fatal', 'error', 'warning', 'info', 'verbose', 'debug', 'trace'
     pub log_level: String,
 
-    /// How many frames per second should be emitted and which ffmpeg should target.
+    /// How many frames per second should be emitted.
     pub framerate: usize,
 
     /// Whether an empty audio track should be synthesized.
@@ -137,6 +137,7 @@ impl FfmpegOptions {
     }
 }
 
+/// A sink that puts pixmap data into an ffmpeg subprocess
 #[derive(Debug)]
 pub struct FfmpegSink<P: PixmapRawRead> {
     options: FfmpegOptions,
@@ -148,6 +149,7 @@ impl<P> FfmpegSink<P>
 where
     P: PixmapRawRead + Send + Sync + 'static,
 {
+    /// Create a new ffmpeg sink which sinks data from the given pixmap into an ffmpeg child process
     pub fn new(options: FfmpegOptions, pixmap: SharedPixmap<P>) -> Self {
         Self {
             options,
@@ -156,12 +158,14 @@ where
         }
     }
 
+    /// Span the ffmpeg child process and start sinking data into it
     pub async fn start(mut self) -> anyhow::Result<DaemonHandle> {
         self.start_ffmpeg()?;
         let handle = tokio::spawn(async move { self.run().await });
         Ok(DaemonHandle::new(handle))
     }
 
+    /// Start the ffmpeg child process
     fn start_ffmpeg(&mut self) -> anyhow::Result<()> {
         if self.ffmpeg_proc.is_some() {
             return Err(anyhow!("ffmpeg is already running"));
@@ -212,6 +216,7 @@ where
         Ok(())
     }
 
+    /// Execute the main loop which periodically sinks data into ffmpeg
     async fn run(self) -> anyhow::Result<!> {
         let mut ffmpeg = self.ffmpeg_proc.ok_or(anyhow!("ffmpeg is not running"))?;
         let Some(channel) = &mut ffmpeg.stdin else {

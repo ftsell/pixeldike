@@ -17,7 +17,6 @@ categories = ["command-line-utilities", "games"]
 [features]
 default = ["cli", "tcp_server", "udp_server"]
 cli = ["clap", "tracing-subscriber"]
-gui = ["winit", "wgpu", "raw-window-handle", "bytemuck"]
 framebuffer_gui = [ "framebuffer" ]
 tcp_server = []
 tcp_client = []
@@ -73,12 +72,6 @@ embedded-graphics = { version = "0.8.1", optional = true }
 
 # websocket support
 tokio-tungstenite = { version = "0.18.0", optional = true }
-
-# gui
-winit = { version = "0.27.5", optional = true }
-wgpu = { version = "0.15.0", optional = true }
-raw-window-handle = { version = "0.5.0", optional = true }
-bytemuck = { version = "1.13.1", optional = true, features = ["derive"] }
 
 # framebuffer gui
 framebuffer = { version = "0.3.1", optional = true }

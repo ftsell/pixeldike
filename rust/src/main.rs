@@ -1,5 +1,4 @@
 use clap::Parser;
-use futures_util::FutureExt;
 use std::sync::Arc;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -31,7 +30,7 @@ async fn main() {
 }
 
 async fn start_server(opts: &cli::ServerOpts) {
-    // create pixmap instances
+    // create a pixmap
     let pixmap = Arc::new(
         pixelflut::pixmap::InMemoryPixmap::new(opts.width, opts.height)
             .expect("could not create in memory pixmap"),
@@ -43,41 +42,35 @@ async fn start_server(opts: &cli::ServerOpts) {
     // );
     let mut daemon_tasks: Vec<DaemonHandle> = Vec::new();
 
-    // TODO Put behind a cli flag
-    {
-        const FRAME_RATE: usize = 10;
+    // configure streaming
+    if opts.sink_opts.rtmp_dst_addr.is_some() || opts.sink_opts.rtsp_dst_addr.is_some() {
+        // construct output spec depending on cli options
+        let mut output_spec = Vec::new();
+        if let Some(rtsp_dst_addr) = &opts.sink_opts.rtsp_dst_addr {
+            output_spec.append(&mut FfmpegOptions::make_rtsp_out_spec(
+                rtsp_dst_addr,
+                opts.sink_opts.framerate,
+            ));
+        }
+        if let Some(rtmp_dst_addr) = &opts.sink_opts.rtmp_dst_addr {
+            output_spec.append(&mut FfmpegOptions::make_rtmp_out_spec(
+                rtmp_dst_addr,
+                opts.sink_opts.framerate,
+            ));
+        }
+
+        // start the ffmpeg subprocess
         let pixmap = pixmap.clone();
-        let sink = FfmpegSink::new(
+        let ffmpeg = FfmpegSink::new(
             FfmpegOptions {
-                framerate: FRAME_RATE,
+                framerate: opts.sink_opts.framerate,
                 synthesize_audio: true,
                 log_level: "warning".to_string(),
-                output_spec: [
-                    FfmpegOptions::make_rtsp_out_spec("rtsp://localhost:8554/pixelflut", FRAME_RATE),
-                    FfmpegOptions::make_rtmp_out_spec("rtmp://localhost:1935/pixelflut2", FRAME_RATE),
-                ]
-                .into_iter()
-                .flatten()
-                .collect(),
+                output_spec,
             },
             pixmap,
         );
-        daemon_tasks.push(sink.start().await.expect("Could not start RtmpStream sink"))
-    }
-
-    #[cfg(feature = "framebuffer_gui")]
-    if let Some(framebuffer_dev) = &opts.framebuffer {
-        let framebuffer = pixelflut::framebuffer_gui::FramebufferGui::new(
-            framebuffer_dev.to_owned(),
-            interval(Duration::from_millis(1_000 / 40)),
-        );
-        let handle = framebuffer.start_render_task(pixmap.clone());
-        daemon_tasks.push(handle)
-    }
-
-    #[cfg(feature = "gui")]
-    if opts.show_gui {
-        daemon_tasks.push(pixelflut::gui::start_gui(pixmap.clone()))
+        daemon_tasks.push(ffmpeg.start().await.expect("Could not start ffmpeg sink"));
     }
 
     #[cfg(feature = "tcp_server")]
