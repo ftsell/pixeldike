@@ -1,4 +1,5 @@
 use clap::Parser;
+use futures_util::FutureExt;
 use std::sync::Arc;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -51,10 +52,13 @@ async fn start_server(opts: &cli::ServerOpts) {
                 framerate: FRAME_RATE,
                 synthesize_audio: true,
                 log_level: "warning".to_string(),
-                output_spec: FfmpegOptions::make_rtsp_out_spec(
-                    "rtsp://localhost:8554/pixelflut".to_string(),
-                    FRAME_RATE,
-                ),
+                output_spec: [
+                    FfmpegOptions::make_rtsp_out_spec("rtsp://localhost:8554/pixelflut", FRAME_RATE),
+                    FfmpegOptions::make_rtmp_out_spec("rtmp://localhost:1935/pixelflut2", FRAME_RATE),
+                ]
+                .into_iter()
+                .flatten()
+                .collect(),
             },
             pixmap,
         );

@@ -4,13 +4,53 @@ use crate::pixmap::traits::PixmapRawRead;
 use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use anyhow::anyhow;
-use std::io::Write;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, Command};
 
-/// Configuration options of the ffmpeg subprocess
+/// Configuration options of the ffmpeg sink
+///
+/// Some ffmpeg options are included in this struct as direct parameters but since output selection and encoding
+/// configuration is very complex, it is done via the `output_spec` field which holds arguments that are passed directly
+/// to ffmpeg.
+/// To simplify the construction of common output specs, helper functions are available.
+///
+/// ## Examples
+///
+/// To stream to an rtsp server with 10fps:
+///
+/// ```rust
+/// # use pixelflut::sinks::ffmpeg::FfmpegOptions;
+///
+/// const FPS: usize = 10;
+/// let options = FfmpegOptions {
+///     framerate: FPS,
+///     synthesize_audio: true,
+///     log_level: "warning".to_string(),
+///     output_spec: FfmpegOptions::make_rtsp_out_spec("rtsp://localhost:8554/pixelflut", FPS)
+/// };
+/// ```
+///
+/// Stream to an RTSP and RTMP server simultaneously:
+///
+/// ```rust
+/// # use pixelflut::sinks::ffmpeg::FfmpegOptions;
+///
+/// const FPS: usize = 10;
+/// let options = FfmpegOptions {
+///     framerate: FPS,
+///     synthesize_audio: true,
+///     log_level: "warning".to_string(),
+///     output_spec: [
+///         FfmpegOptions::make_rtsp_out_spec("rtsp://localhost:8554/pixelflut", FPS),
+///         FfmpegOptions::make_rtmp_out_spec("rtmp://localhost:1935/pixelflut2", FPS),
+///     ]
+///     .into_iter()
+///     .flatten()
+///     .collect()
+/// };
+/// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FfmpegOptions {
     /// The level on which ffmpeg should emit logs.
@@ -22,6 +62,9 @@ pub struct FfmpegOptions {
     pub framerate: usize,
 
     /// Whether an empty audio track should be synthesized.
+    ///
+    /// **Note:** While strictly speaking an audio track is not required since pixelflut only consists of image data,
+    /// some viewers won't display the video data if there is no audio component present.
     pub synthesize_audio: bool,
 
     /// Additional ffmpeg arguments that should be placed in the output part of the generated command.
@@ -29,31 +72,68 @@ pub struct FfmpegOptions {
 }
 
 impl FfmpegOptions {
-    pub fn make_rtsp_out_spec(server_addr: String, framerate: usize) -> Vec<String> {
-        vec![
+    /// Create vector of ffmpeg arguments that are suitable for streaming to an [RTSP](https://en.wikipedia.org/wiki/Real-Time_Streaming_Protocol) server.
+    ///
+    /// The `server_addr` is required to be in `rtsp://hostname[:port]/path` format while `framerate` sets the targeted
+    /// framerate of the stream.
+    pub fn make_rtsp_out_spec(server_addr: &str, framerate: usize) -> Vec<String> {
+        [
             // set encoding to commonly supported variant
-            "-vcodec".to_string(),
-            "libx264".to_string(),
-            "-acodec".to_string(),
-            "aac".to_string(),
+            "-vcodec",
+            "libx264",
+            "-acodec",
+            "aac",
             // encode as quickly as possible
-            "-preset".to_string(),
-            "veryfast".to_string(),
+            "-preset",
+            "veryfast",
             // disable b-frames since some players don't support them
-            "-bf".to_string(),
-            "0".to_string(),
+            "-bf",
+            "0",
             // set pixel format to a commonly supported one
-            "-pix_fmt".to_string(),
-            "yuv420p".to_string(),
+            "-pix_fmt",
+            "yuv420p",
             // set output frame rate
-            "-framerate".to_string(),
-            framerate.to_string(),
+            "-framerate",
+            &framerate.to_string(),
             // force output format to be rtsp
-            "-f".to_string(),
-            "rtsp".to_string(),
+            "-f",
+            "rtsp",
             // set output url to the given rtsp server
             server_addr,
         ]
+        .into_iter()
+        .map(String::from)
+        .collect()
+    }
+
+    /// Create a vector of ffmpeg arguments that are suitable for streaming to an [RTMP](https://en.wikipedia.org/wiki/Real-Time_Messaging_Protocol) server.
+    pub fn make_rtmp_out_spec(server_addr: &str, framerate: usize) -> Vec<String> {
+        [
+            // set encoding to commonly supported variant
+            "-vcodec",
+            "libx264",
+            "-acodec",
+            "aac",
+            // encode as quickly as possible
+            "-preset",
+            "veryfast",
+            // disable b-frames since some players don't support them
+            "-bf",
+            "0",
+            // set pixel format to a commonly supported one
+            "-pix_fmt",
+            "yuv420p",
+            // set output frame rate
+            "-framerate",
+            &framerate.to_string(),
+            // force output format to be flv which is commonly used over rtmp
+            "-f",
+            "flv",
+            server_addr,
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect()
     }
 }
 
