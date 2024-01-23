@@ -8,6 +8,7 @@ pub trait BufferFiller: Sized {
     async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize>;
 }
 
+/// An implementation of [`BufferFiller`] that doesn't actually fill any data into the buffer
 #[derive(Debug, Copy, Clone)]
 pub struct NullFiller;
 
@@ -59,7 +60,7 @@ impl<const BUF_SIZE: usize, T: BufferFiller> BufferedMsgReader<BUF_SIZE, T> {
             if let Some((separator_pos, _)) = self.buffer[..self.fill_marker]
                 .iter()
                 .enumerate()
-                .find(|(_, &c)| c == '\n' as u8)
+                .find(|(_, &c)| c == b'\n')
             {
                 self.read_msg_marker = separator_pos + 1;
                 return Ok(&self.buffer[..separator_pos]);

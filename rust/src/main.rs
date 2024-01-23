@@ -4,7 +4,9 @@ use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use pixelflut::net::servers::{GenServer, TcpServerOptions, UdpServer, UdpServerOptions};
+use pixelflut::net::servers::{
+    GenServer, TcpServerOptions, UdpServer, UdpServerOptions, WsServer, WsServerOptions,
+};
 use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
 use pixelflut::DaemonHandle;
 
@@ -96,20 +98,19 @@ async fn start_server(opts: &cli::ServerOpts) {
         );
     }
 
-    // #[cfg(feature = "ws_server")]
-    // if let Some(ws_port) = &opts.ws_port {
-    //     let pixmap = pixmap.clone();
-    //     let encodings = encodings.clone();
-    //     let (handle, _) = pixelflut::net::ws_server::start_listener(
-    //         pixmap.clone(),
-    //         encodings.clone(),
-    //         pixelflut::net::ws_server::WsOptions {
-    //             listen_address: SocketAddr::from_str(&format!("0.0.0.0:{}", ws_port))
-    //                 .expect("could not build SocketAddr"),
-    //         },
-    //     );
-    //     background_task_handles.push(handle);
-    // }
+    #[cfg(feature = "ws_server")]
+    if let Some(ws_bind_addr) = &opts.ws_bind_addr {
+        let pixmap = pixmap.clone();
+        let server = WsServer::new(WsServerOptions {
+            bind_addr: ws_bind_addr.to_owned(),
+        });
+        daemon_tasks.push(
+            server
+                .start(pixmap)
+                .await
+                .expect("Could not start websocket server"),
+        );
+    }
 
     if daemon_tasks.is_empty() {
         panic!("No listeners are supposed to be started which makes no sense");

@@ -8,6 +8,8 @@ pub use gen_server::GenServer;
 mod tcp_server;
 #[cfg(feature = "udp_server")]
 mod udp_server;
+#[cfg(feature = "ws_server")]
+mod ws_server;
 
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::protocol::{parse_request, Request, Response, ServerConfig};
@@ -17,11 +19,15 @@ use nom::Finish;
 
 #[cfg(feature = "udp_server")]
 pub(crate) use udp_server::UdpPacketAssembler;
+
 #[cfg(feature = "udp_server")]
 pub use udp_server::{UdpServer, UdpServerOptions};
 
 #[cfg(feature = "tcp_server")]
 pub use tcp_server::{TcpServer, TcpServerOptions};
+
+#[cfg(feature = "ws_server")]
+pub use ws_server::{WsServer, WsServerOptions};
 
 pub(crate) const SERVER_CONFIG: ServerConfig = ServerConfig {
     max_udp_packet_size: 512,

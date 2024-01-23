@@ -22,7 +22,7 @@ pub trait MsgWriter: Send + Sync {
 
     /// Write the message delimiter (\n) into the network.
     async fn write_message_delimiter(&mut self) -> std::io::Result<()> {
-        self.write_data(&['\n' as u8]).await
+        self.write_data(&[b'\n']).await
     }
 
     /// Encode a request and write it to the network.

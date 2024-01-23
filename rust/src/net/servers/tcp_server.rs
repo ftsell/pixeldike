@@ -31,7 +31,11 @@ impl TcpServer {
         loop {
             let (stream, remote_addr) = listener.accept().await?;
             let pixmap = pixmap.clone();
-            tokio::spawn(async move { TcpServer::handle_connection(stream, remote_addr, pixmap).await });
+            tokio::spawn(async move {
+                if let Err(e) = TcpServer::handle_connection(stream, remote_addr, pixmap).await {
+                    tracing::error!("Got error while handling tcp connection: {e}");
+                }
+            });
         }
     }
 

@@ -33,7 +33,7 @@ pub(crate) struct ServerOpts {
     /// port on which to start a websocket listener
     #[arg(long = "ws")]
     #[cfg(feature = "ws_server")]
-    pub ws_port: Option<u16>,
+    pub ws_bind_addr: Option<SocketAddr>,
 
     /// width of the pixmap
     #[arg(short = 'x', long = "width", default_value = "800")]
