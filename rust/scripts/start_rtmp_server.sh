@@ -12,8 +12,8 @@ exec docker run \
   -it \
   --net=host \
   -e MTX_RTSP=yes \
-  -e MTX_RTMP=yes \
+  -e MTX_RTMP=no \
   -e MTX_WEBRTC=yes \
-  -e MTX_HLS=yes \
+  -e MTX_HLS=no \
   -e MTX_SRT=no \
-  bluenviron/mediamtx:latest-ffmpeg
+  docker.io/bluenviron/mediamtx:latest-ffmpeg

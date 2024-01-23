@@ -84,7 +84,7 @@ where
             "anullsrc=channel_layout=stereo:sample_rate=44100",
             // ==== Output Options ====
             "-vcodec",
-            "h264",
+            "libx264",
             "-acodec",
             "aac",
             "-preset",
@@ -92,6 +92,19 @@ where
             // disable b-frames since webrtc does not support it and not all streaming servers can convert properly
             "-bf",
             "0",
+            // set pixel-format
+            "-pix_fmt",
+            "yuv420p",
+            // set bit-rates for video and audio
+            "-b:v",
+            "6000k",
+            "-b:a",
+            "128k",
+            // set output frame rate
+            "-framerate",
+            &self.options.fps.to_string(),
+            "-g",
+            &(self.options.fps * 6).to_string(),
             // force output format to be rtsp
             "-f",
             "rtsp",

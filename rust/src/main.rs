@@ -5,7 +5,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use pixelflut::net::servers::{GenServer, TcpServerOptions, UdpServer, UdpServerOptions};
-use pixelflut::sinks::rtsp_stream::RtspOptions;
+use pixelflut::sinks::rtmp_stream::{RtmpOptions, RtmpStream};
+use pixelflut::sinks::rtsp_stream::{RtspOptions, RtspStream};
 use pixelflut::DaemonHandle;
 
 mod cli;
@@ -45,10 +46,10 @@ async fn start_server(opts: &cli::ServerOpts) {
     // TODO Put behind a cli flag
     {
         let pixmap = pixmap.clone();
-        let sink = pixelflut::sinks::rtsp_stream::RtspStream::new(
+        let sink = RtspStream::new(
             RtspOptions {
                 server_addr: "rtsp://localhost:8554/pixelflut".to_string(),
-                fps: 5,
+                fps: 10,
             },
             pixmap,
         );
