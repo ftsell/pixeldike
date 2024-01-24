@@ -13,7 +13,6 @@ mod ws_server;
 
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::protocol::{parse_request, Request, Response, ServerConfig};
-use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use nom::Finish;
 
@@ -37,13 +36,12 @@ pub(crate) const SERVER_CONFIG: ServerConfig = ServerConfig {
 ///
 /// This is the core loop that is run by all servers.
 /// The connection to the server implementation done via the `BufferedMsgReader` and `impl MsgWriter` arguments.
-async fn handle_requests<const READ_BUF_SIZE: usize, P, R>(
+async fn handle_requests<const READ_BUF_SIZE: usize, R>(
     mut reader: BufferedMsgReader<READ_BUF_SIZE, R>,
     mut writer: impl MsgWriter,
-    pixmap: SharedPixmap<P>,
+    pixmap: SharedPixmap,
 ) -> anyhow::Result<!>
 where
-    P: PixmapRead + PixmapWrite,
     R: BufferFiller,
 {
     loop {
@@ -58,7 +56,7 @@ where
             Ok((_, request)) => match request {
                 Request::Help(topic) => writer.write_response(&Response::Help(topic)).await?,
                 Request::GetSize => {
-                    let (width, height) = pixmap.get_size()?;
+                    let (width, height) = pixmap.get_size();
                     writer.write_response(&Response::Size { width, height }).await?
                 }
                 Request::GetPixel { x, y } => {

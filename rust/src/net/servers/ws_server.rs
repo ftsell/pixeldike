@@ -1,15 +1,14 @@
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::servers::GenServer;
-use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{Sink, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::tungstenite::{Error, Message};
+use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 
 /// Options with which the `WsServer` is configured
@@ -27,10 +26,7 @@ pub struct WsServer {
 
 impl WsServer {
     #[tracing::instrument(skip_all)]
-    async fn handle_listener<P>(listener: TcpListener, pixmap: SharedPixmap<P>) -> anyhow::Result<!>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
-    {
+    async fn handle_listener(listener: TcpListener, pixmap: SharedPixmap) -> anyhow::Result<!> {
         loop {
             let (stream, remote_addr) = listener.accept().await?;
             let pixmap = pixmap.clone();
@@ -43,14 +39,11 @@ impl WsServer {
     }
 
     #[tracing::instrument(skip_all, fields(remote = _remote_addr.to_string()))]
-    async fn handle_connection<P>(
+    async fn handle_connection(
         stream: TcpStream,
         _remote_addr: SocketAddr,
-        pixmap: SharedPixmap<P>,
-    ) -> anyhow::Result<()>
-    where
-        P: PixmapRead + PixmapWrite,
-    {
+        pixmap: SharedPixmap,
+    ) -> anyhow::Result<()> {
         tracing::debug!("Client connected; performing WebSocket handshake");
         let stream = tokio_tungstenite::accept_async(stream).await?;
         let (write_stream, read_stream) = stream.split();
@@ -78,10 +71,7 @@ impl GenServer for WsServer {
         Self { options }
     }
 
-    async fn start<P>(self, pixmap: SharedPixmap<P>) -> anyhow::Result<DaemonHandle>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
-    {
+    async fn start(self, pixmap: SharedPixmap) -> anyhow::Result<DaemonHandle> {
         let listener = TcpListener::bind(self.options.bind_addr).await?;
         tracing::info!("Started WebSocket Server on {}", self.options.bind_addr);
 

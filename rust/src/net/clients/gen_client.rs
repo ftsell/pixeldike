@@ -10,6 +10,7 @@ pub trait GenClient<const READ_BUF_SIZE: usize>: Sized {
     /// An associated type that can be used to read messages from the client
     type MsgWriter: MsgWriter;
 
+    /// A type that is used to fill the internal message buffer with new content from the network
     type BufferFiller: BufferFiller;
 
     /// Create a new client by connecting to a pixelflut server.

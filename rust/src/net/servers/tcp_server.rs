@@ -1,6 +1,5 @@
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::servers::GenServer;
-use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use async_trait::async_trait;
@@ -24,10 +23,7 @@ pub struct TcpServer {
 
 impl TcpServer {
     #[tracing::instrument(skip_all)]
-    async fn handle_listener<P>(listener: TcpListener, pixmap: SharedPixmap<P>) -> anyhow::Result<!>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
-    {
+    async fn handle_listener(listener: TcpListener, pixmap: SharedPixmap) -> anyhow::Result<!> {
         loop {
             let (stream, remote_addr) = listener.accept().await?;
             let pixmap = pixmap.clone();
@@ -40,14 +36,11 @@ impl TcpServer {
     }
 
     #[tracing::instrument(skip_all, fields(remote = _remote_addr.to_string()))]
-    async fn handle_connection<P>(
+    async fn handle_connection(
         mut stream: TcpStream,
         _remote_addr: SocketAddr,
-        pixmap: SharedPixmap<P>,
-    ) -> anyhow::Result<()>
-    where
-        P: PixmapRead + PixmapWrite,
-    {
+        pixmap: SharedPixmap,
+    ) -> anyhow::Result<()> {
         tracing::debug!("Client connected");
         let (read_stream, write_stream) = stream.split();
         let buffer = BufferedMsgReader::<512, _>::new_empty(read_stream);
@@ -82,10 +75,7 @@ impl GenServer for TcpServer {
         Self { options }
     }
 
-    async fn start<P>(self, pixmap: SharedPixmap<P>) -> anyhow::Result<DaemonHandle>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
-    {
+    async fn start(self, pixmap: SharedPixmap) -> anyhow::Result<DaemonHandle> {
         let listener = TcpListener::bind(self.options.bind_addr).await?;
         tracing::info!("Started TCP Server on {}", self.options.bind_addr);
 

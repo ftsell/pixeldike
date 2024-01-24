@@ -1,6 +1,5 @@
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter, VoidWriter};
 use crate::net::servers::gen_server::GenServer;
-use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use async_trait::async_trait;
@@ -25,10 +24,7 @@ pub struct UdpServer {
 
 impl UdpServer {
     /// Start `n` server processes
-    pub async fn start_many<P>(self, pixmap: SharedPixmap<P>, n: usize) -> anyhow::Result<Vec<DaemonHandle>>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
-    {
+    pub async fn start_many(self, pixmap: SharedPixmap, n: usize) -> anyhow::Result<Vec<DaemonHandle>> {
         let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
         let handles = (0..n)
             .into_iter()
@@ -49,10 +45,7 @@ impl UdpServer {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn listen<P>(pixmap: SharedPixmap<P>, socket: Arc<UdpSocket>) -> anyhow::Result<!>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
-    {
+    async fn listen(pixmap: SharedPixmap, socket: Arc<UdpSocket>) -> anyhow::Result<!> {
         const BUF_SIZE: usize = 256;
         let filler = UdpBufferFiller::<BUF_SIZE>::new(socket);
         let reader = BufferedMsgReader::<{ BUF_SIZE * 2 * 2 * 2 }, _>::new_empty(filler);
@@ -68,10 +61,7 @@ impl GenServer for UdpServer {
         Self { options }
     }
 
-    async fn start<P>(self, pixmap: SharedPixmap<P>) -> anyhow::Result<DaemonHandle>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static,
-    {
+    async fn start(self, pixmap: SharedPixmap) -> anyhow::Result<DaemonHandle> {
         let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
         tracing::info!("Started UDP Server on {}", self.options.bind_addr);
 

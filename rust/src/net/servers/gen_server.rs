@@ -1,4 +1,3 @@
-use crate::pixmap::traits::{PixmapRead, PixmapWrite};
 use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use async_trait::async_trait;
@@ -14,7 +13,5 @@ pub trait GenServer {
 
     /// Start the server in the background and return a handle with which the background
     /// task can be controlled.
-    async fn start<P>(self, pixmap: SharedPixmap<P>) -> anyhow::Result<DaemonHandle>
-    where
-        P: PixmapRead + PixmapWrite + Send + Sync + 'static;
+    async fn start(self, pixmap: SharedPixmap) -> anyhow::Result<DaemonHandle>;
 }

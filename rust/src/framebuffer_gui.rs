@@ -1,6 +1,5 @@
 //! Code for rendering pixmaps on framebuffer devices
 
-use crate::pixmap::traits::PixmapRawRead;
 use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use framebuffer::Framebuffer;
@@ -77,24 +76,18 @@ impl FramebufferGui {
     }
 
     /// Start a background thread that renders this `FramebufferGui`
-    pub fn start_render_task<P>(self, pixmap: SharedPixmap<P>) -> DaemonHandle
-    where
-        P: PixmapRawRead + Send + Sync + 'static,
-    {
+    pub fn start_render_task(self, pixmap: SharedPixmap) -> DaemonHandle {
         let join_handle = tokio::spawn(async move { self.render(pixmap).await });
         DaemonHandle::new(join_handle)
     }
 
     /// Render the current pixmap state in a loop
-    async fn render<P>(mut self, pixmap: SharedPixmap<P>) -> anyhow::Result<!>
-    where
-        P: PixmapRawRead,
-    {
+    async fn render(mut self, pixmap: SharedPixmap) -> anyhow::Result<!> {
         loop {
             self.render_interval.tick().await;
 
-            let pixel_data = pixmap.get_raw_data().unwrap();
-            let (pixmap_width, pixmap_height) = pixmap.get_size().unwrap();
+            let pixel_data = pixmap.get_raw_data();
+            let (pixmap_width, pixmap_height) = pixmap.get_size();
 
             let r_encoding = &self.framebuffer.var_screen_info.red;
             let g_encoding = &self.framebuffer.var_screen_info.green;

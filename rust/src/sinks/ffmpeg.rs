@@ -1,6 +1,5 @@
 //! A sink which pipes the canvas into ffmpeg for video encoding or streaming
 
-use crate::pixmap::traits::PixmapRawRead;
 use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use anyhow::anyhow;
@@ -139,18 +138,15 @@ impl FfmpegOptions {
 
 /// A sink that puts pixmap data into an ffmpeg subprocess
 #[derive(Debug)]
-pub struct FfmpegSink<P: PixmapRawRead> {
+pub struct FfmpegSink {
     options: FfmpegOptions,
-    pixmap: SharedPixmap<P>,
+    pixmap: SharedPixmap,
     ffmpeg_proc: Option<Child>,
 }
 
-impl<P> FfmpegSink<P>
-where
-    P: PixmapRawRead + Send + Sync + 'static,
-{
+impl FfmpegSink {
     /// Create a new ffmpeg sink which sinks data from the given pixmap into an ffmpeg child process
-    pub fn new(options: FfmpegOptions, pixmap: SharedPixmap<P>) -> Self {
+    pub fn new(options: FfmpegOptions, pixmap: SharedPixmap) -> Self {
         Self {
             options,
             pixmap,
@@ -171,7 +167,7 @@ where
             return Err(anyhow!("ffmpeg is already running"));
         }
 
-        let (width, height) = self.pixmap.get_size()?;
+        let (width, height) = self.pixmap.get_size();
 
         let mut cmd = Command::new("ffmpeg");
         cmd.stdin(Stdio::piped()).kill_on_drop(true).env_clear();
@@ -227,7 +223,7 @@ where
             tokio::time::interval(Duration::from_secs_f64(1.0 / self.options.framerate as f64));
 
         loop {
-            let data = self.pixmap.get_raw_data()?;
+            let data = self.pixmap.get_raw_data();
             let raw_data = data
                 .iter()
                 .flat_map(|c| Into::<[u8; 3]>::into(*c))

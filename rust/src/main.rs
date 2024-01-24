@@ -34,8 +34,7 @@ async fn main() {
 async fn start_server(opts: &cli::ServerOpts) {
     // create a pixmap
     let pixmap = Arc::new(
-        pixelflut::pixmap::InMemoryPixmap::new(opts.width, opts.height)
-            .expect("could not create in memory pixmap"),
+        pixelflut::pixmap::Pixmap::new(opts.width, opts.height).expect("could not create in memory pixmap"),
     );
 
     // create final pixmap instance which automatically saves data into file
