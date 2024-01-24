@@ -20,6 +20,18 @@ impl From<Color> for [u8; 3] {
     }
 }
 
+impl From<(u8, u8, u8)> for Color {
+    fn from(data: (u8, u8, u8)) -> Self {
+        Self(data.0, data.1, data.2)
+    }
+}
+
+impl From<Color> for (u8, u8, u8) {
+    fn from(value: Color) -> Self {
+        (value.0, value.1, value.2)
+    }
+}
+
 impl From<u32> for Color {
     fn from(src: u32) -> Self {
         let b = src.to_be_bytes();

@@ -154,7 +154,7 @@ impl FfmpegSink {
         }
     }
 
-    /// Span the ffmpeg child process and start sinking data into it
+    /// Spawn the ffmpeg child process and start sinking data into it
     pub async fn start(mut self) -> anyhow::Result<DaemonHandle> {
         self.start_ffmpeg()?;
         let handle = tokio::spawn(async move { self.run().await });

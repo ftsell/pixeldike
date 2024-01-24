@@ -55,7 +55,6 @@ pub fn parse_request(input: &[u8]) -> IResult<&[u8], Request, ProtocolError> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::net::protocol::StateEncodingAlgorithm;
     use crate::pixmap::Color;
 
     #[test]
@@ -77,13 +76,6 @@ mod test {
         let (remainder, request) = parse_request("SIZE".as_bytes()).unwrap();
         assert_eq!(remainder.len(), 0);
         assert_eq!(request, Request::GetSize);
-    }
-
-    #[test]
-    fn test_get_state() {
-        let (remainder, request) = parse_request("STATE RGBA64".as_bytes()).unwrap();
-        assert_eq!(remainder.len(), 0);
-        assert_eq!(request, Request::GetState(StateEncodingAlgorithm::Rgba64));
     }
 
     #[test]

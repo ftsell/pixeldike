@@ -49,7 +49,6 @@ pub fn parse_response(input: &[u8]) -> IResult<&[u8], Response, ProtocolError> {
 mod test {
     use super::*;
     use crate::net::protocol::dtypes::ServerConfig;
-    use crate::net::protocol::StateEncodingAlgorithm;
     use crate::pixmap::Color;
     use nom::AsBytes;
 
@@ -62,19 +61,6 @@ mod test {
             Response::Size {
                 width: 800,
                 height: 600
-            }
-        );
-    }
-
-    #[test]
-    fn test_state_data() {
-        let (remainder, response) = parse_response("STATE RGBA64 foobar123".as_bytes()).unwrap();
-        assert_eq!(remainder.len(), 0);
-        assert_eq!(
-            response,
-            Response::State {
-                alg: StateEncodingAlgorithm::Rgba64,
-                data: "foobar123".as_bytes()
             }
         );
     }

@@ -26,6 +26,13 @@ pub struct InvalidSizeError {
     details: &'static str,
 }
 
+#[derive(Debug, Error, Copy, Clone)]
+#[error("Cannot put data with size {data_len} into pixmap of dimensions {}x{} (expected data size = {}) ", .pixmap_size.0, .pixmap_size.1, .pixmap_size.0 * .pixmap_size.1)]
+pub struct InvalidDataShapeError {
+    pixmap_size: (usize, usize),
+    data_len: usize,
+}
+
 impl Pixmap {
     /// Create a new Pixmap with the specified dimensions
     pub fn new(width: usize, height: usize) -> Result<Self, InvalidSizeError> {
@@ -77,6 +84,27 @@ impl Pixmap {
             .collect()
     }
 
+    /// Overwrite all data that is contained in the pixmap
+    pub fn put_raw_data<I, D>(&self, data: I) -> Result<(), InvalidDataShapeError>
+    where
+        D: Into<Color>,
+        I: Iterator<Item = D> + ExactSizeIterator,
+    {
+        let data_len = data.len();
+        for (i, d) in data.enumerate() {
+            match self.data.get(i) {
+                None => {
+                    return Err(InvalidDataShapeError {
+                        pixmap_size: self.get_size(),
+                        data_len,
+                    })
+                }
+                Some(storage) => storage.store(d.into().into(), Ordering::Relaxed),
+            }
+        }
+        Ok(())
+    }
+
     /// Get the U32 that stores pixel data for the given coordinates
     fn get_storage(&self, x: usize, y: usize) -> Result<&AtomicU32, InvalidCoordinatesError> {
         let i = y * self.width + x;
@@ -107,50 +135,4 @@ mod test {
             }
         }
     }
-
-    // pub(crate) fn test_put_and_get_raw_data(
-    //     pixmap: &(impl PixmapBase + PixmapRawRead + PixmapRawWrite),
-    //     color: Color,
-    // ) -> TestResult {
-    //     // setup
-    //     let data = vec![color; pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1];
-    //
-    //     // execution
-    //     pixmap.put_raw_data(&data).unwrap();
-    //     let data_out = pixmap.get_raw_data().unwrap();
-    //
-    //     // verification
-    //     println!("{:?}", data);
-    //     println!("{:?}", data_out);
-    //     TestResult::from_bool(data == data_out)
-    // }
-    //
-    // pub(crate) fn test_put_raw_data_with_incorrect_size_data(
-    //     pixmap: &(impl PixmapBase + PixmapWrite + PixmapRawRead + PixmapRawWrite),
-    // ) {
-    //     // setup
-    //     let size = pixmap.get_size().unwrap().0 * pixmap.get_size().unwrap().1;
-    //
-    //     // empty data
-    //     pixmap.set_pixel(0, 0, Color(42, 42, 42)).unwrap();
-    //     pixmap.set_pixel(1, 0, Color(43, 43, 43)).unwrap();
-    //     pixmap.put_raw_data(&Vec::<Color>::new()).unwrap();
-    //     let output_data: Vec<_> = pixmap.get_raw_data().unwrap();
-    //     assert_eq!(output_data[0], Color(42, 42, 42));
-    //     assert_eq!(output_data[1], Color(43, 43, 43));
-    //     assert_eq!(output_data[2..], vec![Color(0, 0, 0); size - 2]);
-    //
-    //     // too small data
-    //     let input_data = vec![Color(42, 42, 42); 10];
-    //     pixmap.put_raw_data(&input_data).unwrap();
-    //     let output_data: Vec<_> = pixmap.get_raw_data().unwrap();
-    //     assert_eq!(output_data[0..10], input_data);
-    //     assert_eq!(output_data[10..], vec![Color(0, 0, 0); size - 10]);
-    //
-    //     // too large data
-    //     let input_data = vec![Color(42, 42, 42); size + 10];
-    //     pixmap.put_raw_data(&input_data).unwrap();
-    //     let output_data = pixmap.get_raw_data().unwrap();
-    //     assert_eq!(output_data, vec![Color(42, 42, 42); size]);
-    // }
 }
