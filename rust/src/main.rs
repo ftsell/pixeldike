@@ -1,5 +1,7 @@
 use clap::Parser;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::interval;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -7,7 +9,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 use pixelflut::net::servers::{
     GenServer, TcpServerOptions, UdpServer, UdpServerOptions, WsServer, WsServerOptions,
 };
+use pixelflut::pixmap::Pixmap;
 use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
+use pixelflut::sinks::pixmap_file::{FileSink, FileSinkOptions};
 use pixelflut::DaemonHandle;
 
 mod cli;
@@ -32,16 +36,41 @@ async fn main() {
 }
 
 async fn start_server(opts: &cli::ServerOpts) {
-    // create a pixmap
-    let pixmap = Arc::new(
-        pixelflut::pixmap::Pixmap::new(opts.width, opts.height).expect("could not create in memory pixmap"),
-    );
+    // create a pixmap or load an existing snapshot
+    let pixmap = match &opts.file_opts.load_snapshot {
+        None => Arc::new(Pixmap::new(opts.width, opts.height).unwrap()),
+        Some(path) => {
+            let pixmap = pixelflut::sinks::pixmap_file::load_pixmap_file(path)
+                .await
+                .unwrap();
+            let (width, height) = pixmap.get_size();
+            if width != opts.width || height != opts.height {
+                tracing::warn!(
+                    "Stored snapshot has different dimensions than {}x{}, creating an empty pixmap instead",
+                    opts.width,
+                    opts.height
+                );
+                Arc::new(Pixmap::new(opts.width, opts.height).unwrap())
+            } else {
+                Arc::new(pixmap)
+            }
+        }
+    };
 
-    // create final pixmap instance which automatically saves data into file
-    // let pixmap = Arc::new(
-    //     pixelflut::pixmap::ReplicatingPixmap::new(primary_pixmap, vec![Box::new(file_pixmap)], 0.2).unwrap(),
-    // );
     let mut daemon_tasks: Vec<DaemonHandle> = Vec::new();
+
+    // configure snapshotting
+    if let Some(path) = &opts.file_opts.snapshot_file {
+        let pixmap = pixmap.clone();
+        let sink = FileSink::new(
+            FileSinkOptions {
+                path: path.to_owned(),
+                interval: interval(Duration::from_secs(opts.file_opts.snapshot_interval_secs as u64)),
+            },
+            pixmap,
+        );
+        daemon_tasks.push(sink.start().await.expect("Could not start snapshot task"))
+    }
 
     // configure streaming
     if opts.sink_opts.rtmp_dst_addr.is_some() || opts.sink_opts.rtsp_dst_addr.is_some() {

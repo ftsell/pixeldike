@@ -19,5 +19,6 @@ pub trait GenClient<const READ_BUF_SIZE: usize>: Sized {
     /// Get a `MsgWriter` implementation that sends messages through this client
     fn get_msg_writer(&mut self) -> &mut Self::MsgWriter;
 
+    /// Get a `BufferedMsgReader` from which incoming pixelflut messages can be read
     fn get_msg_reader(&mut self) -> &mut BufferedMsgReader<READ_BUF_SIZE, Self::BufferFiller>;
 }

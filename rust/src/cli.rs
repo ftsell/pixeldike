@@ -45,6 +45,9 @@ pub(crate) struct ServerOpts {
 
     #[command(flatten)]
     pub sink_opts: SinkOpts,
+
+    #[command(flatten)]
+    pub file_opts: FileOpts,
 }
 
 /// Specific options for sinking the pixmap data into something else (e.g. streaming it somewhere)
@@ -65,6 +68,25 @@ pub(crate) struct SinkOpts {
     /// The target framerate with which the pixmap stream should be emitted
     #[arg(long = "stream-framerate", default_value = "30")]
     pub framerate: usize,
+}
+
+/// Specific options regarding snapshot files
+#[derive(Args, Debug, Clone)]
+pub(crate) struct FileOpts {
+    /// A snapshot file from which the initial canvas content is loaded
+    ///
+    /// If the stored snapshot has different dimensions than the ones given via --width and --height, the snapshot is
+    /// not loaded and an empty canvas is created instead.
+    #[arg(long = "load-snapshot")]
+    pub load_snapshot: Option<PathBuf>,
+
+    /// A path into which snapshots are stored
+    #[arg(long = "snapshot")]
+    pub snapshot_file: Option<PathBuf>,
+
+    /// The interval in seconds with which snapshots are written to disk
+    #[arg(long = "snapshot-interval", default_value = "5")]
+    pub snapshot_interval_secs: usize,
 }
 
 #[derive(Args, Debug, Clone)]

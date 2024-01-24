@@ -50,7 +50,6 @@ mod test {
     use super::*;
     use crate::net::protocol::dtypes::ServerConfig;
     use crate::pixmap::Color;
-    use nom::AsBytes;
 
     #[test]
     fn test_size_data() {

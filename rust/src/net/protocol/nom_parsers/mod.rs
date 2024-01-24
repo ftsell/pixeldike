@@ -5,6 +5,7 @@ mod request;
 mod response;
 mod server_config;
 
+#[cfg(debug_assertions)]
 use nom::error::VerboseError;
 
 pub use request::parse_request;
