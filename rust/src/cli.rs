@@ -44,15 +44,18 @@ pub(crate) struct ServerOpts {
     pub height: usize,
 
     #[command(flatten)]
-    pub sink_opts: SinkOpts,
+    pub stream_opts: StreamOpts,
 
     #[command(flatten)]
     pub file_opts: FileOpts,
+    
+    #[command(flatten)]
+    pub fb_opts: FramebufferOpts,
 }
 
 /// Specific options for sinking the pixmap data into something else (e.g. streaming it somewhere)
 #[derive(Args, Debug, Clone)]
-pub(crate) struct SinkOpts {
+pub(crate) struct StreamOpts {
     /// An RTMP url to which pixmap data should be streamed
     ///
     /// Must be in a form understood by ffmpeg i.e. `rtmp://[username:password@]server[:port][/app][/instance][/playpath]`
@@ -87,6 +90,18 @@ pub(crate) struct FileOpts {
     /// The interval in seconds with which snapshots are written to disk
     #[arg(long = "snapshot-interval", default_value = "5")]
     pub snapshot_interval_secs: usize,
+}
+
+/// Specific options for rendering onto a framebuffer
+#[derive(Args, Debug, Clone)]
+pub(crate) struct FramebufferOpts {
+    /// A framebuffer device onto which pixmap data should be rendered
+    #[arg(long = "fb-device")]
+    pub fb_device: Option<PathBuf>,
+    
+    /// The target framerate which the framebuffer rendering should target
+    #[arg(long = "fg-framerate", default_value = "30")]
+    pub fb_framerate: usize,
 }
 
 #[derive(Args, Debug, Clone)]

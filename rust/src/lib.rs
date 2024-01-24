@@ -32,7 +32,4 @@ pub mod sinks;
 #[cfg(feature = "gui")]
 pub mod gui;
 
-#[cfg(feature = "framebuffer_gui")]
-pub mod framebuffer_gui;
-
 pub use daemon_task::DaemonHandle;

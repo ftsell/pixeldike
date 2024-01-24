@@ -17,7 +17,6 @@ categories = ["command-line-utilities", "games"]
 [features]
 default = ["cli", "tcp_server", "udp_server"]
 cli = ["clap", "tracing-subscriber"]
-framebuffer_gui = [ "framebuffer" ]
 tcp_server = []
 tcp_client = []
 udp_server = []
@@ -63,6 +62,8 @@ sha1 = "0.10.5"
 thiserror = "1.0.38"
 tokio = { version = "1.35.0", features = ["full", "tracing"] }
 async-trait = "0.1.73"
+framebuffer = { version = "0.3.1" }
+itertools = "0.12.0"
 
 # cli
 image = { version = "0.24.7", optional = true }
@@ -72,11 +73,6 @@ embedded-graphics = { version = "0.8.1", optional = true }
 
 # websocket support
 tokio-tungstenite = { version = "0.18.0", optional = true }
-
-# framebuffer gui
-framebuffer = { version = "0.3.1", optional = true }
-itertools = "0.12.0"
-tempfile = "3.3.0"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }

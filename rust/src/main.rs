@@ -11,6 +11,7 @@ use pixelflut::net::servers::{
 };
 use pixelflut::pixmap::Pixmap;
 use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
+use pixelflut::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
 use pixelflut::sinks::pixmap_file::{FileSink, FileSinkOptions};
 use pixelflut::DaemonHandle;
 
@@ -73,19 +74,19 @@ async fn start_server(opts: &cli::ServerOpts) {
     }
 
     // configure streaming
-    if opts.sink_opts.rtmp_dst_addr.is_some() || opts.sink_opts.rtsp_dst_addr.is_some() {
+    if opts.stream_opts.rtmp_dst_addr.is_some() || opts.stream_opts.rtsp_dst_addr.is_some() {
         // construct output spec depending on cli options
         let mut output_spec = Vec::new();
-        if let Some(rtsp_dst_addr) = &opts.sink_opts.rtsp_dst_addr {
+        if let Some(rtsp_dst_addr) = &opts.stream_opts.rtsp_dst_addr {
             output_spec.append(&mut FfmpegOptions::make_rtsp_out_spec(
                 rtsp_dst_addr,
-                opts.sink_opts.framerate,
+                opts.stream_opts.framerate,
             ));
         }
-        if let Some(rtmp_dst_addr) = &opts.sink_opts.rtmp_dst_addr {
+        if let Some(rtmp_dst_addr) = &opts.stream_opts.rtmp_dst_addr {
             output_spec.append(&mut FfmpegOptions::make_rtmp_out_spec(
                 rtmp_dst_addr,
-                opts.sink_opts.framerate,
+                opts.stream_opts.framerate,
             ));
         }
 
@@ -93,7 +94,7 @@ async fn start_server(opts: &cli::ServerOpts) {
         let pixmap = pixmap.clone();
         let ffmpeg = FfmpegSink::new(
             FfmpegOptions {
-                framerate: opts.sink_opts.framerate,
+                framerate: opts.stream_opts.framerate,
                 synthesize_audio: true,
                 log_level: "warning".to_string(),
                 output_spec,
@@ -101,6 +102,19 @@ async fn start_server(opts: &cli::ServerOpts) {
             pixmap,
         );
         daemon_tasks.push(ffmpeg.start().await.expect("Could not start ffmpeg sink"));
+    }
+
+    // configure framebuffer rendering
+    if let Some(fb_device) = &opts.fb_opts.fb_device {
+        let pixmap = pixmap.clone();
+        let sink = FramebufferSink::new(
+            FramebufferSinkOptions {
+                path: fb_device.to_owned(),
+                framerate: opts.fb_opts.fb_framerate,
+            },
+            pixmap,
+        );
+        daemon_tasks.push(sink.start().await.expect("Could not start framebuffer rendering"));
     }
 
     #[cfg(feature = "tcp_server")]
