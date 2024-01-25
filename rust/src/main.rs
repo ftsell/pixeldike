@@ -117,7 +117,6 @@ async fn start_server(opts: &cli::ServerOpts) {
         daemon_tasks.push(sink.start().await.expect("Could not start framebuffer rendering"));
     }
 
-    #[cfg(feature = "tcp_server")]
     if let Some(bind_addr) = &opts.tcp_bind_addr {
         let pixmap = pixmap.clone();
         let server = pixelflut::net::servers::TcpServer::new(TcpServerOptions {
@@ -126,7 +125,6 @@ async fn start_server(opts: &cli::ServerOpts) {
         daemon_tasks.push(server.start(pixmap).await.expect("Could not start tcp server"));
     }
 
-    #[cfg(feature = "udp_server")]
     if let Some(udp_bind_addr) = &opts.udp_bind_addr {
         let pixmap = pixmap.clone();
         let server = UdpServer::new(UdpServerOptions {
@@ -140,7 +138,6 @@ async fn start_server(opts: &cli::ServerOpts) {
         );
     }
 
-    #[cfg(feature = "ws_server")]
     if let Some(ws_bind_addr) = &opts.ws_bind_addr {
         let pixmap = pixmap.clone();
         let server = WsServer::new(WsServerOptions {

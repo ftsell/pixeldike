@@ -15,13 +15,8 @@ categories = ["command-line-utilities", "games"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["cli", "tcp_server", "udp_server"]
+default = []
 cli = ["clap", "tracing-subscriber"]
-tcp_server = []
-tcp_client = []
-udp_server = []
-udp_client = []
-ws_server = ["tokio-tungstenite"]
 
 
 [profile.release]
@@ -39,10 +34,6 @@ name = "pixelflut"
 path = "src/main.rs"
 required-features = ["cli"]
 bench = false       # disable default cargo benchmarks because we use criterion
-
-#[[bench]]
-#name = "pixmap_benchmark"
-#harness = false
 
 [[bench]]
 name = "command_e2e_benchmark"
@@ -64,15 +55,13 @@ tokio = { version = "1.35.0", features = ["full", "tracing"] }
 async-trait = "0.1.73"
 framebuffer = { version = "0.3.1" }
 itertools = "0.12.0"
+tokio-tungstenite = "0.18.0"
 
 # cli
 image = { version = "0.24.7", optional = true }
 clap = { version = "4.0.30", optional = true, features = [ "derive" ] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"], optional = true }
 embedded-graphics = { version = "0.8.1", optional = true }
-
-# websocket support
-tokio-tungstenite = { version = "0.18.0", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }

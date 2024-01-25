@@ -22,17 +22,14 @@ pub(crate) enum Command {
 pub(crate) struct ServerOpts {
     /// bind address on which a tcp server should be started
     #[arg(long = "tcp")]
-    #[cfg(feature = "tcp_server")]
     pub tcp_bind_addr: Option<SocketAddr>,
 
     /// bind address on which a tcp server should be started
     #[arg(long = "udp")]
-    #[cfg(feature = "udp_server")]
     pub udp_bind_addr: Option<SocketAddr>,
 
     /// port on which to start a websocket listener
     #[arg(long = "ws")]
-    #[cfg(feature = "ws_server")]
     pub ws_bind_addr: Option<SocketAddr>,
 
     /// width of the pixmap
@@ -48,7 +45,7 @@ pub(crate) struct ServerOpts {
 
     #[command(flatten)]
     pub file_opts: FileOpts,
-    
+
     #[command(flatten)]
     pub fb_opts: FramebufferOpts,
 }
@@ -98,7 +95,7 @@ pub(crate) struct FramebufferOpts {
     /// A framebuffer device onto which pixmap data should be rendered
     #[arg(long = "fb-device")]
     pub fb_device: Option<PathBuf>,
-    
+
     /// The target framerate which the framebuffer rendering should target
     #[arg(long = "fg-framerate", default_value = "30")]
     pub fb_framerate: usize,

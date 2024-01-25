@@ -29,7 +29,6 @@ pub mod net;
 pub mod pixmap;
 pub mod sinks;
 
-#[cfg(feature = "gui")]
-pub mod gui;
+//pub mod gui;
 
 pub use daemon_task::DaemonHandle;
