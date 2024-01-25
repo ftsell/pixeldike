@@ -55,7 +55,7 @@ tokio = { version = "1.35.0", features = ["full", "tracing"] }
 async-trait = "0.1.73"
 framebuffer = { version = "0.3.1" }
 itertools = "0.12.0"
-tokio-tungstenite = "0.18.0"
+tokio-tungstenite = "0.21.0"
 
 # cli
 image = { version = "0.24.7", optional = true }
@@ -65,6 +65,6 @@ embedded-graphics = { version = "0.8.1", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }
-quickcheck = "0.9.2"
+quickcheck = "1.0.3"
 tempfile = "3.3.0"
 rand = "0.8.5"
