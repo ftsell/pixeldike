@@ -2,7 +2,7 @@ use crate::net::clients::GenClient;
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use async_trait::async_trait;
 use std::net::SocketAddr;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 
@@ -18,13 +18,13 @@ pub struct TcpClientOptions {
 pub struct TcpClient<const READ_BUF_SIZE: usize> {
     _options: TcpClientOptions,
     reader: BufferedMsgReader<READ_BUF_SIZE, OwnedReadHalf>,
-    writer: OwnedWriteHalf,
+    writer: BufWriter<OwnedWriteHalf>,
 }
 
 #[async_trait]
 impl<const READ_BUF_SIZE: usize> GenClient<READ_BUF_SIZE> for TcpClient<READ_BUF_SIZE> {
     type Options = TcpClientOptions;
-    type MsgWriter = OwnedWriteHalf;
+    type MsgWriter = BufWriter<OwnedWriteHalf>;
     type BufferFiller = OwnedReadHalf;
 
     async fn connect(options: Self::Options) -> anyhow::Result<Self> {
@@ -32,7 +32,7 @@ impl<const READ_BUF_SIZE: usize> GenClient<READ_BUF_SIZE> for TcpClient<READ_BUF
 
         Ok(Self {
             _options: options,
-            writer,
+            writer: BufWriter::with_capacity(1024, writer),
             reader: BufferedMsgReader::new_empty(reader),
         })
     }
@@ -47,7 +47,10 @@ impl<const READ_BUF_SIZE: usize> GenClient<READ_BUF_SIZE> for TcpClient<READ_BUF
 }
 
 #[async_trait]
-impl MsgWriter for OwnedWriteHalf {
+impl<T> MsgWriter for BufWriter<T>
+where
+    T: AsyncWrite + Unpin + Send + Sync + 'static,
+{
     async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
         <Self as AsyncWriteExt>::write(self, msg).await?;
         Ok(())

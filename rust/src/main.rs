@@ -159,8 +159,6 @@ async fn start_server(opts: &cli::ServerOpts) {
         panic!("No listeners are supposed to be started which makes no sense");
     }
 
-    //let encoder_handles = pixelflut::state_encoding::start_encoders(encodings, pixmap);
-
     for handle in daemon_tasks {
         if let Err(e) = handle.join().await {
             tracing::error!("Error in background task: {:?}", e)
@@ -181,6 +179,7 @@ async fn put_image(opts: &cli::PutImageOpts) {
         .write_request(&Request::GetSize)
         .await
         .unwrap();
+    px.get_msg_writer().flush().await.unwrap();
     let response = px.get_msg_reader().read_msg().await.unwrap();
     let (_, response) = parse_response(response).finish().unwrap();
     let Response::Size { width, height } = response else {
