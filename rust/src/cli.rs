@@ -15,7 +15,7 @@ pub(crate) enum Command {
     /// Start a pixelflut server
     Server(ServerOpts),
     /// Run a pixelflut client to project an image onto a servers pixmap
-    Client(ClientOpts),
+    PutImage(PutImageOpts),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -97,41 +97,17 @@ pub(crate) struct FramebufferOpts {
     pub fb_device: Option<PathBuf>,
 
     /// The target framerate which the framebuffer rendering should target
-    #[arg(long = "fg-framerate", default_value = "30")]
+    #[arg(long = "fb-framerate", default_value = "30")]
     pub fb_framerate: usize,
 }
 
 #[derive(Args, Debug, Clone)]
-pub(crate) struct ClientOpts {
-    /// Hostname of the server to connect to
-    #[arg(long = "host")]
-    pub host: String,
+pub(crate) struct PutImageOpts {
+    /// Address of the pixelflut server
+    #[arg(long = "server")]
+    pub server: SocketAddr,
 
-    /// Port to connect to on the server
-    #[arg(long = "port", default_value = "1234")]
-    pub port: u16,
-
-    /// Width of the area to draw
-    #[arg(long = "width")]
-    pub width: usize,
-
-    /// Height of the area to draw
-    #[arg(long = "height")]
-    pub height: usize,
-
-    /// Offset in the x dimension to apply before drawing
-    #[arg(short = 'x')]
-    pub x_offset: usize,
-
-    /// Offset in the y dimension to apply before drawing
-    #[arg(short = 'y')]
-    pub y_offset: usize,
-
-    /// Path to an image that should be drawn
-    #[arg(long = "image")]
-    pub image: Option<PathBuf>,
-
-    /// A text message that should be drawn
-    #[arg(long = "message")]
-    pub message: Option<String>,
+    // /// Path to an image that should be drawn
+    // #[arg(long = "image")]
+    // pub image: PathBuf,
 }

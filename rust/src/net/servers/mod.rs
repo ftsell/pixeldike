@@ -14,7 +14,7 @@ use crate::pixmap::SharedPixmap;
 use nom::Finish;
 
 pub use tcp_server::{TcpServer, TcpServerOptions};
-pub use udp_server::{UdpServer, UdpServerOptions};
+pub use udp_server::{UdpPacketAssembler, UdpServer, UdpServerOptions};
 pub use ws_server::{WsServer, WsServerOptions};
 
 pub(crate) const SERVER_CONFIG: ServerConfig = ServerConfig {
