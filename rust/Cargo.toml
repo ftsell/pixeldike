@@ -20,7 +20,8 @@ cli = ["clap", "tracing-subscriber"]
 
 
 [profile.release]
-lto = true
+codegen-units = 1
+lto = "fat"
 
 [profile.bench]
 debug = true
@@ -53,7 +54,7 @@ sha1 = "0.10.5"
 thiserror = "1.0.38"
 tokio = { version = "1.35.0", features = ["full", "tracing"] }
 async-trait = "0.1.73"
-framebuffer = { version = "0.3.1" }
+framebuffer ="0.3.1"
 itertools = "0.12.0"
 tokio-tungstenite = "0.21.0"
 
@@ -62,6 +63,7 @@ image = { version = "0.24.7", optional = true }
 clap = { version = "4.0.30", optional = true, features = [ "derive" ] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"], optional = true }
 embedded-graphics = { version = "0.8.1", optional = true }
+rand = "0.8.5"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }
