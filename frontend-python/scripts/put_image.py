@@ -26,7 +26,9 @@ if __name__ == "__main__":
 
     client = Client()
     client.connect(args.server_hostname, int(args.server_port))
+    print("Opening Image")
     im = Image.open(args.image)
+    print("Resizing Image")
     im = im.resize((client.size[0], client.size[1]))
 
     print(f"Uploading image [0/{client.size[0] * client.size[0]}]", end="")
