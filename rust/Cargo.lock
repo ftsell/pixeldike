@@ -1040,6 +1040,7 @@ dependencies = [
  "nom",
  "quickcheck",
  "rand",
+ "rayon",
  "regex",
  "sha1",
  "tempfile",

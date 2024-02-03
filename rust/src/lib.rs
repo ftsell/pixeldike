@@ -1,5 +1,7 @@
 #![feature(never_type)]
 #![feature(cursor_remaining)]
+#![feature(sync_unsafe_cell)]
+#![feature(int_roundings)]
 #![deny(trivial_casts)]
 #![warn(
     rustdoc::missing_crate_level_docs,
