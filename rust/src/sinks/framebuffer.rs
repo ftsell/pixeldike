@@ -4,9 +4,9 @@ use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use anyhow::Context;
 use framebuffer::{Bitfield, Framebuffer};
+use std::mem;
 use std::path::PathBuf;
 use std::time::Duration;
-use std::mem;
 use tokio::time::{interval, Instant, MissedTickBehavior};
 
 struct Sampler {
@@ -111,8 +111,6 @@ impl FramebufferSink {
             _ => panic!("Unsupported framebuffer pixel-depth {}", bits_per_pixel),
         };
 
-        let mut frame = vec![0u8; screen_width * screen_height * bits_per_pixel / 8];
-
         loop {
             render_fun(
                 &self,
@@ -120,11 +118,10 @@ impl FramebufferSink {
                 &g_encoding,
                 &b_encoding,
                 &sampler,
-                &mut frame,
+                &mut fb,
                 screen_width,
                 screen_height,
             );
-            fb.write_frame(&frame);
             interval.tick().await;
         }
     }
@@ -136,7 +133,7 @@ impl FramebufferSink {
         g_encoding: &Bitfield,
         b_encoding: &Bitfield,
         sampler: &Sampler,
-        frame: &mut [u8],
+        fb: &mut Framebuffer,
         screen_width: usize,
         screen_height: usize,
     ) {
@@ -158,13 +155,12 @@ impl FramebufferSink {
         let t3 = Instant::now();
 
         // sample pixels to framebuffer size
-        let pixels: Vec<u32> = (0..screen_width*screen_height).map(|px| {
-            unsafe {
+        let pixels: Vec<u32> = (0..screen_width * screen_height)
+            .map(|px| unsafe {
                 let sample_px = sampler.get_mappin_unchecked(px);
                 *encoded_pixel_data.get_unchecked(sample_px)
-            }
-        }).collect();
-
+            })
+            .collect();
 
         let t4 = Instant::now();
 
@@ -175,13 +171,12 @@ impl FramebufferSink {
             assert_eq!(suffix.len(), 0);
             bytes
         };
-        frame.copy_from_slice(pixel_bytes);
-        
-        
+        fb.write_frame(pixel_bytes);
+
         let t5 = Instant::now();
 
-        tracing::info!(
-                "rendering data: get_raw_data(): {:2}ms    encoding: {:2}ms    sampling: {:2}ms  output: {:2}ms  total: {:3}ms ({:.2}fps)",
+        tracing::debug!(
+                "framebuffer rendering stats: get_raw_data(): {:2}ms    encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
                 (t2 - t1).as_millis(),
                 (t3 - t2).as_millis(),
                 (t4 - t3).as_millis(),
