@@ -107,7 +107,7 @@ impl Pixmap {
 
     /// Get the U32 that stores pixel data for the given coordinates
     fn get_storage(&self, x: usize, y: usize) -> Result<&AtomicU32, InvalidCoordinatesError> {
-        let i = y * self.width + x;
+        let i = y.saturating_mul(self.width).saturating_add(x);
         match self.data.get(i) {
             None => Err(InvalidCoordinatesError {
                 target: (x, y),
