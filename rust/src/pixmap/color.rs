@@ -6,6 +6,7 @@ use quickcheck::{Arbitrary, Gen};
 
 /// Color data represented as red, green, and blue channels each having a depth of 8 bits
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
+#[repr(C)]
 pub struct Color(pub u8, pub u8, pub u8);
 
 impl From<[u8; 3]> for Color {
@@ -79,7 +80,7 @@ impl UpperHex for Color {
 
 #[cfg(test)]
 impl Arbitrary for Color {
-    fn arbitrary<G: Gen>(g: &mut G) -> Self {
+    fn arbitrary(g: &mut Gen) -> Self {
         u32::arbitrary(g).into()
     }
 }
