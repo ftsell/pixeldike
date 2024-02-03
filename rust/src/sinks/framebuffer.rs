@@ -6,12 +6,12 @@ use anyhow::Context;
 use framebuffer::{Bitfield, Framebuffer};
 use std::path::PathBuf;
 use std::time::Duration;
-use std::{mem, ptr};
+use std::mem;
 use tokio::time::{interval, Instant, MissedTickBehavior};
 
 struct Sampler {
     /// A mapping of sreen-pixel-index to pixmap-pixel-index
-    mapping: Vec<usize>,
+    mapping: Vec<u32>,
 }
 
 impl Sampler {
@@ -23,7 +23,7 @@ impl Sampler {
                     let screen_y = i_screen_px / out_width;
                     let px_x = (screen_x * src_width) / out_width;
                     let px_y = (screen_y * src_height) / out_height;
-                    px_y * src_width + px_x
+                    (px_y * src_width + px_x) as u32
                 })
                 .collect(),
         }
@@ -32,12 +32,12 @@ impl Sampler {
     #[allow(unused)]
     #[inline(always)]
     pub fn get_mapping(&self, i_screen_px: usize) -> Option<usize> {
-        self.mapping.get(i_screen_px).cloned()
+        self.mapping.get(i_screen_px).map(|x| *x as usize)
     }
 
     #[inline(always)]
     pub unsafe fn get_mappin_unchecked(&self, i_screen_px: usize) -> usize {
-        *self.mapping.get_unchecked(i_screen_px)
+        *self.mapping.get_unchecked(i_screen_px) as usize
     }
 }
 
@@ -140,9 +140,6 @@ impl FramebufferSink {
         screen_width: usize,
         screen_height: usize,
     ) {
-        const STEP_SIZE: usize = 8;
-        let iteration_max = (screen_width * screen_height).next_multiple_of(STEP_SIZE) - STEP_SIZE;
-
         let t1 = Instant::now();
         let pixel_data = self.pixmap.get_raw_data();
         let t2 = Instant::now();
@@ -157,50 +154,40 @@ impl FramebufferSink {
                 encoded_r | encoded_b | encoded_c
             })
             .collect();
+
         let t3 = Instant::now();
 
-        // render pixels into a buffer (not the actual fb device)
-        #[inline(always)]
-        unsafe fn loop_body<const BYTES_PER_PIXEL: usize>(
-            frame: &mut [u8],
-            encoded_px: &[u32],
-            sampling: &Sampler,
-            i_screen_px: usize,
-        ) {
-            let frame_data =
-                frame.get_unchecked_mut(i_screen_px * BYTES_PER_PIXEL..(i_screen_px + 1) * BYTES_PER_PIXEL);
-            let encoded_data = encoded_px
-                .get_unchecked(sampling.get_mappin_unchecked(i_screen_px))
-                .to_ne_bytes();
-            ptr::copy_nonoverlapping(encoded_data.as_ptr(), frame_data.as_mut_ptr(), BYTES_PER_PIXEL);
-        }
-        for i_screen_px in (0..iteration_max).step_by(STEP_SIZE) {
+        // sample pixels to framebuffer size
+        let pixels: Vec<u32> = (0..screen_width*screen_height).map(|px| {
             unsafe {
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px);
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px + 1);
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px + 2);
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px + 3);
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px + 4);
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px + 5);
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px + 6);
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px + 7);
+                let sample_px = sampler.get_mappin_unchecked(px);
+                *encoded_pixel_data.get_unchecked(sample_px)
             }
-        }
-        for i_screen_px in iteration_max..screen_width * screen_height {
-            unsafe {
-                loop_body::<4>(frame, &encoded_pixel_data, &sampler, i_screen_px);
-            }
-        }
+        }).collect();
+
 
         let t4 = Instant::now();
 
+        // transmute and copy to framebuffer
+        let pixel_bytes = unsafe {
+            let (prefix, bytes, suffix) = pixels.align_to::<u8>();
+            assert_eq!(prefix.len(), 0);
+            assert_eq!(suffix.len(), 0);
+            bytes
+        };
+        frame.copy_from_slice(pixel_bytes);
+        
+        
+        let t5 = Instant::now();
+
         tracing::info!(
-                "rendering data: get_raw_data(): {:2}ms    encoding: {:2}ms    rendering: {:2}ms    total: {:3}ms ({:.2}fps)",
+                "rendering data: get_raw_data(): {:2}ms    encoding: {:2}ms    sampling: {:2}ms  output: {:2}ms  total: {:3}ms ({:.2}fps)",
                 (t2 - t1).as_millis(),
                 (t3 - t2).as_millis(),
                 (t4 - t3).as_millis(),
-                (t4 - t1).as_millis(),
-                1.0 / (t4 - t1).as_secs_f64(),
+                (t5 - t4).as_millis(),
+                (t5 - t1).as_millis(),
+                1.0 / (t5 - t1).as_secs_f64(),
             );
     }
 }
