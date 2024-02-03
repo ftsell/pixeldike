@@ -7,7 +7,6 @@ use std::sync::Arc;
 pub use color::*;
 
 mod color;
-// mod file_backed_pixmap;
 mod storage;
 
 pub use storage::{InvalidCoordinatesError, Pixmap};

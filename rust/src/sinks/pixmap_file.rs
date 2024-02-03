@@ -86,7 +86,7 @@ impl FileSink {
     async fn write_data(&self, file: &mut File) -> anyhow::Result<()> {
         file.seek(SEEK_DATA).await?;
 
-        let data = self.pixmap.get_raw_data();
+        let data = unsafe { self.pixmap.get_color_data() };
         let data = data
             .iter()
             .flat_map(|c| Into::<[u8; 3]>::into(*c))
@@ -135,7 +135,10 @@ pub async fn load_pixmap_file(path: &Path) -> anyhow::Result<Pixmap> {
 
     // construct a pixmap with the loaded data
     let pixmap = Pixmap::new(width, height)?;
-    pixmap.put_raw_data(buf.into_iter().tuples::<(_, _, _)>())?;
+    let pixmap_data = unsafe { pixmap.get_color_data() };
+    for (i, i_color) in buf.into_iter().tuples::<(_, _, _)>().enumerate() {
+        pixmap_data[i] = i_color.into()
+    }
 
     Ok(pixmap)
 }
@@ -175,8 +178,8 @@ mod test {
         let restored_pixmap = load_pixmap_file(&file_path).await.unwrap();
 
         // compare data
-        let original_data = original_pixmap.get_raw_data();
-        let restored_data = restored_pixmap.get_raw_data();
+        let original_data = unsafe { original_pixmap.get_color_data() };
+        let restored_data = unsafe { restored_pixmap.get_color_data() };
         assert_eq!(original_data, restored_data);
     }
 }

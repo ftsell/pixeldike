@@ -1,11 +1,11 @@
 use crate::pixmap::Color;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::cell::SyncUnsafeCell;
 use thiserror::Error;
 
 /// A fast pixel storage implementation
 #[derive(Debug)]
 pub struct Pixmap {
-    data: Vec<AtomicU32>,
+    data: SyncUnsafeCell<Vec<Color>>,
     width: usize,
     height: usize,
 }
@@ -36,15 +36,6 @@ pub struct InvalidDataShapeError {
 impl Pixmap {
     /// Create a new Pixmap with the specified dimensions
     pub fn new(width: usize, height: usize) -> Result<Self, InvalidSizeError> {
-        Self::new_with_initial_color(width, height, Color::default())
-    }
-
-    /// Create a new pixmap with the specified dimensions and initial color
-    pub fn new_with_initial_color(
-        width: usize,
-        height: usize,
-        color: Color,
-    ) -> Result<Self, InvalidSizeError> {
         if width == 0 || height == 0 {
             return Err(InvalidSizeError {
                 size: (width, height),
@@ -52,9 +43,8 @@ impl Pixmap {
             });
         }
 
-        let size = width * height;
         Ok(Self {
-            data: (0..size).map(|_| AtomicU32::new(color.into())).collect(),
+            data: SyncUnsafeCell::new(vec![Color::default(); width * height]),
             width,
             height,
         })
@@ -67,54 +57,46 @@ impl Pixmap {
 
     /// Get the color value of the pixel at position (x,y)
     pub fn get_pixel(&self, x: usize, y: usize) -> Result<Color, InvalidCoordinatesError> {
-        Ok(self.get_storage(x, y)?.load(Ordering::Relaxed).into())
-    }
-
-    /// Set the pixel value at position (x,y) to the specified color
-    pub fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<(), InvalidCoordinatesError> {
-        self.get_storage(x, y)?.store(color.into(), Ordering::Relaxed);
-        Ok(())
-    }
-
-    /// Get the raw data that is contained in the pixmap
-    pub fn get_raw_data(&self) -> Vec<Color> {
-        self.data
-            .iter()
-            .map(|d| d.load(Ordering::Relaxed).into())
-            .collect()
-    }
-
-    /// Overwrite all data that is contained in the pixmap
-    pub fn put_raw_data<I, D>(&self, data: I) -> Result<(), InvalidDataShapeError>
-    where
-        D: Into<Color>,
-        I: Iterator<Item = D> + ExactSizeIterator,
-    {
-        let data_len = data.len();
-        for (i, d) in data.enumerate() {
-            match self.data.get(i) {
-                None => {
-                    return Err(InvalidDataShapeError {
-                        pixmap_size: self.get_size(),
-                        data_len,
-                    })
-                }
-                Some(storage) => storage.store(d.into().into(), Ordering::Relaxed),
-            }
-        }
-        Ok(())
-    }
-
-    /// Get the U32 that stores pixel data for the given coordinates
-    fn get_storage(&self, x: usize, y: usize) -> Result<&AtomicU32, InvalidCoordinatesError> {
         let i = y.saturating_mul(self.width).saturating_add(x);
-        match self.data.get(i) {
+        match unsafe { self.get_color_data() }.get(i) {
             None => Err(InvalidCoordinatesError {
                 target: (x, y),
                 pixmap_size: self.get_size(),
             }),
-            Some(data) => Ok(data),
+            Some(color) => Ok(*color),
         }
+    }
+
+    /// Set the pixel value at position (x,y) to the specified color
+    pub fn set_pixel(&self, x: usize, y: usize, color: Color) -> Result<(), InvalidCoordinatesError> {
+        let i = y.saturating_mul(self.width).saturating_add(x);
+        match unsafe { self.get_color_data() }.get_mut(i) {
+            None => Err(InvalidCoordinatesError {
+                target: (x, y),
+                pixmap_size: self.get_size(),
+            }),
+            Some(stored_color) => {
+                *stored_color = color;
+                Ok(())
+            }
+        }
+    }
+
+    /// Get a (usable) handle to the raw data that is contained in the pixmap
+    ///
+    /// # Safety
+    /// No memory safety rules are ensured for this data.
+    /// The handed out mutable reference is not checked to be the only one and the underlying data may change at any time.
+    /// It is completely unsafe and undefined behavior to work with the returned data.
+    ///
+    /// # Reasoning
+    /// While it is undefined behavior to use the returned handle, it works as expected and it is _very_ fast to store
+    /// and work with pixel data in this way.
+    /// Since pixelflut is designed to be primarily fast and does not intend to offer a consistent view of the pixel
+    /// data this has show to be fine.
+    #[allow(clippy::mut_from_ref)]
+    pub(crate) unsafe fn get_color_data(&self) -> &mut [Color] {
+        &mut *self.data.get()
     }
 }
 
@@ -124,8 +106,9 @@ mod test {
     use quickcheck::{quickcheck, TestResult};
 
     quickcheck! {
-        fn test_set_and_get_pixel(x: usize, y: usize, color: Color) -> TestResult {
-            let pixmap = Pixmap::new(800, 600).unwrap();
+        fn test_set_and_get_pixel(x: usize, y: usize) -> TestResult {
+            let color = Color(0xAB, 0xAB, 0xAB);
+            let pixmap = Pixmap::new(80, 60).unwrap();
             match pixmap.set_pixel(x, y, color) {
                 Err(_) => TestResult::discard(),
                 Ok(_) => {

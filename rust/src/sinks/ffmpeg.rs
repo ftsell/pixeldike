@@ -223,15 +223,14 @@ impl FfmpegSink {
             tokio::time::interval(Duration::from_secs_f64(1.0 / self.options.framerate as f64));
 
         loop {
-            let data = self.pixmap.get_raw_data();
-            let raw_data = data
-                .iter()
-                .flat_map(|c| Into::<[u8; 3]>::into(*c))
-                .collect::<Vec<_>>();
-            channel
-                .write_all(&raw_data)
-                .await
-                .expect("Could not write to ffmpeg");
+            let data = unsafe {
+                self.pixmap
+                    .get_color_data()
+                    .iter()
+                    .flat_map(|c| Into::<[u8; 3]>::into(*c))
+                    .collect::<Vec<_>>()
+            };
+            channel.write_all(&data).await.expect("Could not write to ffmpeg");
 
             interval.tick().await;
         }

@@ -138,8 +138,7 @@ impl FramebufferSink {
         screen_height: usize,
     ) {
         let t1 = Instant::now();
-        let pixel_data = self.pixmap.get_raw_data();
-        let t2 = Instant::now();
+        let pixel_data = unsafe { self.pixmap.get_color_data() };
 
         // encode pixel data into framebuffer format
         let encoded_pixel_data: Vec<u32> = pixel_data
@@ -152,7 +151,7 @@ impl FramebufferSink {
             })
             .collect();
 
-        let t3 = Instant::now();
+        let t2 = Instant::now();
 
         // sample pixels to framebuffer size
         let pixels: Vec<u32> = (0..screen_width * screen_height)
@@ -162,7 +161,7 @@ impl FramebufferSink {
             })
             .collect();
 
-        let t4 = Instant::now();
+        let t3 = Instant::now();
 
         // transmute and copy to framebuffer
         let pixel_bytes = unsafe {
@@ -173,16 +172,15 @@ impl FramebufferSink {
         };
         fb.write_frame(pixel_bytes);
 
-        let t5 = Instant::now();
+        let t4 = Instant::now();
 
         tracing::debug!(
-                "framebuffer rendering stats: get_raw_data(): {:2}ms    encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
+                "framebuffer rendering stats: encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
                 (t2 - t1).as_millis(),
                 (t3 - t2).as_millis(),
                 (t4 - t3).as_millis(),
-                (t5 - t4).as_millis(),
-                (t5 - t1).as_millis(),
-                1.0 / (t5 - t1).as_secs_f64(),
+                (t4 - t1).as_millis(),
+                1.0 / (t4 - t1).as_secs_f64(),
             );
     }
 }
