@@ -1,12 +1,13 @@
 //! A sink implementation for drawing on a linux framebuffer
 
-use crate::pixmap::SharedPixmap;
+use crate::pixmap::{Color, SharedPixmap};
 use crate::DaemonHandle;
 use anyhow::Context;
 use framebuffer::{Bitfield, Framebuffer};
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio::time::{interval, MissedTickBehavior};
+use tokio::time::{interval, Instant, MissedTickBehavior};
+use tracing::info;
 
 struct Sampler {
     /// A mapping of screen-pixel-index to pixmap-pixel-index
@@ -116,71 +117,58 @@ impl FramebufferSink {
         let screen_height = fb.var_screen_info.yres as usize;
         let sampler = Sampler::new(pixmap_width, pixmap_height, screen_width, screen_height);
 
-        // fetch important info from framebuffer info
-        let r_encoding = fb.var_screen_info.red.clone();
-        let g_encoding = fb.var_screen_info.green.clone();
-        let b_encoding = fb.var_screen_info.blue.clone();
-        let bits_per_pixel = fb.var_screen_info.bits_per_pixel as usize;
 
+        let fb_pixels = screen_width * screen_height;
+        let encoder = Encoder {
+            r: fb.var_screen_info.red.clone(),
+            g: fb.var_screen_info.green.clone(),
+            b: fb.var_screen_info.blue.clone(),
+        };
+        let renderer = Renderer { sampler, encoder };
+
+
+        let bits_per_pixel = fb.var_screen_info.bits_per_pixel as usize;
         let render_once_fn = match bits_per_pixel {
-            32 => Self::render_once_u32,
-            16 => Self::render_once_u16,
+            32 => Renderer::render::<u32>,
+            16 => Renderer::render::<u16>,
             _ => panic!(
                 "Unsupported framebuffer pixel-depth of {} bits per pixel",
                 bits_per_pixel
             ),
         };
 
+
         loop {
-            render_once_fn(
-                &self,
-                &r_encoding,
-                &g_encoding,
-                &b_encoding,
-                &sampler,
-                &mut fb,
-                screen_width,
-                screen_height,
-            );
+            let t1 = Instant::now();
+            render_once_fn(&&renderer, unsafe { self.pixmap.get_color_data() }, &mut fb, fb_pixels);
+            let t2 = Instant::now();
+            info!("Render: {}ms", (t2 - t1).as_millis());
             interval.tick().await;
         }
     }
+}
 
-    /// Render one frame to the framebuffer using 32-bit pixel depth
-    #[allow(clippy::too_many_arguments)]
-    fn render_once_u32(
-        &self,
-        r_encoding: &Bitfield,
-        g_encoding: &Bitfield,
-        b_encoding: &Bitfield,
-        sampler: &Sampler,
-        fb: &mut Framebuffer,
-        screen_width: usize,
-        screen_height: usize,
-    ) {
-        let pixel_data = unsafe { self.pixmap.get_color_data() };
+/// A little helper struct that provides a generic render method.
+/// You can call render with any type T, as long as T: Copy and the
+/// Encoder can encode Pixels to T.
+pub struct Renderer {
+    encoder: Encoder,
+    sampler: Sampler,
+}
 
+impl Renderer {
+    fn render<T: Copy>(&self, pixel_data: &[Color], fb: &mut Framebuffer, fb_pixels: usize)
+    where Encoder: Encode<T> 
+    {
         // encode pixel data into framebuffer format
-        let encoded_pixel_data: Vec<u32> = pixel_data
-            .iter()
-            .map(|i_px| {
-                let encoded_r = (i_px.0 as u32 >> (8 - r_encoding.length as u32)) << (r_encoding.offset);
-                let encoded_b = (i_px.1 as u32 >> (8 - g_encoding.length as u32)) << (g_encoding.offset);
-                let encoded_c = (i_px.2 as u32 >> (8 - b_encoding.length as u32)) << (b_encoding.offset);
-                encoded_r | encoded_b | encoded_c
-            })
-            .collect();
+        let encoded: Vec<T> = self.encoder.encode_vec(pixel_data);
 
         // sample pixels to framebuffer size
-        let pixels: Vec<u32> = if sampler.needs_sampling() {
-            (0..screen_width * screen_height)
-                .map(|px| unsafe {
-                    let sample_px = sampler.get_mappin_unchecked(px);
-                    *encoded_pixel_data.get_unchecked(sample_px)
-                })
-                .collect()
+        let pixels = if self.sampler.needs_sampling() {
+            let sampled = sample_vec(&self.sampler, &encoded, fb_pixels);
+            sampled
         } else {
-            encoded_pixel_data
+            encoded
         };
 
         // transmute and copy to framebuffer
@@ -192,51 +180,64 @@ impl FramebufferSink {
         };
         fb.write_frame(&pixel_bytes);
     }
+}
 
-    /// Render one frame to the framebuffer using 32-bit pixel depth
-    #[allow(clippy::too_many_arguments)]
-    fn render_once_u16(
-        &self,
-        r_encoding: &Bitfield,
-        g_encoding: &Bitfield,
-        b_encoding: &Bitfield,
-        sampler: &Sampler,
-        fb: &mut Framebuffer,
-        screen_width: usize,
-        screen_height: usize,
-    ) {
-        let pixel_data = unsafe { self.pixmap.get_color_data() };
+#[inline(always)]
+fn sample_iter<'e, 's: 'e, T: Copy>(
+    sampler: &'s Sampler,
+    encoded: &'e [T],
+    px: usize,
+) -> impl Iterator<Item = T> + 'e {
+    let iter = (0..px).map(|px| unsafe {
+        let sample_px = sampler.get_mappin_unchecked(px);
+        *encoded.get_unchecked(sample_px)
+    });
+    iter
+}
 
-        // encode pixel data into framebuffer format
-        let encoded_pixel_data: Vec<u16> = pixel_data
-            .iter()
-            .map(|i_px| {
-                let encoded_r = (i_px.0 as u16 >> (8 - r_encoding.length as u16)) << (r_encoding.offset);
-                let encoded_b = (i_px.1 as u16 >> (8 - g_encoding.length as u16)) << (g_encoding.offset);
-                let encoded_c = (i_px.2 as u16 >> (8 - b_encoding.length as u16)) << (b_encoding.offset);
-                encoded_r | encoded_b | encoded_c
-            })
-            .collect();
+#[inline(always)]
+fn sample_vec<T: Copy>(sampler: &Sampler, encoded: &[T], px: usize) -> Vec<T> {
+    sample_iter(sampler, encoded, px).collect()
+}
 
-        // sample pixels to framebuffer size
-        let pixels: Vec<u16> = if sampler.needs_sampling() {
-            (0..screen_width * screen_height)
-                .map(|px| unsafe {
-                    let sample_px = sampler.get_mappin_unchecked(px);
-                    *encoded_pixel_data.get_unchecked(sample_px)
-                })
-                .collect()
-        } else {
-            encoded_pixel_data
-        };
 
-        // transmute and copy to framebuffer
-        let pixel_bytes = unsafe {
-            let (prefix, bytes, suffix) = pixels.align_to::<u8>();
-            assert_eq!(prefix.len(), 0);
-            assert_eq!(suffix.len(), 0);
-            bytes
-        };
-        fb.write_frame(&pixel_bytes);
+/// A Pixel encoder.
+/// The r, g and b fields describe the pixel layout.
+/// Call encoding methods trough the Encode<Target> trait.
+/// Currently supported are the u16 and u32 Target types.
+#[derive(Debug)]
+struct Encoder {
+    r: Bitfield,
+    g: Bitfield,
+    b: Bitfield,
+}
+
+
+/// The Encode<Target> trait represents the encoding of pixels (Pixel -> Target).
+trait Encode<Target> {
+    fn encode_single(&self, px: Color) -> Target;
+    #[inline(always)]
+    fn encode_vec(&self, pixmap: &[Color]) -> Vec<Target> {
+        pixmap.iter().map(|px| self.encode_single(*px)).collect()
+    }
+}
+
+impl Encode<u32> for Encoder {
+    #[inline(always)]
+    fn encode_single(&self, px: Color) -> u32 {
+        let encoded_r = (px.0 as u32 >> (8 - self.r.length as u32)) << (self.r.offset);
+        let encoded_b = (px.1 as u32 >> (8 - self.g.length as u32)) << (self.g.offset);
+        let encoded_c = (px.2 as u32 >> (8 - self.b.length as u32)) << (self.b.offset);
+        encoded_r | encoded_b | encoded_c
+    }
+}
+
+impl Encode<u16> for Encoder {
+    #[inline(always)]
+    fn encode_single(&self, px: Color) -> u16 {
+        let encoded_r = (px.0 as u16 >> (8 - self.r.length as u16)) << (self.r.offset);
+        let encoded_b = (px.1 as u16 >> (8 - self.g.length as u16)) << (self.g.offset);
+        let encoded_c = (px.2 as u16 >> (8 - self.b.length as u16)) << (self.b.offset);
+        encoded_r | encoded_b | encoded_c
     }
 }
