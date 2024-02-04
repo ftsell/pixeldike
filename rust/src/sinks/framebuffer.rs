@@ -4,7 +4,6 @@ use crate::pixmap::SharedPixmap;
 use crate::DaemonHandle;
 use anyhow::Context;
 use framebuffer::{Bitfield, Framebuffer};
-use std::mem;
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::time::{interval, Instant, MissedTickBehavior};
@@ -107,6 +106,7 @@ impl FramebufferSink {
         Ok(Framebuffer::new(&self.options.path)?)
     }
 
+    /// Render in a loop at the desired framerate (or as close to it as possible)
     async fn render(self, mut fb: Framebuffer) -> anyhow::Result<!> {
         let mut interval = interval(Duration::from_secs_f64(1.0 / self.options.framerate as f64));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -122,14 +122,17 @@ impl FramebufferSink {
         let b_encoding = fb.var_screen_info.blue.clone();
         let bits_per_pixel = fb.var_screen_info.bits_per_pixel as usize;
 
-        // TODO Add support for 16-bit pixel depth
-        let render_fun = match bits_per_pixel {
-            32 => &Self::render_once::<{ mem::size_of::<u32>() }>,
-            _ => panic!("Unsupported framebuffer pixel-depth {}", bits_per_pixel),
+        let render_once_fn = match bits_per_pixel {
+            32 => Self::render_once_u32,
+            16 => Self::render_once_u16,
+            _ => panic!(
+                "Unsupported framebuffer pixel-depth of {} bits per pixel",
+                bits_per_pixel
+            ),
         };
 
         loop {
-            render_fun(
+            render_once_fn(
                 &self,
                 &r_encoding,
                 &g_encoding,
@@ -143,8 +146,9 @@ impl FramebufferSink {
         }
     }
 
+    /// Render one frame to the framebuffer using 32-bit pixel depth
     #[allow(clippy::too_many_arguments)]
-    fn render_once<const BYTES_PER_PIXEL: usize>(
+    fn render_once_u32(
         &self,
         r_encoding: &Bitfield,
         g_encoding: &Bitfield,
@@ -161,9 +165,9 @@ impl FramebufferSink {
         let encoded_pixel_data: Vec<u32> = pixel_data
             .iter()
             .map(|i_px| {
-                let encoded_r = (i_px.0 as u32 >> (8u32 - r_encoding.length)) << (r_encoding.offset);
-                let encoded_b = (i_px.1 as u32 >> (8u32 - g_encoding.length)) << (g_encoding.offset);
-                let encoded_c = (i_px.2 as u32 >> (8u32 - b_encoding.length)) << (b_encoding.offset);
+                let encoded_r = (i_px.0 as u32 >> (8 - r_encoding.length as u32)) << (r_encoding.offset);
+                let encoded_b = (i_px.1 as u32 >> (8 - g_encoding.length as u32)) << (g_encoding.offset);
+                let encoded_c = (i_px.2 as u32 >> (8 - b_encoding.length as u32)) << (b_encoding.offset);
                 encoded_r | encoded_b | encoded_c
             })
             .collect();
@@ -190,17 +194,77 @@ impl FramebufferSink {
             assert_eq!(suffix.len(), 0);
             bytes
         };
-        fb.write_frame(pixel_bytes);
-
+        fb.write_frame(&pixel_bytes);
         let t4 = Instant::now();
 
         tracing::debug!(
-                "framebuffer rendering stats: encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
-                (t2 - t1).as_millis(),
-                (t3 - t2).as_millis(),
-                (t4 - t3).as_millis(),
-                (t4 - t1).as_millis(),
-                1.0 / (t4 - t1).as_secs_f64(),
-            );
+            "framebuffer rendering stats: encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
+            (t2 - t1).as_millis(),
+            (t3 - t2).as_millis(),
+            (t4 - t3).as_millis(),
+            (t4 - t1).as_millis(),
+            1.0 / (t4 - t1).as_secs_f64(),
+        );
+    }
+
+    /// Render one frame to the framebuffer using 32-bit pixel depth
+    #[allow(clippy::too_many_arguments)]
+    fn render_once_u16(
+        &self,
+        r_encoding: &Bitfield,
+        g_encoding: &Bitfield,
+        b_encoding: &Bitfield,
+        sampler: &Sampler,
+        fb: &mut Framebuffer,
+        screen_width: usize,
+        screen_height: usize,
+    ) {
+        let t1 = Instant::now();
+        let pixel_data = unsafe { self.pixmap.get_color_data() };
+
+        // encode pixel data into framebuffer format
+        let encoded_pixel_data: Vec<u16> = pixel_data
+            .iter()
+            .map(|i_px| {
+                let encoded_r = (i_px.0 as u16 >> (8 - r_encoding.length as u16)) << (r_encoding.offset);
+                let encoded_b = (i_px.1 as u16 >> (8 - g_encoding.length as u16)) << (g_encoding.offset);
+                let encoded_c = (i_px.2 as u16 >> (8 - b_encoding.length as u16)) << (b_encoding.offset);
+                encoded_r | encoded_b | encoded_c
+            })
+            .collect();
+
+        let t2 = Instant::now();
+
+        // sample pixels to framebuffer size
+        let pixels: Vec<u16> = if sampler.needs_sampling() {
+            (0..screen_width * screen_height)
+                .map(|px| unsafe {
+                    let sample_px = sampler.get_mappin_unchecked(px);
+                    *encoded_pixel_data.get_unchecked(sample_px)
+                })
+                .collect()
+        } else {
+            encoded_pixel_data
+        };
+        let t3 = Instant::now();
+
+        // transmute and copy to framebuffer
+        let pixel_bytes = unsafe {
+            let (prefix, bytes, suffix) = pixels.align_to::<u8>();
+            assert_eq!(prefix.len(), 0);
+            assert_eq!(suffix.len(), 0);
+            bytes
+        };
+        fb.write_frame(&pixel_bytes);
+        let t4 = Instant::now();
+
+        tracing::trace!(
+            "framebuffer rendering stats: encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
+            (t2 - t1).as_millis(),
+            (t3 - t2).as_millis(),
+            (t4 - t3).as_millis(),
+            (t4 - t1).as_millis(),
+            1.0 / (t4 - t1).as_secs_f64(),
+        );
     }
 }
