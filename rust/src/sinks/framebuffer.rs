@@ -6,7 +6,7 @@ use anyhow::Context;
 use framebuffer::{Bitfield, Framebuffer};
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio::time::{interval, Instant, MissedTickBehavior};
+use tokio::time::{interval, MissedTickBehavior};
 
 struct Sampler {
     /// A mapping of screen-pixel-index to pixmap-pixel-index
@@ -158,7 +158,6 @@ impl FramebufferSink {
         screen_width: usize,
         screen_height: usize,
     ) {
-        let t1 = Instant::now();
         let pixel_data = unsafe { self.pixmap.get_color_data() };
 
         // encode pixel data into framebuffer format
@@ -172,8 +171,6 @@ impl FramebufferSink {
             })
             .collect();
 
-        let t2 = Instant::now();
-
         // sample pixels to framebuffer size
         let pixels: Vec<u32> = if sampler.needs_sampling() {
             (0..screen_width * screen_height)
@@ -185,7 +182,6 @@ impl FramebufferSink {
         } else {
             encoded_pixel_data
         };
-        let t3 = Instant::now();
 
         // transmute and copy to framebuffer
         let pixel_bytes = unsafe {
@@ -195,16 +191,6 @@ impl FramebufferSink {
             bytes
         };
         fb.write_frame(&pixel_bytes);
-        let t4 = Instant::now();
-
-        tracing::debug!(
-            "framebuffer rendering stats: encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
-            (t2 - t1).as_millis(),
-            (t3 - t2).as_millis(),
-            (t4 - t3).as_millis(),
-            (t4 - t1).as_millis(),
-            1.0 / (t4 - t1).as_secs_f64(),
-        );
     }
 
     /// Render one frame to the framebuffer using 32-bit pixel depth
@@ -219,7 +205,6 @@ impl FramebufferSink {
         screen_width: usize,
         screen_height: usize,
     ) {
-        let t1 = Instant::now();
         let pixel_data = unsafe { self.pixmap.get_color_data() };
 
         // encode pixel data into framebuffer format
@@ -233,8 +218,6 @@ impl FramebufferSink {
             })
             .collect();
 
-        let t2 = Instant::now();
-
         // sample pixels to framebuffer size
         let pixels: Vec<u16> = if sampler.needs_sampling() {
             (0..screen_width * screen_height)
@@ -246,7 +229,6 @@ impl FramebufferSink {
         } else {
             encoded_pixel_data
         };
-        let t3 = Instant::now();
 
         // transmute and copy to framebuffer
         let pixel_bytes = unsafe {
@@ -256,15 +238,5 @@ impl FramebufferSink {
             bytes
         };
         fb.write_frame(&pixel_bytes);
-        let t4 = Instant::now();
-
-        tracing::trace!(
-            "framebuffer rendering stats: encoding: {:2}ms    sampling: {:2}ms    output: {:2}ms    total: {:3}ms ({:.2}fps)",
-            (t2 - t1).as_millis(),
-            (t3 - t2).as_millis(),
-            (t4 - t3).as_millis(),
-            (t4 - t1).as_millis(),
-            1.0 / (t4 - t1).as_secs_f64(),
-        );
     }
 }
