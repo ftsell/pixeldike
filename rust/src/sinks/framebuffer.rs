@@ -10,34 +10,51 @@ use std::time::Duration;
 use tokio::time::{interval, Instant, MissedTickBehavior};
 
 struct Sampler {
-    /// A mapping of sreen-pixel-index to pixmap-pixel-index
-    mapping: Vec<u32>,
+    /// A mapping of screen-pixel-index to pixmap-pixel-index
+    ///
+    /// If it is `None`, no mapping needs to be done because the screen and pixmap have the same sizes
+    mapping: Option<Vec<u32>>,
 }
 
 impl Sampler {
     pub fn new(src_width: usize, src_height: usize, out_width: usize, out_height: usize) -> Self {
-        Self {
-            mapping: (0..out_width * out_height)
-                .map(|i_screen_px| {
-                    let screen_x = i_screen_px % out_width;
-                    let screen_y = i_screen_px / out_width;
-                    let px_x = (screen_x * src_width) / out_width;
-                    let px_y = (screen_y * src_height) / out_height;
-                    (px_y * src_width + px_x) as u32
-                })
-                .collect(),
+        if src_width == out_width && src_height == out_height {
+            Self { mapping: None }
+        } else {
+            tracing::warn!("Framebuffer has size {}x{} while pixmap has size {}x{}. This requires an additional sampling step which slows down rendering", out_width, out_height, src_width, src_height);
+            Self {
+                mapping: Some(
+                    (0..out_width * out_height)
+                        .map(|i_screen_px| {
+                            let screen_x = i_screen_px % out_width;
+                            let screen_y = i_screen_px / out_width;
+                            let px_x = (screen_x * src_width) / out_width;
+                            let px_y = (screen_y * src_height) / out_height;
+                            (px_y * src_width + px_x) as u32
+                        })
+                        .collect(),
+                ),
+            }
         }
+    }
+
+    pub fn needs_sampling(&self) -> bool {
+        self.mapping.is_some()
     }
 
     #[allow(unused)]
     #[inline(always)]
     pub fn get_mapping(&self, i_screen_px: usize) -> Option<usize> {
-        self.mapping.get(i_screen_px).map(|x| *x as usize)
+        self.mapping.as_ref()?.get(i_screen_px).map(|x| *x as usize)
     }
 
     #[inline(always)]
     pub unsafe fn get_mappin_unchecked(&self, i_screen_px: usize) -> usize {
-        *self.mapping.get_unchecked(i_screen_px) as usize
+        *self
+            .mapping
+            .as_ref()
+            .unwrap_unchecked()
+            .get_unchecked(i_screen_px) as usize
     }
 }
 
@@ -154,13 +171,16 @@ impl FramebufferSink {
         let t2 = Instant::now();
 
         // sample pixels to framebuffer size
-        let pixels: Vec<u32> = (0..screen_width * screen_height)
-            .map(|px| unsafe {
-                let sample_px = sampler.get_mappin_unchecked(px);
-                *encoded_pixel_data.get_unchecked(sample_px)
-            })
-            .collect();
-
+        let pixels: Vec<u32> = if sampler.needs_sampling() {
+            (0..screen_width * screen_height)
+                .map(|px| unsafe {
+                    let sample_px = sampler.get_mappin_unchecked(px);
+                    *encoded_pixel_data.get_unchecked(sample_px)
+                })
+                .collect()
+        } else {
+            encoded_pixel_data
+        };
         let t3 = Instant::now();
 
         // transmute and copy to framebuffer
