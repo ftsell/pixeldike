@@ -1,44 +1,13 @@
-#![feature(test)]
+use std::{error::Error, fmt::Display, io::BufRead};
 
-use std::{
-    error::Error,
-    fmt::Display,
-    io::{BufRead, BufReader},
-};
-
-pub type Pixel = u32;
-
-pub struct Pixmap {
-    pub pixels: Vec<Pixel>,
-    pub width: u32,
-    pub height: u32,
-}
-
-impl Pixmap {
-    fn new(width: u32, height: u32) -> Self {
-        Pixmap {
-            pixels: vec![0u32; (width * height) as usize],
-            width,
-            height,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Request {
-    SetPixel { x: u16, y: u16, color: Pixel },
-    GetPixel { x: u16, y: u16 },
-    GetSize,
-    Help,
-}
+#[allow(unused_imports)]
+use crate::Pixmap;
+use crate::{PxResult, Request};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ParseErr {
     UnknownCommand,
     ExpectedToken,
-    InvalidInt,
-    InvalidHex,
-    NotAscii,
 }
 
 impl Display for ParseErr {
@@ -46,9 +15,6 @@ impl Display for ParseErr {
         match self {
             ParseErr::UnknownCommand => write!(f, "Unknown Command"),
             ParseErr::ExpectedToken => write!(f, "Expected Token"),
-            ParseErr::InvalidInt => write!(f, "Failed to parse Int"),
-            ParseErr::InvalidHex => write!(f, "Failed to parse Hex Pixel"),
-            ParseErr::NotAscii => write!(f, "Line is not Ascii"),
         }
     }
 }
@@ -108,7 +74,7 @@ impl<'s> FromIterator<&'s str> for TokBuf<'s> {
 }
 
 #[inline(always)]
-fn parse_request_line(line: &str) -> Result<Request, ParseErr> {
+pub fn parse_request_line(line: &str) -> Result<Request, ParseErr> {
     let toks: TokBuf<'_> = line.split_whitespace().collect();
     let toks = toks.tokens();
     match toks.len() {
@@ -122,6 +88,36 @@ fn parse_request_line(line: &str) -> Result<Request, ParseErr> {
         },
         0 => Err(ParseErr::ExpectedToken),
         _ => unreachable!(),
+    }
+}
+
+#[cfg(test)]
+pub fn read_request_slice<'b, 'r: 'b>(
+    read: &'r mut impl BufRead,
+    buf: &'b mut Vec<u8>,
+) -> std::io::Result<Option<&'b str>> {
+    use std::io::Read;
+    // Clear previous line, if any, but keep capacity
+    buf.clear();
+
+    // This constant is important, because otherwise
+    // a malicious client could exhaust our memory by never sending
+    // a newline.
+    const MAX_LINE_LENGTH: usize = 32;
+    let read = read.take(MAX_LINE_LENGTH as u64).read_until('\n' as u8, buf)?;
+    use std::io;
+    match read {
+        0 => Ok(None),
+        MAX_LINE_LENGTH => Err(io::Error::new(io::ErrorKind::Other, "MAX_LINE_LENGTH exceeded")),
+        _ => {
+            let line = &buf[0..read];
+            if line.is_ascii() {
+                let str = unsafe { std::str::from_utf8_unchecked(line) };
+                Ok(Some(str))
+            } else {
+                Err(io::Error::new(io::ErrorKind::Other, "not an ascii string"))
+            }
+        }
     }
 }
 
@@ -147,6 +143,31 @@ pub fn read_request_line<'l, 'r: 'l>(
     }
 }
 
+#[cfg(test)]
+pub fn pixmap_consumer(mut read: impl BufRead, pixmap: &mut Pixmap) -> PxResult<()> {
+    let mut line = String::with_capacity(32);
+    while let Some(line) = read_request_line(&mut read, &mut line)? {
+        let req = parse_request_line(line)?;
+        if let Request::SetPixel { x, y, color } = req {
+            let idx = x as u32 + y as u32 * pixmap.width;
+            *pixmap.pixels.get_mut(idx as usize).unwrap() = color;
+        };
+    }
+    Ok(())
+}
+
+pub fn consume(mut read: impl BufRead, mut setpx: impl FnMut(u16, u16, u32)) -> Result<(), Box<dyn Error>> {
+    let mut line = String::with_capacity(32);
+    while let Some(line) = read_request_line(&mut read, &mut line)? {
+        let req = parse_request_line(line)?;
+        if let Request::SetPixel { x, y, color } = req {
+            setpx(x, y, color)
+        };
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
 fn handle_requests(
     mut read: impl BufRead,
     mut on_request: impl FnMut(Request),
@@ -159,56 +180,17 @@ fn handle_requests(
     Ok(())
 }
 
-type PxResult<T> = Result<T, Box<dyn Error>>;
-
-fn pixmap_consumer(mut read: impl BufRead, pixmap: &mut Pixmap) -> PxResult<()> {
-    let mut line = String::with_capacity(32);
-    while let Some(line) = read_request_line(&mut read, &mut line)? {
-        let req = parse_request_line(line)?;
-        if let Request::SetPixel { x, y, color } = req {
-            let idx = x as u32 + y as u32 * pixmap.width;
-            *pixmap.pixels.get_mut(idx as usize).unwrap() = color;
-        };
-    }
-    Ok(())
-}
-
-fn print_consumer(read: impl BufRead) -> PxResult<()> {
+#[allow(dead_code)]
+pub fn print_consumer(read: impl BufRead) -> PxResult<()> {
     handle_requests(read, |req| println!("{:?}", req))
-}
-
-fn main() -> PxResult<()> {
-    println!("Hello, world!");
-    let input = BufReader::new(std::io::stdin());
-    print_consumer(input)?;
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-
-    struct CyclicRead<'b> {
-        cursor: usize,
-        bytes: &'b [u8],
-    }
-
-    impl<'b> Read for CyclicRead<'b> {
-        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-            let remaining = &self.bytes[self.cursor..];
-            if buf.len() >= remaining.len() {
-                self.cursor = 0;
-                buf[..remaining.len()].copy_from_slice(remaining);
-                Ok(remaining.len())
-            } else {
-                buf.copy_from_slice(&remaining[0..buf.len()]);
-                self.cursor += buf.len();
-                Ok(buf.len())
-            }
-        }
-    }
-
     extern crate test;
-    use std::io::{BufReader, Read};
+    use std::io::BufReader;
+
+    use crate::CyclicRead;
 
     use super::*;
     use std::hint::black_box;
@@ -273,6 +255,17 @@ mod tests {
     }
 
     #[bench]
+    fn bench_read_line_ascii(b: &mut Bencher) {
+        let mut line = Vec::with_capacity(32);
+        let input = std::fs::read("testcase.txt").expect("no testcase file found");
+        let mut input = BufReader::new(CyclicRead {
+            cursor: 0,
+            bytes: input.as_slice(),
+        });
+        b.iter(move || read_request_slice(&mut input, &mut line).unwrap().is_some())
+    }
+
+    #[bench]
     fn bench_parse_lines(b: &mut Bencher) {
         let mut line = String::with_capacity(32);
         let input = std::fs::read("testcase.txt").expect("no testcase file found");
@@ -282,6 +275,21 @@ mod tests {
         });
         b.iter(move || {
             let line = read_request_line(&mut input, &mut line).unwrap().unwrap();
+            let req = parse_request_line(line).expect("should be valid request");
+            req
+        })
+    }
+
+    #[bench]
+    fn bench_parse_lines_ascii(b: &mut Bencher) {
+        let mut line = Vec::with_capacity(32);
+        let input = std::fs::read("testcase.txt").expect("no testcase file found");
+        let mut input = BufReader::new(CyclicRead {
+            cursor: 0,
+            bytes: input.as_slice(),
+        });
+        b.iter(move || {
+            let line = read_request_slice(&mut input, &mut line).unwrap().unwrap();
             let req = parse_request_line(line).expect("should be valid request");
             req
         })
@@ -299,6 +307,29 @@ mod tests {
         let pixref = &mut pixmap;
         b.iter(move || {
             let line = read_request_line(&mut input, &mut line).unwrap().unwrap();
+            let req = parse_request_line(line).expect("should be valid request");
+            let Request::SetPixel { x, y, color } = req else {
+                panic!("not a set pixel request")
+            };
+            let idx = x as u32 + y as u32 * pixref.width;
+            *pixref.pixels.get_mut(idx as usize).unwrap() = color;
+        });
+        let sum: usize = pixmap.pixels.iter().map(|&x| x as usize).sum();
+        println!("sum: {}", sum);
+    }
+
+    #[bench]
+    fn bench_pixmap_requests_ascii(b: &mut Bencher) {
+        let mut pixmap = Pixmap::new(1920, 1080);
+        let mut line = Vec::with_capacity(32);
+        let input = std::fs::read("testcase.txt").expect("no testcase file found");
+        let mut input = BufReader::new(CyclicRead {
+            cursor: 0,
+            bytes: input.as_slice(),
+        });
+        let pixref = &mut pixmap;
+        b.iter(move || {
+            let line = read_request_slice(&mut input, &mut line).unwrap().unwrap();
             let req = parse_request_line(line).expect("should be valid request");
             let Request::SetPixel { x, y, color } = req else {
                 panic!("not a set pixel request")
