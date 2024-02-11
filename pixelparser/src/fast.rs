@@ -1,4 +1,6 @@
-use std::{error::Error, io::BufRead};
+use std::{error::Error, io::{BufRead, Write}};
+
+use crate::Pixmap;
 
 #[inline(always)]
 pub fn parse_int_trick(mut chunk: u64) -> u64 {
@@ -44,6 +46,86 @@ pub fn parse_hex_trick(mut chunk: u64) -> u32 {
     chunk = lower_digits + upper_digits;
 
     return chunk as u32;
+}
+
+pub fn consume_nogen(input: &[u8], pixmap: &mut Pixmap) {
+    let mut state = ParserState::default();
+    state.consume(input, pixmap);
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct ParserState {
+    h0: u64, 
+    h1: u64,
+    h2: u64,
+    h3: u64,
+}
+
+impl ParserState {
+    pub fn consume(&mut self, input: &[u8], pixmap: &mut Pixmap) {
+        let mut h3 = self.h3;
+        let mut h2 = self.h2;
+        let mut h1 = self.h1;
+        let mut h0 = self.h0;
+    
+        for &c in input {
+            let byte: u8 = c;
+            let prev = h0;
+            h0 = h0 << 8 | byte as u64;
+            if byte == ' ' as u8 {
+                h3 = h2;
+                h2 = h1;
+                h1 = prev;
+                h0 = 0;
+            }
+    
+            if byte == '\n' as u8 {
+                let x = parse_int_trick(h2);
+                let y = parse_int_trick(h1);
+                let c = parse_hex_trick(prev);
+    
+                let idx = y as usize * pixmap.width as usize + x as usize;
+                if let Some(px) = pixmap.pixels.get_mut(idx) {
+                    *px = c;
+                }
+                h0 = 0;
+            }
+        }
+
+        self.h0 = h0;
+        self.h1 = h1;
+        self.h2 = h2;
+        self.h3 = h3;
+    }
+}
+
+pub struct Parser<'b> {
+    pub state: ParserState,
+    pub pixmap: &'b mut Pixmap,
+}
+
+impl Parser<'_> {
+    pub fn consume(&mut self, input: &[u8]) {
+        self.state.consume(input, self.pixmap);
+    }
+}
+
+impl Write for Parser<'_> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.state.consume(buf, self.pixmap);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn test_consume() {
+    let input = std::fs::read("testcase.txt").expect("no testcase file found");
+    let mut pixmap = Pixmap::new(1920, 1080);
+    consume_nogen(input.as_slice(), &mut pixmap);
 }
 
 #[allow(unused_assignments)]
@@ -92,44 +174,12 @@ pub fn count_lines(buf: &[u8]) -> usize {
     lines
 }
 
-pub mod swar {
-    fn print128(inp: u128) {
-        let bytes = inp.to_le_bytes();
-        println!("{:?}", std::str::from_utf8(&bytes).unwrap());
-    }
-
-    #[allow(unused)]
-    pub fn parse_input_swar(inp: &[u8]) -> usize {
-        let chunks = inp.array_chunks::<16>();
-        let mut pos: u128 = 16;
-        let mut last_chunk: u128 = 0;
-        for chunk in chunks {
-            let chunk: u128 = u128::from_le_bytes(*chunk);
-            let posmask = (1 << (pos * 8) % 128) - 1;
-
-            print128(posmask);
-            print128(chunk);
-            print128(chunk >> 8);
-            todo!();
-        }
-        return inp.len();
-    }
-}
-
 #[cfg(test)]
 pub mod tests {
     extern crate test;
     use test::Bencher;
 
-    use super::swar::parse_input_swar;
     use super::{count_lines, parse_hex_trick, parse_int_trick};
-
-    #[ignore]
-    #[test]
-    fn test_parse_input_swar() {
-        let input = std::fs::read("testcase.txt").expect("no testcase file found");
-        parse_input_swar(input.as_slice());
-    }
 
     #[test]
     fn test_parse_hex_trick() {

@@ -23,6 +23,9 @@ build-std-features = ["panic_immediate_abort"]
 
 [dependencies]
 atoi_simd = "0.15.6"
+minifb = "0.25.0"
+tokio = { version = "1.36.0", features = ["full", "time"] }
 
 [dev-dependencies]
 criterion = "0.5.1"
+criterion-cycles-per-byte = "0.6.0"

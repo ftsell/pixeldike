@@ -1,24 +1,39 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
-use pixelparser::{compliant, fast::consume, Pixmap};
+use criterion_cycles_per_byte::CyclesPerByte;
+use pixelparser::{align, compliant, fast::consume_nogen, Pixmap, Request};
 
 pub fn parse_fast(c: &mut Criterion) {
     let input = std::fs::read("testcase.txt").expect("no testcase file found");
     let mut pixmap = Pixmap::new(1920, 1080);
     let mut group = c.benchmark_group("parsing");
+    let input = &input.as_slice()[0..1<<13];
     group.throughput(Throughput::Bytes(input.len() as u64));
     group.bench_function("fast", |b| {
         b.iter(|| {
-            consume(black_box(input.as_slice()), |x, y, c| {
-                let idx = pixmap.width as usize * y as usize + x as usize;
-                if let Some(px) = pixmap.pixels.get_mut(idx) {
-                    *px = c;
-                }
-            })
+            consume_nogen(black_box(input), &mut pixmap);
         })
     });
     group.finish();
 }
 
+pub fn parse_align(c: &mut Criterion) {
+    let input = std::fs::read("testcase.txt").expect("no testcase file found");
+    //let mut pixmap = Pixmap::new(1920, 1080);
+    let mut group = c.benchmark_group("parsing");
+    let input = &input.as_slice()[0..1<<16];
+    let mut buf = vec![0u64; input.len() * 4];
+    //let mut output: Vec<Request> = Vec::with_capacity(buf.len() / 32);
+    group.throughput(Throughput::Bytes(input.len() as u64));
+    group.bench_function("align", |b| {
+        b.iter(|| {
+            buf.fill(0);
+            align::align_input_u64(black_box(input), black_box(&mut buf));
+        })
+    });
+    group.finish();
+}
+
+/*
 pub fn parse_compliant(c: &mut Criterion) {
     let input = std::fs::read("testcase.txt").expect("no testcase file found");
     let mut pixmap = Pixmap::new(1920, 1080);
@@ -36,6 +51,7 @@ pub fn parse_compliant(c: &mut Criterion) {
     });
     group.finish();
 }
+*/
 
 pub fn write_pressure(c: &mut Criterion) {
     let mut pixmap = Pixmap::new(1920, 1080);
@@ -54,5 +70,12 @@ pub fn write_pressure(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, parse_fast, parse_compliant, write_pressure);
+/*/
+criterion_group!(
+    name = benches;
+    config = Criterion::default().with_measurement(CyclesPerByte);
+    targets = parse_fast
+);
+*/
+criterion_group!(benches, parse_fast, parse_align, /*parse_compliant,*/ write_pressure);
 criterion_main!(benches);

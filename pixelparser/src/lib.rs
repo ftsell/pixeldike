@@ -9,6 +9,7 @@ use std::{
 pub mod compliant;
 pub mod fast;
 
+pub mod align;
 //wip
 //pub mod simdimpl;
 
