@@ -10,6 +10,24 @@ pub fn parse_16_chars(chunk: Simd<u8, 16>) -> (u32, u32) {
 }
 
 #[inline(always)]
+pub fn parse_16_chars_hex(chunk: Simd<u8, 16>) -> u64 {
+    use std::arch::x86_64::{
+        _mm_cvtsi128_si64x, _mm_maddubs_epi16, _mm_set1_epi16, _mm_setr_epi8, _mm_shuffle_epi8,
+    };
+    let hexes = chunk & Simd::splat(0x40);
+    let nibbles = (chunk | (hexes >> 3)) + (hexes >> 6);
+    let nibbles = nibbles & Simd::splat(0x0f);
+
+    let val: __m128i = nibbles.into();
+    let val: __m128i = unsafe { _mm_maddubs_epi16(val, _mm_set1_epi16(0x0110)) };
+    let shuf: __m128i = unsafe { _mm_setr_epi8(14, 12, 10, 8, 6, 4, 2, 0, -1, -1, -1, -1, -1, -1, -1, -1) };
+    let val: __m128i = unsafe { _mm_shuffle_epi8(val, shuf) };
+
+    let fin = unsafe { _mm_cvtsi128_si64x(val) };
+    return fin as u64 & 0xffffff;
+}
+
+#[inline(always)]
 pub fn parse_16chars_m128i(mut chunk: __m128i) -> (u32, u32) {
     use std::arch::x86_64::{
         _mm_and_si128, _mm_madd_epi16, _mm_maddubs_epi16, _mm_packus_epi32, _mm_set1_epi8, _mm_set_epi16,
@@ -108,9 +126,10 @@ pub fn handle_aligned_requests(buf: &[u8], mut setpx: impl FnMut(u16, u16, u32))
         let (x, y) = parse_16_chars(Simd::from_array(chunk[08..24].try_into().unwrap()));
         //let x = parse_int_trick(u64::from_be_bytes(chunk[08..16].try_into().unwrap()));
         //let y = parse_int_trick(u64::from_be_bytes(chunk[16..24].try_into().unwrap()));
-        let col = parse_hex_trick(u64::from_be_bytes(chunk[24..32].try_into().unwrap()));
+        let col = parse_16_chars_hex(chunk[16..32].try_into().unwrap());
+        //let col = parse_hex_trick(u64::from_be_bytes(chunk[24..32].try_into().unwrap()));
 
-        setpx(x as u16, y as u16, col);
+        setpx(x as u16, y as u16, col as u32);
     }
 }
 
@@ -294,6 +313,19 @@ mod tests {
     use crate::Pixmap;
 
     use super::*;
+
+    #[test]
+    fn test_parse_16_chars_hex() {
+        for hex in [0x0, 0x1, 0x10, 0x25, 0x1234, 0xdadbef] {
+            let mut buf: [u8; 16] = [' ' as u8; 16];
+            let input = format!("{hex:06x}");
+            buf[16 - input.len()..16].copy_from_slice(input.as_bytes());
+            //println!("{}", std::str::from_utf8(&buf).unwrap());
+            let parsed = parse_16_chars_hex(Simd::from_array(buf));
+            //println!("{hex:x} {parsed:x}");
+            assert_eq!(hex, parsed);
+        }
+    }
 
     #[test]
     fn test_align_simd_req_line() {

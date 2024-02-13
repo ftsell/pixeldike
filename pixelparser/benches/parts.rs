@@ -1,5 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
-use pixelparser::fast::{count_lines, parse_int_trick};
+use pixelparser::{
+    fast::{count_lines, parse_int_trick},
+    simdimpl::{align_requests, handle_aligned_requests, simd_count_newlines},
+    Pixmap,
+};
 
 pub fn bench_count_lines(c: &mut Criterion) {
     let input = std::fs::read("testcase.txt").expect("no testcase file found");
@@ -36,10 +40,39 @@ pub fn bench_parse_double_int(c: &mut Criterion) {
     });
 }
 
+pub fn bench_handle_aligned_data(c: &mut Criterion) {
+    let mut pixmap = Pixmap::new(1920, 1080);
+    let input = std::fs::read("testcase.txt").expect("no testcase file found");
+    let mut buf = Vec::new();
+    let aligned = {
+        let requests = simd_count_newlines(&input);
+        buf.resize(requests * 32, 0);
+        align_requests(&input, buf.as_mut());
+        &buf[0..requests * 32]
+    };
+
+    let mut group = c.benchmark_group("simd");
+    group.throughput(Throughput::Bytes(input.len() as u64));
+    group.bench_function("handle_aligned_data", |b| {
+        b.iter(|| {
+            handle_aligned_requests(criterion::black_box(aligned), |x, y, col| {
+                let idx = y as usize * pixmap.width as usize + x as usize;
+                if let Some(px) = pixmap.pixels.get_mut(idx) {
+                    *px = col;
+                }
+            })
+        })
+    });
+
+    let sum: usize = pixmap.pixels.iter().map(|&x| x as usize).sum();
+    println!("checksum: {sum}");
+}
+
 criterion_group!(
     benches,
     bench_count_lines,
     bench_parse_int,
-    bench_parse_double_int
+    bench_parse_double_int,
+    bench_handle_aligned_data,
 );
 criterion_main!(benches);
