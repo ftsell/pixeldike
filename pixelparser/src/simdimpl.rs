@@ -1,8 +1,47 @@
 use std::{simd::prelude::*, time};
 
-use core::arch::x86_64::__m256i;
+use core::arch::x86_64::{__m128i, __m256i};
 
 use crate::fast::{parse_hex_trick, parse_int_trick};
+
+#[inline(always)]
+pub fn parse_16_chars(chunk: Simd<u8, 16>) -> (u32, u32) {
+    parse_16chars_m128i(chunk.into())
+}
+
+#[inline(always)]
+pub fn parse_16chars_m128i(mut chunk: __m128i) -> (u32, u32) {
+    use std::arch::x86_64::{
+        _mm_and_si128, _mm_madd_epi16, _mm_maddubs_epi16, _mm_packus_epi32, _mm_set1_epi8, _mm_set_epi16,
+        _mm_set_epi8,
+    };
+
+    chunk = unsafe {
+        let mask = _mm_set1_epi8(0x0f);
+        _mm_and_si128(chunk, mask)
+    };
+
+    // chunk is 16 bytes
+    chunk = unsafe {
+        let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+        _mm_maddubs_epi16(chunk, mult)
+    };
+    // chunk is 8 u16
+    chunk = unsafe {
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        _mm_madd_epi16(chunk, mult)
+    };
+    // chunk is 4 u32
+
+    chunk = unsafe {
+        let packed = _mm_packus_epi32(chunk, chunk);
+        let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10000, 1, 10000);
+        _mm_madd_epi16(packed, mult)
+    };
+    // chunk is 2 u32 at end of 4xu32 reg
+    let res: Simd<u32, 4> = chunk.into();
+    (res[0], res[1])
+}
 
 pub fn read_request_lines_simd(buf: &[u8], mut setpx: impl FnMut(u16, u16, u32)) {
     use std::simd::prelude::*;
@@ -37,22 +76,10 @@ pub fn read_request_lines_simd_staged(
     intermediate: &mut Vec<u8>,
     setpx: impl FnMut(u16, u16, u32),
 ) {
-    let t0 = time::Instant::now();
     let requests = simd_count_newlines(buf);
-    let tbuf = time::Instant::now();
     intermediate.resize(requests * 32, 0);
-    let t1 = time::Instant::now();
     align_requests(buf, intermediate.as_mut());
-    let t2 = time::Instant::now();
     handle_aligned_requests(intermediate.as_slice(), setpx);
-    let t3 = time::Instant::now();
-    println!(
-        "count: {} alloc: {} align: {} handle: {}",
-        (tbuf - t0).as_secs_f64(),
-        (t1 - tbuf).as_secs_f64(),
-        (t2 - t1).as_secs_f64(),
-        (t3 - t2).as_secs_f64()
-    );
 }
 
 #[inline(always)]
@@ -60,8 +87,9 @@ pub fn align_requests(buf: &[u8], out: &mut [u8]) {
     let mut inpos = 0;
     let mut outpos = 0;
     while inpos < buf.len() - 32 {
-        let chunk: Simd<u8, 32> = Simd::from_slice(&buf[inpos..inpos + 32]);
-        let nl = simd_first_newline(chunk).unwrap();
+        let chunk: Simd<u8, 32> =
+            Simd::from_array(unsafe { buf.get_unchecked(inpos..inpos + 32).try_into().unwrap() });
+        let nl = simd_first_newline(chunk).unwrap_or(31);
         inpos += nl + 1;
         let mask: Mask<i8, 32> = Mask::from_bitmask((u32::MAX << nl) as u64);
         let line = mask.select(Simd::splat(0), chunk);
@@ -77,24 +105,14 @@ pub fn align_requests(buf: &[u8], out: &mut [u8]) {
 #[inline(always)]
 pub fn handle_aligned_requests(buf: &[u8], mut setpx: impl FnMut(u16, u16, u32)) {
     for chunk in buf.chunks_exact(32) {
-        let x = parse_int_trick(u64::from_be_bytes(chunk[08..16].try_into().unwrap()));
-        let y = parse_int_trick(u64::from_be_bytes(chunk[16..24].try_into().unwrap()));
+        let (x, y) = parse_16_chars(Simd::from_array(chunk[08..24].try_into().unwrap()));
+        //let x = parse_int_trick(u64::from_be_bytes(chunk[08..16].try_into().unwrap()));
+        //let y = parse_int_trick(u64::from_be_bytes(chunk[16..24].try_into().unwrap()));
         let col = parse_hex_trick(u64::from_be_bytes(chunk[24..32].try_into().unwrap()));
 
         setpx(x as u16, y as u16, col);
     }
 }
-
-const IDX_32: [u8; 32] = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
-    29, 30, 31,
-];
-
-const IDX_64: [u8; 64] = [
-    00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-    26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
-    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-];
 
 #[inline(always)]
 fn align_simd_req_line(mut line: Simd<u8, 32>) -> Simd<u8, 32> {
@@ -243,7 +261,6 @@ fn align_simd_req_line(mut line: Simd<u8, 32>) -> Simd<u8, 32> {
 
 #[inline(always)]
 fn parse_simd_line(line: Simd<u8, 32>, mut setpx: impl FnMut(u16, u16, u32)) {
-    //print_simd_str(line);
     use std::simd::prelude::*;
     let aligned = align_simd_req_line(line);
     let raw: __m256i = aligned.into();
@@ -261,29 +278,6 @@ pub fn simd_first_newline(simd: Simd<u8, 32>) -> Option<usize> {
     let newline: Mask<_, 32> = simd.simd_eq(Simd::splat('\n' as u8));
     newline.first_set()
 }
-
-pub fn parse_simd() {
-    let mut buf: [u8; 32] = [' ' as u8; 32];
-    let input = "   PX 123   456 ABCDE\n";
-    buf[0..input.len()].copy_from_slice(input.as_bytes());
-    let simd: Simd<u8, 32> = Simd::from_array(buf);
-    let spaces: Simd<i8, 32> = simd.simd_eq(Simd::splat(' ' as u8)).to_int();
-    let left_spaces = spaces.rotate_elements_left::<1>();
-    let end = (left_spaces - spaces).simd_eq(Simd::splat(-1));
-    let start = (left_spaces - spaces)
-        .rotate_elements_right::<1>()
-        .simd_eq(Simd::splat(1));
-
-    println!("{:3?}", simd);
-    println!("{:3?}", start.to_int());
-    println!("{:3?}", end.to_int());
-}
-
-const IDX: [u8; 32] = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
-    29, 30, 31,
-];
-const SIMD_IDX: Simd<u8, 32> = Simd::from_array(IDX);
 
 pub fn print_simd_str(simd: Simd<u8, 32>) {
     let array = simd.to_array();
@@ -341,6 +335,37 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_handle_aligned_requests() {
+        let mut requests = Vec::new();
+        let mut input = String::new();
+        for x in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 23, 543, 1234] {
+            for y in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 23, 543, 1234] {
+                for col in [0xabcdef, 0x000000, 0x123456, 0xdedbef] {
+                    requests.push((x, y, col));
+                    let line = format!("PX {x} {y} {col:06x}\n");
+                    input.extend(line.chars());
+                }
+            }
+        }
+        let mut buf = Vec::new();
+        let aligned = {
+            let requests = simd_count_newlines(input.as_bytes());
+            buf.resize(requests * 32, 0);
+            align_requests(input.as_bytes(), buf.as_mut());
+            &buf[0..requests * 32]
+        };
+
+        let mut i = 0;
+        handle_aligned_requests(aligned, |x, y, col| {
+            let (rx, ry, rcol) = requests[i];
+            assert_eq!(rx, x, "x not equal");
+            assert_eq!(ry, y, "y not equal");
+            assert_eq!(rcol, col, "col not equal");
+            i += 1;
+        });
+    }
+
     #[bench]
     fn bench_align_simd_req_line(b: &mut Bencher) {
         let mut buf: [u8; 32] = [' ' as u8; 32];
@@ -392,6 +417,6 @@ mod tests {
                 *px = c;
             }
         });
-        println!("sum: {}", pixmap.pixels.iter().copied().sum::<u32>());
+        println!("sum: {}", pixmap.pixels.iter().map(|&x| x as u64).sum::<u64>());
     }
 }
