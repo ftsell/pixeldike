@@ -1,5 +1,6 @@
 #![feature(test)]
 #![feature(array_chunks)]
+#![feature(portable_simd)]
 
 use std::{
     error::Error,
@@ -11,7 +12,7 @@ pub mod fast;
 
 pub mod align;
 //wip
-//pub mod simdimpl;
+pub mod simdimpl;
 
 struct CyclicRead<'b> {
     cursor: usize,

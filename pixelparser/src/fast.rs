@@ -1,9 +1,17 @@
-use std::{error::Error, io::{BufRead, Write}};
+use std::{
+    error::Error,
+    io::{BufRead, Write},
+};
 
 use crate::Pixmap;
 
 #[inline(always)]
-pub fn parse_int_trick(mut chunk: u64) -> u64 {
+pub fn parse_int_trick(chunk: u64) -> u64 {
+    parse_int_trick_nibbles(chunk)
+}
+
+#[inline(always)]
+pub fn parse_int_trick_nibbles(mut chunk: u64) -> u64 {
     chunk = u64::from_be(chunk);
 
     // 1-byte mask trick (works on 4 pairs of single digits)
@@ -22,6 +30,15 @@ pub fn parse_int_trick(mut chunk: u64) -> u64 {
     chunk = lower_digits + upper_digits;
 
     return chunk;
+}
+
+#[inline(always)]
+pub fn parse_int_trick_magic(mut chunk: u64) -> u64 {
+    chunk = u64::from_be(chunk);
+
+    chunk = (chunk & 0x0f0f0f0f0f0f0f0f).wrapping_mul(2561) >> 8;
+    chunk = (chunk & 0x00ff00ff00ff00ff).wrapping_mul(6553601) >> 16;
+    return (chunk & 0x0000ffff0000ffff).wrapping_mul(42949672960001) >> 32;
 }
 
 #[inline(always)]
@@ -55,7 +72,7 @@ pub fn consume_nogen(input: &[u8], pixmap: &mut Pixmap) {
 
 #[derive(Copy, Clone, Default)]
 pub struct ParserState {
-    h0: u64, 
+    h0: u64,
     h1: u64,
     h2: u64,
     h3: u64,
@@ -67,7 +84,7 @@ impl ParserState {
         let mut h2 = self.h2;
         let mut h1 = self.h1;
         let mut h0 = self.h0;
-    
+
         for &c in input {
             let byte: u8 = c;
             let prev = h0;
@@ -78,12 +95,12 @@ impl ParserState {
                 h1 = prev;
                 h0 = 0;
             }
-    
+
             if byte == '\n' as u8 {
                 let x = parse_int_trick(h2);
                 let y = parse_int_trick(h1);
                 let c = parse_hex_trick(prev);
-    
+
                 let idx = y as usize * pixmap.width as usize + x as usize;
                 if let Some(px) = pixmap.pixels.get_mut(idx) {
                     *px = c;
@@ -179,7 +196,9 @@ pub mod tests {
     extern crate test;
     use test::Bencher;
 
-    use super::{count_lines, parse_hex_trick, parse_int_trick};
+    use crate::fast::parse_int_trick_magic;
+
+    use super::{count_lines, parse_hex_trick, parse_int_trick, parse_int_trick_nibbles};
 
     #[test]
     fn test_parse_hex_trick() {
@@ -206,12 +225,12 @@ pub mod tests {
     }
 
     #[test]
-    fn test_parse_int_trick() {
+    fn test_parse_int_trick_nibbles() {
         for i in 1..100920 {
             let input = format!("{i:0>8}");
             let bytes: [u8; 8] = input.as_bytes().try_into().unwrap();
             let input = u64::from_be_bytes(bytes);
-            let res = parse_int_trick(input);
+            let res = parse_int_trick_nibbles(input);
             assert_eq!(res, i);
         }
 
@@ -224,18 +243,54 @@ pub mod tests {
                 }
             }
             let input = u64::from_be_bytes(bytes);
-            let res = parse_int_trick(input);
+            let res = parse_int_trick_nibbles(input);
             assert_eq!(res, i);
         }
     }
 
+    #[test]
+    fn test_parse_int_trick_magic() {
+        for i in 1..100920 {
+            let input = format!("{i:0>8}");
+            let bytes: [u8; 8] = input.as_bytes().try_into().unwrap();
+            let input = u64::from_be_bytes(bytes);
+            let res = parse_int_trick_magic(input);
+            assert_eq!(res, i);
+        }
+
+        /*
+        for i in 1..100920 {
+            let input = format!("{i: >8}");
+            let mut bytes: [u8; 8] = input.as_bytes().try_into().unwrap();
+            for b in bytes.iter_mut() {
+                if *b == ' ' as u8 {
+                    *b = 0;
+                }
+            }
+            let input = u64::from_be_bytes(bytes);
+            let res = parse_int_trick(input);
+            assert_eq!(res, i);
+        }
+        */
+    }
+
     #[bench]
-    fn bench_parse_int_trick(b: &mut Bencher) {
+    fn bench_parse_int_trick_nibbles(b: &mut Bencher) {
         let mut n = 0;
         b.iter(|| {
             n += 1;
             let inp = std::hint::black_box(n);
-            parse_int_trick(inp)
+            parse_int_trick_nibbles(inp)
+        })
+    }
+
+    #[bench]
+    fn bench_parse_int_trick_magic(b: &mut Bencher) {
+        let mut n = 0;
+        b.iter(|| {
+            n += 1;
+            let inp = std::hint::black_box(n);
+            parse_int_trick_magic(inp)
         })
     }
 
