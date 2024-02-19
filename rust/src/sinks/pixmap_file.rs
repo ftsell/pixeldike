@@ -156,9 +156,15 @@ mod test {
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.into_path().join("test.pixmap");
         let original_pixmap = Arc::new(Pixmap::new(5, 5).unwrap());
-        original_pixmap.set_pixel(0, 0, Color(0xab, 0xab, 0xab)).unwrap();
-        original_pixmap.set_pixel(2, 2, Color(0xab, 0xab, 0xab)).unwrap();
-        original_pixmap.set_pixel(4, 4, Color(0xab, 0xab, 0xab)).unwrap();
+        original_pixmap
+            .set_pixel(0, 0, Color::from((0xab, 0xab, 0xab)))
+            .unwrap();
+        original_pixmap
+            .set_pixel(2, 2, Color::from((0xab, 0xab, 0xab)))
+            .unwrap();
+        original_pixmap
+            .set_pixel(4, 4, Color::from((0xab, 0xab, 0xab)))
+            .unwrap();
 
         // write data into the file
         {

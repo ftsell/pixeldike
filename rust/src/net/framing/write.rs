@@ -39,7 +39,7 @@ pub trait MsgWriter: Send + Sync {
                 self.write_message(msg.as_bytes()).await
             }
             Request::SetPixel { x, y, color } => {
-                let msg = format!("PX {} {} #{:X}", x, y, color);
+                let msg = format!("PX {} {} {:X}", x, y, color);
                 self.write_message(msg.as_bytes()).await
             }
             Request::GetConfig => self.write_message("CONFIG".as_bytes()).await,

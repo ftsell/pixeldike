@@ -26,11 +26,10 @@
 extern crate quickcheck;
 
 mod daemon_task;
+pub mod gui;
 mod i18n;
 pub mod net;
 pub mod pixmap;
 pub mod sinks;
-
-//pub mod gui;
 
 pub use daemon_task::DaemonHandle;

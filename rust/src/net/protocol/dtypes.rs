@@ -51,7 +51,7 @@ impl Display for Request {
             },
             Request::GetSize => f.write_str("SIZE"),
             Request::GetPixel { x, y } => f.write_fmt(format_args!("PX {} {}", x, y)),
-            Request::SetPixel { x, y, color } => f.write_fmt(format_args!("PX {} {} #{:X}", x, y, color)),
+            Request::SetPixel { x, y, color } => f.write_fmt(format_args!("PX {} {} {:X}", x, y, color)),
             Request::GetConfig => f.write_str("CONFIG"),
         }
     }

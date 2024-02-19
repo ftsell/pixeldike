@@ -27,7 +27,7 @@ fn parse_hex_primary(input: &[u8]) -> IResult<&[u8], u8, ProtocolError> {
 pub(super) fn parse_color(input: &[u8]) -> IResult<&[u8], Color, ProtocolError> {
     let (input, _) = opt(tag("#"))(input)?;
     let (input, (r, g, b)) = permutation((parse_hex_primary, parse_hex_primary, parse_hex_primary))(input)?;
-    Ok((input, Color(r, g, b)))
+    Ok((input, Color::from([r, g, b])))
 }
 
 #[cfg(test)]
@@ -38,14 +38,14 @@ mod test {
     fn test_valid_color_with_tag() {
         let (remainder, color) = parse_color("#FF00AA".as_bytes()).unwrap();
         assert_eq!(remainder.len(), 0);
-        assert_eq!(color, Color(0xFF, 0x00, 0xAA));
+        assert_eq!(color, Color::from((0xFF, 0x00, 0xAA)));
     }
 
     #[test]
     fn test_valid_color_without_tag() {
         let (remainder, color) = parse_color("FF00AA".as_bytes()).unwrap();
         assert_eq!(remainder.len(), 0);
-        assert_eq!(color, Color(0xFF, 0x00, 0xAA));
+        assert_eq!(color, Color::from((0xFF, 0x00, 0xAA)));
     }
 
     #[test]

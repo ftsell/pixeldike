@@ -94,7 +94,7 @@ mod test {
             Request::SetPixel {
                 x: 42,
                 y: 112,
-                color: Color(0xFF, 0x00, 0xAA)
+                color: Color::from((0xFF, 0x00, 0xAA))
             }
         );
     }

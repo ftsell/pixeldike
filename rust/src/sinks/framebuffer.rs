@@ -117,7 +117,6 @@ impl FramebufferSink {
         let screen_height = fb.var_screen_info.yres as usize;
         let sampler = Sampler::new(pixmap_width, pixmap_height, screen_width, screen_height);
 
-
         let fb_pixels = screen_width * screen_height;
         let encoder = Encoder {
             r: fb.var_screen_info.red.clone(),
@@ -125,7 +124,6 @@ impl FramebufferSink {
             b: fb.var_screen_info.blue.clone(),
         };
         let renderer = Renderer { sampler, encoder };
-
 
         let bits_per_pixel = fb.var_screen_info.bits_per_pixel as usize;
         let render_once_fn = match bits_per_pixel {
@@ -137,10 +135,14 @@ impl FramebufferSink {
             ),
         };
 
-
         loop {
             let t1 = Instant::now();
-            render_once_fn(&&renderer, unsafe { self.pixmap.get_color_data() }, &mut fb, fb_pixels);
+            render_once_fn(
+                &&renderer,
+                unsafe { self.pixmap.get_color_data() },
+                &mut fb,
+                fb_pixels,
+            );
             let t2 = Instant::now();
             info!("Render: {}ms", (t2 - t1).as_millis());
             interval.tick().await;
@@ -158,7 +160,8 @@ pub struct Renderer {
 
 impl Renderer {
     fn render<T: Copy>(&self, pixel_data: &[Color], fb: &mut Framebuffer, fb_pixels: usize)
-    where Encoder: Encode<T> 
+    where
+        Encoder: Encode<T>,
     {
         // encode pixel data into framebuffer format
         let encoded: Vec<T> = self.encoder.encode_vec(pixel_data);
@@ -200,7 +203,6 @@ fn sample_vec<T: Copy>(sampler: &Sampler, encoded: &[T], px: usize) -> Vec<T> {
     sample_iter(sampler, encoded, px).collect()
 }
 
-
 /// A Pixel encoder.
 /// The r, g and b fields describe the pixel layout.
 /// Call encoding methods trough the Encode<Target> trait.
@@ -211,7 +213,6 @@ struct Encoder {
     g: Bitfield,
     b: Bitfield,
 }
-
 
 /// The Encode<Target> trait represents the encoding of pixels (Pixel -> Target).
 trait Encode<Target> {
@@ -225,9 +226,10 @@ trait Encode<Target> {
 impl Encode<u32> for Encoder {
     #[inline(always)]
     fn encode_single(&self, px: Color) -> u32 {
-        let encoded_r = (px.0 as u32 >> (8 - self.r.length as u32)) << (self.r.offset);
-        let encoded_b = (px.1 as u32 >> (8 - self.g.length as u32)) << (self.g.offset);
-        let encoded_c = (px.2 as u32 >> (8 - self.b.length as u32)) << (self.b.offset);
+        let px: (u8, u8, u8) = px.into();
+        let encoded_r = (px.0 as u32 >> (8 - self.r.length)) << (self.r.offset);
+        let encoded_b = (px.1 as u32 >> (8 - self.g.length)) << (self.g.offset);
+        let encoded_c = (px.2 as u32 >> (8 - self.b.length)) << (self.b.offset);
         encoded_r | encoded_b | encoded_c
     }
 }
@@ -235,6 +237,7 @@ impl Encode<u32> for Encoder {
 impl Encode<u16> for Encoder {
     #[inline(always)]
     fn encode_single(&self, px: Color) -> u16 {
+        let px: (u8, u8, u8) = px.into();
         let encoded_r = (px.0 as u16 >> (8 - self.r.length as u16)) << (self.r.offset);
         let encoded_b = (px.1 as u16 >> (8 - self.g.length as u16)) << (self.g.offset);
         let encoded_c = (px.2 as u16 >> (8 - self.b.length as u16)) << (self.b.offset);

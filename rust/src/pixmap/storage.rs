@@ -107,7 +107,7 @@ mod test {
 
     quickcheck! {
         fn test_set_and_get_pixel(x: usize, y: usize) -> TestResult {
-            let color = Color(0xAB, 0xAB, 0xAB);
+            let color = Color::from((0xAB, 0xAB, 0xAB));
             let pixmap = Pixmap::new(80, 60).unwrap();
             match pixmap.set_pixel(x, y, color) {
                 Err(_) => TestResult::discard(),

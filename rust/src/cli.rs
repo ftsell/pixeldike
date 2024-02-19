@@ -48,6 +48,9 @@ pub(crate) struct ServerOpts {
 
     #[command(flatten)]
     pub fb_opts: FramebufferOpts,
+
+    #[arg(long = "open-window")]
+    pub open_window: bool,
 }
 
 /// Specific options for sinking the pixmap data into something else (e.g. streaming it somewhere)
@@ -106,7 +109,6 @@ pub(crate) struct PutImageOpts {
     /// Address of the pixelflut server
     #[arg(long = "server")]
     pub server: SocketAddr,
-
     // /// Path to an image that should be drawn
     // #[arg(long = "image")]
     // pub image: PathBuf,

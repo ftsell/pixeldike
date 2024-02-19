@@ -3,6 +3,7 @@ use nom::Finish;
 use rand::random;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::task::LocalSet;
 use tokio::time::interval;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -63,6 +64,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     };
 
     let mut daemon_tasks: Vec<DaemonHandle> = Vec::new();
+    let mut local_set = LocalSet::new();
 
     // configure snapshotting
     if let Some(path) = &opts.file_opts.snapshot_file {
@@ -75,6 +77,13 @@ async fn start_server(opts: &cli::ServerOpts) {
             pixmap,
         );
         daemon_tasks.push(sink.start().await.expect("Could not start snapshot task"))
+    }
+
+    // configure gui window
+    if opts.open_window {
+        let pixmap = pixmap.clone();
+        let handle = pixelflut::gui::start_gui(&mut local_set, pixmap);
+        daemon_tasks.push(handle);
     }
 
     // configure streaming
@@ -159,6 +168,7 @@ async fn start_server(opts: &cli::ServerOpts) {
         panic!("No listeners are supposed to be started which makes no sense");
     }
 
+    local_set.await;
     for handle in daemon_tasks {
         if let Err(e) = handle.join().await {
             tracing::error!("Error in background task: {:?}", e)
@@ -188,7 +198,7 @@ async fn put_image(opts: &cli::PutImageOpts) {
     tracing::info!("Pixelflut server has canvas size {width}x{height}");
 
     loop {
-        let color = Color(random(), random(), random());
+        let color = Color::from((random(), random(), random()));
         tracing::info!("Drawing {color:X} onto the server…");
 
         for x in 0..width {
