@@ -35,14 +35,14 @@ where
 {
     loop {
         let msg = reader.read_msg().await?;
-        let parse_result = parse_request(msg).finish();
+        let parse_result = parse_request(msg);
 
         match parse_result {
             Err(_) => match std::str::from_utf8(msg) {
                 Ok(msg) => tracing::info!("received invalid request: {:?}", msg),
                 Err(_) => tracing::info!("received invalid request: {:?}", msg),
             },
-            Ok((_, request)) => match request {
+            Ok(request) => match request {
                 Request::Help(topic) => writer.write_response(&Response::Help(topic)).await?,
                 Request::GetSize => {
                     let (width, height) = pixmap.get_size();
