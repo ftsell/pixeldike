@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use std::fmt::{Formatter, UpperHex};
 
 #[cfg(test)]

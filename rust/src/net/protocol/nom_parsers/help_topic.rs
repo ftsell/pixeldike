@@ -6,6 +6,7 @@ use nom::combinator::value;
 use nom::IResult;
 
 /// Parse a valid help topic from the input slice
+#[allow(unused)]
 pub(super) fn parse_help_topic(input: &[u8]) -> IResult<&[u8], HelpTopic, ProtocolError> {
     alt((
         value(HelpTopic::General, tag_no_case("help")),

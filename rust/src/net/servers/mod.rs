@@ -11,7 +11,6 @@ mod ws_server;
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::protocol::{parse_request, Request, Response, ServerConfig};
 use crate::pixmap::SharedPixmap;
-use nom::Finish;
 
 pub use tcp_server::{TcpServer, TcpServerOptions};
 pub use udp_server::{UdpPacketAssembler, UdpServer, UdpServerOptions};

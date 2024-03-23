@@ -30,4 +30,5 @@ pub mod net;
 pub mod pixmap;
 pub mod sinks;
 
+/// The result type which all background tasks return
 pub type DaemonResult = anyhow::Result<!>;

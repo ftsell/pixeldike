@@ -10,6 +10,7 @@ use tokio::task::{AbortHandle, JoinSet};
 use tokio::time::{interval, Instant, MissedTickBehavior};
 use tracing::info;
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 struct Sampler {
     /// A mapping of screen-pixel-index to pixmap-pixel-index
     ///
@@ -156,6 +157,7 @@ impl FramebufferSink {
 /// A little helper struct that provides a generic render method.
 /// You can call render with any type T, as long as T: Copy and the
 /// Encoder can encode Pixels to T.
+#[derive(Debug, Clone)]
 pub struct Renderer {
     encoder: Encoder,
     sampler: Sampler,
@@ -210,7 +212,7 @@ fn sample_vec<T: Copy>(sampler: &Sampler, encoded: &[T], px: usize) -> Vec<T> {
 /// The r, g and b fields describe the pixel layout.
 /// Call encoding methods trough the Encode<Target> trait.
 /// Currently supported are the u16 and u32 Target types.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Encoder {
     r: Bitfield,
     g: Bitfield,
