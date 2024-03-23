@@ -82,7 +82,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     // configure gui window
     if opts.open_window {
         let pixmap = pixmap.clone();
-        let handle = pixelflut::gui::start_gui(&mut local_set, pixmap);
+        let handle = pixelflut::sinks::window::start(&mut local_set, pixmap);
         daemon_tasks.push(handle);
     }
 

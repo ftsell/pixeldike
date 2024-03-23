@@ -5,3 +5,4 @@
 pub mod ffmpeg;
 pub mod framebuffer;
 pub mod pixmap_file;
+pub mod window;
