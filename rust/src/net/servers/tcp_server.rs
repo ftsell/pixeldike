@@ -1,12 +1,13 @@
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::servers::GenServer;
 use crate::pixmap::SharedPixmap;
-use crate::DaemonHandle;
+use crate::DaemonResult;
 use async_trait::async_trait;
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::task::{AbortHandle, JoinSet};
 
 /// Options with which the `TcpServer` is configured
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -75,14 +76,19 @@ impl GenServer for TcpServer {
         Self { options }
     }
 
-    async fn start(self, pixmap: SharedPixmap) -> anyhow::Result<DaemonHandle> {
+    async fn start(
+        self,
+        pixmap: SharedPixmap,
+        join_set: &mut JoinSet<DaemonResult>,
+    ) -> anyhow::Result<AbortHandle> {
         let listener = TcpListener::bind(self.options.bind_addr).await?;
         tracing::info!("Started TCP Server on {}", self.options.bind_addr);
 
-        let handle = tokio::spawn(async move {
-            TcpServer::handle_listener(listener, pixmap).await?;
-        });
-        Ok(DaemonHandle::new(handle))
+        let handle = join_set
+            .build_task()
+            .name("tcp_server")
+            .spawn(async move { TcpServer::handle_listener(listener, pixmap).await })?;
+        Ok(handle)
     }
 }
 

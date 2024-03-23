@@ -1,12 +1,13 @@
 //! A sink which pipes the canvas into ffmpeg for video encoding or streaming
 
 use crate::pixmap::SharedPixmap;
-use crate::DaemonHandle;
+use crate::DaemonResult;
 use anyhow::anyhow;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, Command};
+use tokio::task::{AbortHandle, JoinSet};
 
 /// Configuration options of the ffmpeg sink
 ///
@@ -155,10 +156,13 @@ impl FfmpegSink {
     }
 
     /// Spawn the ffmpeg child process and start sinking data into it
-    pub async fn start(mut self) -> anyhow::Result<DaemonHandle> {
+    pub async fn start(mut self, join_set: &mut JoinSet<DaemonResult>) -> anyhow::Result<AbortHandle> {
         self.start_ffmpeg()?;
-        let handle = tokio::spawn(async move { self.run().await });
-        Ok(DaemonHandle::new(handle))
+        let handle = join_set
+            .build_task()
+            .name("ffmpeg")
+            .spawn(async move { self.run().await })?;
+        Ok(handle)
     }
 
     /// Start the ffmpeg child process

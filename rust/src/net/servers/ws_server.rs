@@ -1,13 +1,14 @@
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::servers::GenServer;
 use crate::pixmap::SharedPixmap;
-use crate::DaemonHandle;
+use crate::DaemonResult;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::task::{AbortHandle, JoinSet};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 
@@ -71,14 +72,19 @@ impl GenServer for WsServer {
         Self { options }
     }
 
-    async fn start(self, pixmap: SharedPixmap) -> anyhow::Result<DaemonHandle> {
+    async fn start(
+        self,
+        pixmap: SharedPixmap,
+        join_set: &mut JoinSet<DaemonResult>,
+    ) -> anyhow::Result<AbortHandle> {
         let listener = TcpListener::bind(self.options.bind_addr).await?;
         tracing::info!("Started WebSocket Server on {}", self.options.bind_addr);
 
-        let handle = tokio::spawn(async move {
-            WsServer::handle_listener(listener, pixmap).await?;
-        });
-        Ok(DaemonHandle::new(handle))
+        let handle = join_set
+            .build_task()
+            .name("ws_server")
+            .spawn(async move { WsServer::handle_listener(listener, pixmap).await })?;
+        Ok(handle)
     }
 }
 

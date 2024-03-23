@@ -1,9 +1,11 @@
+#![feature(never_type)]
+
 use clap::Parser;
 use nom::Finish;
 use rand::random;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::task::LocalSet;
+use tokio::task::{JoinSet, LocalSet};
 use tokio::time::interval;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -19,7 +21,7 @@ use pixelflut::pixmap::{Color, Pixmap};
 use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
 use pixelflut::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
 use pixelflut::sinks::pixmap_file::{FileSink, FileSinkOptions};
-use pixelflut::DaemonHandle;
+use pixelflut::DaemonResult;
 
 mod cli;
 
@@ -35,10 +37,16 @@ async fn main() {
         .init();
 
     let args = cli::CliOpts::parse();
-    match args.command {
-        cli::Command::Server(opts) => start_server(&opts).await,
-        cli::Command::PutImage(opts) => put_image(&opts).await,
-    };
+
+    let local_set = LocalSet::new();
+    local_set
+        .run_until(async move {
+            match &args.command {
+                cli::Command::Server(opts) => start_server(&opts).await,
+                cli::Command::PutImage(opts) => put_image(&opts).await,
+            };
+        })
+        .await;
 }
 
 async fn start_server(opts: &cli::ServerOpts) {
@@ -63,8 +71,7 @@ async fn start_server(opts: &cli::ServerOpts) {
         }
     };
 
-    let mut daemon_tasks: Vec<DaemonHandle> = Vec::new();
-    let mut local_set = LocalSet::new();
+    let mut join_set: JoinSet<DaemonResult> = JoinSet::new();
 
     // configure snapshotting
     if let Some(path) = &opts.file_opts.snapshot_file {
@@ -76,14 +83,16 @@ async fn start_server(opts: &cli::ServerOpts) {
             },
             pixmap,
         );
-        daemon_tasks.push(sink.start().await.expect("Could not start snapshot task"))
+        sink.start(&mut join_set)
+            .await
+            .expect("Could not start persistence task");
     }
 
     // configure gui window
     if opts.open_window {
         let pixmap = pixmap.clone();
-        let handle = pixelflut::sinks::window::start(&mut local_set, pixmap);
-        daemon_tasks.push(handle);
+        pixelflut::sinks::window::start(&mut join_set, pixmap)
+            .expect("Could not open window for live rendering");
     }
 
     // configure streaming
@@ -114,7 +123,10 @@ async fn start_server(opts: &cli::ServerOpts) {
             },
             pixmap,
         );
-        daemon_tasks.push(ffmpeg.start().await.expect("Could not start ffmpeg sink"));
+        ffmpeg
+            .start(&mut join_set)
+            .await
+            .expect("Could not start ffmpeg sink");
     }
 
     // configure framebuffer rendering
@@ -127,7 +139,9 @@ async fn start_server(opts: &cli::ServerOpts) {
             },
             pixmap,
         );
-        daemon_tasks.push(sink.start().await.expect("Could not start framebuffer rendering"));
+        sink.start(&mut join_set)
+            .await
+            .expect("Coult not start task for framebuffer rendering");
     }
 
     if let Some(bind_addr) = &opts.tcp_bind_addr {
@@ -135,7 +149,10 @@ async fn start_server(opts: &cli::ServerOpts) {
         let server = pixelflut::net::servers::TcpServer::new(TcpServerOptions {
             bind_addr: bind_addr.to_owned(),
         });
-        daemon_tasks.push(server.start(pixmap).await.expect("Could not start tcp server"));
+        server
+            .start(pixmap, &mut join_set)
+            .await
+            .expect("Could not start tcp server");
     }
 
     if let Some(udp_bind_addr) = &opts.udp_bind_addr {
@@ -143,12 +160,10 @@ async fn start_server(opts: &cli::ServerOpts) {
         let server = UdpServer::new(UdpServerOptions {
             bind_addr: udp_bind_addr.to_owned(),
         });
-        daemon_tasks.extend(
-            server
-                .start_many(pixmap, 16)
-                .await
-                .expect("Could not start udp server"),
-        );
+        server
+            .start_many(pixmap, 16, &mut join_set)
+            .await
+            .expect("Could not start udp server");
     }
 
     if let Some(ws_bind_addr) = &opts.ws_bind_addr {
@@ -156,24 +171,23 @@ async fn start_server(opts: &cli::ServerOpts) {
         let server = WsServer::new(WsServerOptions {
             bind_addr: ws_bind_addr.to_owned(),
         });
-        daemon_tasks.push(
-            server
-                .start(pixmap)
-                .await
-                .expect("Could not start websocket server"),
-        );
+        server
+            .start(pixmap, &mut join_set)
+            .await
+            .expect("Could not start websocket server");
     }
 
-    if daemon_tasks.is_empty() {
-        panic!("No listeners are supposed to be started which makes no sense");
-    }
+    // wait until one tasks exits
+    let result = join_set
+        .join_next()
+        .await
+        .expect("Nothing is supposed to be started which makes no sense. Review commandline flags.")
+        .expect("Could not join background task")
+        .unwrap_err();
+    tracing::error!("A background task exited unexpectedly: {}", result);
 
-    local_set.await;
-    for handle in daemon_tasks {
-        if let Err(e) = handle.join().await {
-            tracing::error!("Error in background task: {:?}", e)
-        }
-    }
+    // cancel all other tasks
+    join_set.shutdown().await;
 }
 
 async fn put_image(opts: &cli::PutImageOpts) {

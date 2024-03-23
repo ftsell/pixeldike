@@ -1,11 +1,12 @@
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter, VoidWriter};
 use crate::net::servers::gen_server::GenServer;
 use crate::pixmap::SharedPixmap;
-use crate::DaemonHandle;
+use crate::DaemonResult;
 use async_trait::async_trait;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
+use tokio::task::{AbortHandle, JoinSet};
 
 /// Options with which the `UdpServer` is configured
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -24,24 +25,25 @@ pub struct UdpServer {
 
 impl UdpServer {
     /// Start `n` server processes
-    pub async fn start_many(self, pixmap: SharedPixmap, n: usize) -> anyhow::Result<Vec<DaemonHandle>> {
+    pub async fn start_many(
+        self,
+        pixmap: SharedPixmap,
+        n: usize,
+        join_set: &mut JoinSet<DaemonResult>,
+    ) -> anyhow::Result<Vec<AbortHandle>> {
         let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
-        let handles = (0..n)
+        (0..n)
             .into_iter()
-            .map(|_| {
+            .map(|i| {
                 let pixmap = pixmap.clone();
                 let socket = socket.clone();
-                let join_handle = tokio::spawn(async move { UdpServer::listen(pixmap, socket).await });
-                DaemonHandle::new(join_handle)
+                let handle = join_set
+                    .build_task()
+                    .name(&format!("udp_server{}", i))
+                    .spawn(async move { UdpServer::listen(pixmap, socket).await })?;
+                Ok(handle)
             })
-            .collect::<Vec<_>>();
-
-        tracing::info!(
-            "Started UDP server with {} tasks on {}",
-            n,
-            self.options.bind_addr
-        );
-        Ok(handles)
+            .collect::<anyhow::Result<Vec<_>>>()
     }
 
     #[tracing::instrument(skip_all)]
@@ -61,13 +63,19 @@ impl GenServer for UdpServer {
         Self { options }
     }
 
-    async fn start(self, pixmap: SharedPixmap) -> anyhow::Result<DaemonHandle> {
+    async fn start(
+        self,
+        pixmap: SharedPixmap,
+        join_set: &mut JoinSet<DaemonResult>,
+    ) -> anyhow::Result<AbortHandle> {
         let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
         tracing::info!("Started UDP Server on {}", self.options.bind_addr);
 
-        let handle = tokio::spawn(async move { UdpServer::listen(pixmap, socket).await });
-
-        Ok(DaemonHandle::new(handle))
+        let handle = join_set
+            .build_task()
+            .name("udp_server")
+            .spawn(async move { UdpServer::listen(pixmap, socket).await })?;
+        Ok(handle)
     }
 }
 

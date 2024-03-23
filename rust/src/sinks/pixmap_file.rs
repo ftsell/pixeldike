@@ -1,7 +1,7 @@
 //! A sink for periodically snapshotting the canvas into a pixmap file
 
 use crate::pixmap::{Pixmap, SharedPixmap};
-use crate::DaemonHandle;
+use crate::DaemonResult;
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::io::SeekFrom;
@@ -9,6 +9,7 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::task::{AbortHandle, JoinSet};
 use tokio::time::Interval;
 
 const FILE_MAGIC: &[u8] = b"PIXELFLUT";
@@ -44,11 +45,14 @@ impl FileSink {
     }
 
     /// Open the target file and start the background tasks for periodic snapshotting
-    pub async fn start(self) -> anyhow::Result<DaemonHandle> {
+    pub async fn start(self, join_set: &mut JoinSet<DaemonResult>) -> anyhow::Result<AbortHandle> {
         let mut file = self.open_file().await?;
         self.write_header(&mut file).await?;
-        let handle = tokio::spawn(async move { self.run(file).await });
-        Ok(DaemonHandle::new(handle))
+        let handle = join_set
+            .build_task()
+            .name("file_sink")
+            .spawn(async move { self.run(file).await })?;
+        Ok(handle)
     }
 
     /// Open the configured file for writing

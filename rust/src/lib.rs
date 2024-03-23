@@ -25,10 +25,9 @@
 #[macro_use]
 extern crate quickcheck;
 
-mod daemon_task;
 mod i18n;
 pub mod net;
 pub mod pixmap;
 pub mod sinks;
 
-pub use daemon_task::DaemonHandle;
+pub type DaemonResult = anyhow::Result<!>;

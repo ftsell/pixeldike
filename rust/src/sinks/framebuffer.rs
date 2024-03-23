@@ -1,11 +1,12 @@
 //! A sink implementation for drawing on a linux framebuffer
 
 use crate::pixmap::{Color, SharedPixmap};
-use crate::DaemonHandle;
+use crate::DaemonResult;
 use anyhow::Context;
 use framebuffer::{Bitfield, Framebuffer};
 use std::path::PathBuf;
 use std::time::Duration;
+use tokio::task::{AbortHandle, JoinSet};
 use tokio::time::{interval, Instant, MissedTickBehavior};
 use tracing::info;
 
@@ -81,11 +82,13 @@ impl FramebufferSink {
     }
 
     /// Start a background task for rendering onto the framebuffer device
-    pub async fn start(self) -> anyhow::Result<DaemonHandle> {
+    pub async fn start(self, join_set: &mut JoinSet<DaemonResult>) -> anyhow::Result<AbortHandle> {
         let fb = self.open_fb_device()?;
-
-        let handle = tokio::spawn(async move { self.render(fb).await });
-        Ok(DaemonHandle::new(handle))
+        let handle = join_set
+            .build_task()
+            .name("framebuffer")
+            .spawn(async move { self.render(fb).await })?;
+        Ok(handle)
     }
 
     /// Open and configure the framebuffer device for later rendering
