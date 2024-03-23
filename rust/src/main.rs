@@ -205,7 +205,7 @@ async fn put_image(opts: &cli::PutImageOpts) {
         .unwrap();
     px.get_msg_writer().flush().await.unwrap();
     let response = px.get_msg_reader().read_msg().await.unwrap();
-    let (_, response) = parse_response(response).finish().unwrap();
+    let response = parse_response(response).unwrap();
     let Response::Size { width, height } = response else {
         panic!("Server responded with invalid response: {response:?} to size request")
     };

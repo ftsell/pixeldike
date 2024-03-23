@@ -1,30 +1,28 @@
+//! A pixelflut request parser implementation that is fully compliant to the wire protocol
+
 use anyhow::anyhow;
 use std::io;
+use std::io::BufRead;
 use std::io::Read;
-use std::{error::Error, fmt::Display, io::BufRead};
+use thiserror::Error;
 
-use crate::net::protocol::{HelpTopic, Request};
+use crate::net::protocol::{HelpTopic, Request, Response};
 use crate::pixmap::Color;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+/// Errors that can occur while parsing an input buffer
+#[derive(Debug, Error, Copy, Clone, Eq, PartialEq)]
 pub enum ParseErr {
+    /// The passed pixelflut command is unknown
+    #[error("Unknown Command")]
     UnknownCommand,
-    ExpectedToken,
+    /// The passed pixelflut command is known but its invocation was invalid
+    #[error("Invalid Command Invocation")]
+    InvalidCommand,
 }
 
-impl Display for ParseErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseErr::UnknownCommand => write!(f, "Unknown Command"),
-            ParseErr::ExpectedToken => write!(f, "Expected Token"),
-        }
-    }
-}
-
-impl Error for ParseErr {}
-
+/// Parse the arguments to a PxSet command
 #[inline(always)]
-fn parse_set_pixel(x: &str, y: &str, px: &str) -> Result<Request, ParseErr> {
+fn parse_px_set_args(x: &str, y: &str, px: &str) -> Result<Request, ParseErr> {
     let xres = x.parse();
     let yres = y.parse();
     let cres = u32::from_str_radix(px, 16);
@@ -38,8 +36,9 @@ fn parse_set_pixel(x: &str, y: &str, px: &str) -> Result<Request, ParseErr> {
     }
 }
 
+/// Parse the arguments to a PxGet command
 #[inline(always)]
-fn parse_get_pixel(x: &str, y: &str) -> Result<Request, ParseErr> {
+fn parse_px_get_args(x: &str, y: &str) -> Result<Request, ParseErr> {
     let xres = x.parse();
     let yres = y.parse();
     match (xres, yres) {
@@ -48,73 +47,142 @@ fn parse_get_pixel(x: &str, y: &str) -> Result<Request, ParseErr> {
     }
 }
 
+/// Parse the arguments to a Help command
 #[inline(always)]
-fn parse_help_topic(token: &str) -> Result<Request, ParseErr> {
+fn parse_help_args(token: &str) -> Result<Request, ParseErr> {
     match token {
-        "help" | "HELP" => Ok(Request::Help(HelpTopic::General)),
+        "help" | "HELP" | "general" | "GENERAL" => Ok(Request::Help(HelpTopic::General)),
         "size" | "SIZE" => Ok(Request::Help(HelpTopic::Size)),
         "px" | "PX" => Ok(Request::Help(HelpTopic::Px)),
-        _ => Err(ParseErr::UnknownCommand),
+        _ => Err(ParseErr::InvalidCommand),
     }
 }
 
-struct TokBuf<'s> {
-    tokens: [Option<&'s str>; 4],
+/// Parse the data part of a PxData response
+#[inline(always)]
+fn parse_px_data(x: &str, y: &str, px: &str) -> Result<Response, ParseErr> {
+    let xres = x.parse();
+    let yres = y.parse();
+    let cres = u32::from_str_radix(px, 16);
+    match (xres, yres, cres) {
+        (Ok(x), Ok(y), Ok(color)) => Ok(Response::PxData {
+            x,
+            y,
+            color: Color::from(color),
+        }),
+        (_, _, _) => Err(ParseErr::UnknownCommand),
+    }
+}
+
+#[inline(always)]
+fn parse_size_data(width: &str, height: &str) -> Result<Response, ParseErr> {
+    let width = width.parse();
+    let height = height.parse();
+    match (width, height) {
+        (Ok(width), Ok(height)) => Ok(Response::Size { width, height }),
+        (_, _) => Err(ParseErr::InvalidCommand),
+    }
+}
+
+#[inline(always)]
+pub fn parse_help_data(topic: &str) -> Result<Response, ParseErr> {
+    match topic {
+        "help" | "HELP" | "general" | "GENERAL" => Ok(Response::Help(HelpTopic::General)),
+        "size" | "SIZE" => Ok(Response::Help(HelpTopic::Size)),
+        "px" | "PX" => Ok(Response::Help(HelpTopic::Px)),
+        _ => Err(ParseErr::InvalidCommand),
+    }
+}
+
+/// A statically sized buffer containing input tokens.
+///
+/// This is useful during parsing because it can be allocated on the stack instead of the heap as a Vec would.
+struct TokBuf<'s, const MAX_TOKS: usize> {
+    /// Storage for up to 4 input tokens
+    tokens: [Option<&'s str>; MAX_TOKS],
+    /// How many tokens are actually present in the buffer
     len: usize,
 }
 
-impl<'s> TokBuf<'s> {
+impl<'s, const MAX_TOKS: usize> TokBuf<'s, MAX_TOKS> {
     #[inline(always)]
     fn tokens(&self) -> &[&'s str] {
+        debug_assert_eq!(self.len, self.tokens.iter().filter(|i| i.is_some()).count());
+        // Safety: Option is repr(transparent) and we know how many of them are a Some variant
         unsafe { std::mem::transmute(&self.tokens[0..self.len]) }
     }
 }
 
-impl<'s> FromIterator<&'s str> for TokBuf<'s> {
+impl<'s, const MAX_TOKS: usize> FromIterator<&'s str> for TokBuf<'s, MAX_TOKS> {
     #[inline(always)]
     fn from_iter<T: IntoIterator<Item = &'s str>>(iter: T) -> Self {
         let mut this = Self {
-            tokens: [None, None, None, None],
+            tokens: [None; MAX_TOKS],
             len: 0,
         };
-        let mut iter = iter.into_iter();
-        for i in 0..4 {
-            if let Some(t) = iter.next() {
-                this.tokens[i] = Some(t);
-                this.len = i + 1;
-            } else {
-                break;
-            }
+
+        for (i, token) in iter.into_iter().take(MAX_TOKS).enumerate() {
+            this.tokens[i] = Some(token);
+            this.len += 1;
         }
+
         this
     }
 }
 
+/// Try to parse a single pixelflut request
 #[inline(always)]
-pub fn parse_request_line(line: &str) -> Result<Request, ParseErr> {
-    let tokens: TokBuf<'_> = line.split_whitespace().collect();
+pub fn parse_request(line: &str) -> Result<Request, ParseErr> {
+    let tokens: TokBuf<'_, 4> = line.split_whitespace().collect();
     let tokens = tokens.tokens();
     match tokens.len() {
-        4 => parse_set_pixel(tokens[1], tokens[2], tokens[3]),
-        3 => parse_get_pixel(tokens[1], tokens[2]),
-        2 => parse_help_topic(tokens[1]),
+        4 => parse_px_set_args(tokens[1], tokens[2], tokens[3]),
+        3 => parse_px_get_args(tokens[1], tokens[2]),
+        2 => parse_help_args(tokens[1]),
         1 => match tokens[0] {
             "SIZE" => Ok(Request::GetSize),
             "HELP" | "help" => Ok(Request::Help(HelpTopic::General)),
             _ => Err(ParseErr::UnknownCommand),
         },
-        0 => Err(ParseErr::ExpectedToken),
+        0 => Err(ParseErr::InvalidCommand),
         _ => unreachable!(),
     }
 }
 
+/// Parse a single request from a byte slice
 #[inline(always)]
-pub fn parse_request_slice(line: &[u8]) -> anyhow::Result<Request> {
+pub fn parse_request_bin(line: &[u8]) -> anyhow::Result<Request> {
     if line.is_ascii() {
+        // Safety: This is fine because the bytes are already checked to be ascii
         let str = unsafe { std::str::from_utf8_unchecked(line) };
-        Ok(parse_request_line(str)?)
+        Ok(parse_request(str)?)
     } else {
-        Err(anyhow!("not an ascii string"))
+        Err(anyhow!("request buffer does not contain an ascii string"))
+    }
+}
+
+/// Try to parse a single pixelflut response
+#[inline(always)]
+pub fn parse_response(line: &str) -> Result<Response, ParseErr> {
+    let tokens: TokBuf<'_, 4> = line.split_whitespace().collect();
+    let tokens = tokens.tokens();
+    match tokens.len() {
+        4 => parse_px_data(tokens[1], tokens[2], tokens[3]),
+        3 => parse_size_data(tokens[1], tokens[2]),
+        2 => parse_help_data(tokens[1]),
+        _ => Err(ParseErr::UnknownCommand),
+    }
+}
+
+/// Parse a single pixelflut response from a byte slice
+#[inline(always)]
+pub fn parse_response_bin(line: &[u8]) -> anyhow::Result<Response> {
+    if line.is_ascii() {
+        // Safety: This is fine because the bytes are already checked to be ascii
+        let str = unsafe { std::str::from_utf8_unchecked(line) };
+        Ok(parse_response(str)?)
+    } else {
+        Err(anyhow!("response buffer does not contain an ascii string"))
     }
 }
 
@@ -123,7 +191,6 @@ pub fn read_request_slice<'b, 'r: 'b>(
     read: &'r mut impl BufRead,
     buf: &'b mut Vec<u8>,
 ) -> std::io::Result<Option<&'b str>> {
-    use std::io::Read;
     // Clear previous line, if any, but keep capacity
     buf.clear();
 
@@ -132,7 +199,6 @@ pub fn read_request_slice<'b, 'r: 'b>(
     // a newline.
     const MAX_LINE_LENGTH: usize = 32;
     let read = read.take(MAX_LINE_LENGTH as u64).read_until('\n' as u8, buf)?;
-    use std::io;
     match read {
         0 => Ok(None),
         MAX_LINE_LENGTH => Err(io::Error::new(io::ErrorKind::Other, "MAX_LINE_LENGTH exceeded")),

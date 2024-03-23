@@ -9,16 +9,12 @@ mod udp_server;
 mod ws_server;
 
 use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
-use crate::net::protocol::{parse_request, Request, Response, ServerConfig};
+use crate::net::protocol::{parse_request, Request, Response};
 use crate::pixmap::SharedPixmap;
 
 pub use tcp_server::{TcpServer, TcpServerOptions};
 pub use udp_server::{UdpPacketAssembler, UdpServer, UdpServerOptions};
 pub use ws_server::{WsServer, WsServerOptions};
-
-pub(crate) const SERVER_CONFIG: ServerConfig = ServerConfig {
-    max_udp_packet_size: 512,
-};
 
 /// Handle requests in a loop.
 ///
@@ -53,11 +49,6 @@ where
                 }
                 Request::SetPixel { x, y, color } => {
                     pixmap.set_pixel(x, y, color)?;
-                }
-                Request::GetConfig => {
-                    writer
-                        .write_response(&Response::ServerConfig(SERVER_CONFIG))
-                        .await?
                 }
             },
         }

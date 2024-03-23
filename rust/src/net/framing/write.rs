@@ -42,7 +42,6 @@ pub trait MsgWriter: Send + Sync {
                 let msg = format!("PX {} {} {:X}", x, y, color);
                 self.write_message(msg.as_bytes()).await
             }
-            Request::GetConfig => self.write_message("CONFIG".as_bytes()).await,
         }
     }
 
@@ -60,10 +59,6 @@ pub trait MsgWriter: Send + Sync {
             }
             Response::PxData { x, y, color } => {
                 let msg = format!("PX {} {} #{:X}", x, y, color);
-                self.write_message(msg.as_bytes()).await
-            }
-            Response::ServerConfig(config) => {
-                let msg = format!("CONFIG max_udp_packet_size={}", config.max_udp_packet_size);
                 self.write_message(msg.as_bytes()).await
             }
         }

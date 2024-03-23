@@ -19,8 +19,6 @@ pub enum HelpTopic {
 pub enum Request {
     /// Request help about a specific topic
     Help(HelpTopic),
-    /// Request server configuration i.e. buffer sizes
-    GetConfig,
     /// Get the size of the canvas
     GetSize,
     /// Get the color of one pixel from the server
@@ -52,7 +50,6 @@ impl Display for Request {
             Request::GetSize => f.write_str("SIZE"),
             Request::GetPixel { x, y } => f.write_fmt(format_args!("PX {} {}", x, y)),
             Request::SetPixel { x, y, color } => f.write_fmt(format_args!("PX {} {} {:X}", x, y, color)),
-            Request::GetConfig => f.write_str("CONFIG"),
         }
     }
 }
@@ -62,8 +59,6 @@ impl Display for Request {
 pub enum Response {
     /// Help about a specific topic with more information about that topic
     Help(HelpTopic),
-    /// Server configuration information
-    ServerConfig(ServerConfig),
     /// Size information about the servers canvas
     Size {
         /// Width of the canvas in number of pixels
@@ -80,11 +75,4 @@ pub enum Response {
         /// The color of the pixel
         color: Color,
     },
-}
-
-/// Configuration information about the server
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ServerConfig {
-    /// How large a single udp packet is allowed to be.
-    pub max_udp_packet_size: usize,
 }
