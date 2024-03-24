@@ -1,4 +1,8 @@
-use clap::{ArgAction, Args, Parser, Subcommand};
+use clap::builder::{PossibleValue, RangedU64ValueParser, TypedValueParser, ValueParserFactory};
+use clap::error::ErrorKind;
+use clap::{Arg, ArgAction, Args, Error, Parser, Subcommand};
+use pixelflut::pixmap::Color;
+use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -26,8 +30,8 @@ pub(crate) struct CliOpts {
 pub(crate) enum Command {
     /// Start a pixelflut server
     Server(ServerOpts),
-    /// Run a pixelflut client to project an image onto a servers pixmap
-    PutImage(PutImageOpts),
+    /// Run a pixelflut client to project a colored rectangle onto a servers pixmap
+    PutRectangle(PutRectangleData),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -117,11 +121,129 @@ pub(crate) struct FramebufferOpts {
 }
 
 #[derive(Args, Debug, Clone)]
-pub(crate) struct PutImageOpts {
+pub(crate) struct PutRectangleData {
     /// Address of the pixelflut server
     #[arg(long = "server")]
     pub server: SocketAddr,
-    // /// Path to an image that should be drawn
-    // #[arg(long = "image")]
-    // pub image: PathBuf,
+    /// The width of the rectangle that should be drawn
+    #[arg(long = "width", default_value = "fill")]
+    pub width: TargetDimension,
+    /// The height of the rectangle that should be drawn
+    #[arg(long = "height", default_value = "fill")]
+    pub height: TargetDimension,
+    /// Offset from the left of the canvas edge to start drawing
+    #[arg(short = 'x', default_value = "0")]
+    pub x_offset: usize,
+    /// Offset from the top of the canvas to start drawing
+    #[arg(short = 'y', default_value = "0")]
+    pub y_offset: usize,
+    /// Only draw the rectangle once
+    #[arg(long = "once", action = ArgAction::SetFalse)]
+    pub do_loop: bool,
+    /// The color which the rectangle should have.
+    #[arg(long = "color", default_value = "random")]
+    pub color: TargetColor,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum TargetDimension {
+    /// Fill all available space
+    Fill,
+    /// Fill a specific number of bytes
+    Specific(usize),
+}
+
+impl ValueParserFactory for TargetDimension {
+    type Parser = TargetDimensionParser;
+
+    fn value_parser() -> Self::Parser {
+        TargetDimensionParser
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct TargetDimensionParser;
+
+impl TypedValueParser for TargetDimensionParser {
+    type Value = TargetDimension;
+
+    fn parse_ref(&self, cmd: &clap::Command, arg: Option<&Arg>, value: &OsStr) -> Result<Self::Value, Error> {
+        let str_value = value.to_str().ok_or(cmd.clone().error(
+            ErrorKind::InvalidValue,
+            format!(
+                "{} argument is neither 'fill' nor a number",
+                arg.unwrap().get_id()
+            ),
+        ))?;
+
+        if str_value.eq_ignore_ascii_case("fill") {
+            Ok(TargetDimension::Fill)
+        } else {
+            RangedU64ValueParser::new()
+                .parse_ref(cmd, arg, value)
+                .map(|int_value: usize| TargetDimension::Specific(int_value))
+        }
+    }
+
+    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {
+        Some(Box::new(
+            [PossibleValue::new("fill"), PossibleValue::new("<number>")].into_iter(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum TargetColor {
+    RandomPerIteration,
+    RandomOnce,
+    Specific(Color),
+}
+
+impl ValueParserFactory for TargetColor {
+    type Parser = TargetColorParser;
+
+    fn value_parser() -> Self::Parser {
+        TargetColorParser
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct TargetColorParser;
+
+impl TypedValueParser for TargetColorParser {
+    type Value = TargetColor;
+
+    fn parse_ref(&self, cmd: &clap::Command, arg: Option<&Arg>, value: &OsStr) -> Result<Self::Value, Error> {
+        let make_error = || {
+            cmd.clone().error(
+                ErrorKind::InvalidValue,
+                format!(
+                    "{} argument is neither 'random', 'random-per-iteration' nor a valid hex color",
+                    arg.unwrap().get_id()
+                ),
+            )
+        };
+
+        let str_value = value.to_str().ok_or(make_error())?;
+
+        if str_value.eq_ignore_ascii_case("random") {
+            Ok(TargetColor::RandomOnce)
+        } else if str_value.eq_ignore_ascii_case("random-per-iteration") {
+            Ok(TargetColor::RandomPerIteration)
+        } else {
+            let color = u32::from_str_radix(str_value, 16).map_err(|_| make_error())?;
+            Ok(TargetColor::Specific(color.into()))
+        }
+    }
+
+    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {
+        Some(Box::new(
+            [
+                PossibleValue::new("random"),
+                PossibleValue::new("random-per-iteration"),
+                PossibleValue::new("<hex-color>"),
+            ]
+            .into_iter(),
+        ))
+    }
 }

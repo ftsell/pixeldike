@@ -1,10 +1,10 @@
 #![feature(never_type)]
 
+use bytes::buf::Writer;
 use bytes::{BufMut, BytesMut};
 use clap::Parser;
 use itertools::Itertools;
 use rand::prelude::*;
-use rand::{random, thread_rng};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -16,7 +16,7 @@ use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::cli::CliOpts;
+use crate::cli::{CliOpts, TargetColor, TargetDimension};
 use pixelflut::net::clients::{GenClient, TcpClient};
 use pixelflut::net::protocol::{Request, Response};
 use pixelflut::net::servers::{
@@ -41,7 +41,7 @@ async fn main() {
         .run_until(async move {
             match &args.command {
                 cli::Command::Server(opts) => start_server(&opts).await,
-                cli::Command::PutImage(opts) => put_image(&opts).await,
+                cli::Command::PutRectangle(opts) => put_rectangle(&opts).await,
             };
         })
         .await;
@@ -222,14 +222,17 @@ async fn start_server(opts: &cli::ServerOpts) {
     join_set.shutdown().await;
 }
 
-async fn put_image(opts: &cli::PutImageOpts) {
+async fn put_rectangle(opts: &cli::PutRectangleData) {
     tracing::info!("Connecting to pixelflut server {}", opts.server);
     let mut px = TcpClient::connect(opts.server)
         .await
         .expect("Could not connect to pixelflut server");
 
     // retrieve size metadata
-    let Response::Size { width, height } = px
+    let Response::Size {
+        width: canvas_width,
+        height: canvas_height,
+    } = px
         .exchange(Request::GetSize)
         .await
         .expect("Could not retrieve size from pixelflut server")
@@ -238,27 +241,92 @@ async fn put_image(opts: &cli::PutImageOpts) {
     };
     tracing::info!(
         "Successfully exchanged metadata with pixelflut server (width={}, height={})",
-        width,
-        height
+        canvas_width,
+        canvas_height
     );
 
+    // determine dimensions inside which to draw our rectangle
+    let x_min = if opts.x_offset >= canvas_width {
+        panic!(
+            "given x-offset {} is outside of servers canvas with width {}",
+            opts.x_offset, canvas_width
+        )
+    } else {
+        opts.x_offset
+    };
+    let y_min = if opts.y_offset >= canvas_height {
+        panic!(
+            "given y-offset {} is outside of servers canvas with height {}",
+            opts.y_offset, canvas_height
+        )
+    } else {
+        opts.y_offset
+    };
+    let x_max = match opts.width {
+        TargetDimension::Fill => canvas_width,
+        TargetDimension::Specific(width) => {
+            if x_min + width >= canvas_width {
+                panic!(
+                    "given width {} combined with x-offset {} is outside of server canvas with width {}",
+                    width, x_min, canvas_width
+                );
+            } else {
+                x_min + width
+            }
+        }
+    };
+    let y_max = match opts.height {
+        TargetDimension::Fill => canvas_height,
+        TargetDimension::Specific(height) => {
+            if y_min + height >= canvas_height {
+                panic!(
+                    "given height {} combined with y-offset {} is outside of server canvas with height {}",
+                    height, y_min, canvas_height
+                );
+            } else {
+                y_min + height
+            }
+        }
+    };
+
+    // construct a target buffer that accumulates all draw commands
     let mut buf = BytesMut::new().writer();
-    loop {
-        // send random color and fill screen with it
-        let color = Color::from((random(), random(), random()));
-        tracing::info!("Drawing {color:X} onto the server…");
+    let prepare_buffer = |buf: &mut Writer<BytesMut>| {
+        // select a color
+        let color = match opts.color {
+            TargetColor::RandomPerIteration | TargetColor::RandomOnce => {
+                Color::from((random(), random(), random()))
+            }
+            TargetColor::Specific(c) => c,
+        };
+        tracing::info!("Preparing buffer to draw {color:X} from {x_min},{y_min} to {x_max},{y_max}");
 
         // accumulate color commands into one large buffer buffer
-        let mut coords = (0..width).cartesian_product(0..height).collect::<Vec<_>>();
+        let mut coords = (x_min..x_max).cartesian_product(y_min..y_max).collect::<Vec<_>>();
         coords.shuffle(&mut thread_rng());
         for (x, y) in coords {
-            Request::SetPixel { x, y, color }.write(&mut buf).unwrap();
+            Request::SetPixel { x, y, color }.write(buf).unwrap();
         }
+    };
+    prepare_buffer(&mut buf);
 
+    // main loop
+    loop {
         // send whole buffer to server
+        tracing::info!("Sending prepared commands to server");
         px.get_writer()
             .write_all_buf(buf.get_mut())
             .await
             .expect("Could not write commands to server");
+
+        // abort loop if only one iteration is requested
+        if !opts.do_loop {
+            break;
+        }
+
+        // select a new color for next iteration if requested
+        if let TargetColor::RandomPerIteration = opts.color {
+            prepare_buffer(&mut buf);
+        }
     }
 }
