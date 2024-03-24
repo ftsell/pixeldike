@@ -17,6 +17,7 @@ categories = ["command-line-utilities", "games"]
 [features]
 default = []
 cli = ["clap", "tracing-subscriber"]
+image = ["dep:image"]
 
 
 [profile.release]

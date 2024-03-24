@@ -32,6 +32,8 @@ pub(crate) enum Command {
     Server(ServerOpts),
     /// Run a pixelflut client to project a colored rectangle onto a servers pixmap
     PutRectangle(PutRectangleData),
+    /// Upload an image to a pixelflut server
+    PutImage(PutImageData),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -120,8 +122,9 @@ pub(crate) struct FramebufferOpts {
     pub fb_framerate: usize,
 }
 
+/// Arguments common to all client commands
 #[derive(Args, Debug, Clone)]
-pub(crate) struct PutRectangleData {
+pub(crate) struct CommonClientOps {
     /// Address of the pixelflut server
     #[arg(long = "server")]
     pub server: SocketAddr,
@@ -140,9 +143,26 @@ pub(crate) struct PutRectangleData {
     /// Only draw the rectangle once
     #[arg(long = "once", action = ArgAction::SetFalse)]
     pub do_loop: bool,
+}
+
+#[derive(Args, Debug, Clone)]
+pub(crate) struct PutRectangleData {
+    #[command(flatten)]
+    pub common: CommonClientOps,
+
     /// The color which the rectangle should have.
     #[arg(long = "color", default_value = "random")]
     pub color: TargetColor,
+}
+
+#[derive(Args, Debug, Clone)]
+pub(crate) struct PutImageData {
+    #[command(flatten)]
+    pub common: CommonClientOps,
+
+    /// Path to an image file that should be uploaded
+    #[arg(short = 'f', long = "file")]
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone)]

@@ -3,8 +3,10 @@
 use bytes::buf::Writer;
 use bytes::{BufMut, BytesMut};
 use clap::Parser;
+use image::imageops::FilterType;
 use itertools::Itertools;
 use rand::prelude::*;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -17,6 +19,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::cli::{CliOpts, TargetColor, TargetDimension};
+use image::io::Reader as ImageReader;
 use pixelflut::net::clients::{GenClient, TcpClient};
 use pixelflut::net::protocol::{Request, Response};
 use pixelflut::net::servers::{
@@ -40,8 +43,9 @@ async fn main() {
     local_set
         .run_until(async move {
             match &args.command {
-                cli::Command::Server(opts) => start_server(&opts).await,
-                cli::Command::PutRectangle(opts) => put_rectangle(&opts).await,
+                cli::Command::Server(opts) => start_server(opts).await,
+                cli::Command::PutRectangle(opts) => put_rectangle(opts).await,
+                cli::Command::PutImage(opts) => put_image(opts).await,
             };
         })
         .await;
@@ -223,16 +227,121 @@ async fn start_server(opts: &cli::ServerOpts) {
 }
 
 async fn put_rectangle(opts: &cli::PutRectangleData) {
-    tracing::info!("Connecting to pixelflut server {}", opts.server);
-    let mut px = TcpClient::connect(opts.server)
-        .await
-        .expect("Could not connect to pixelflut server");
+    let fill_buf = |buf: &mut Writer<BytesMut>, x_min: usize, x_max: usize, y_min: usize, y_max: usize| {
+        // select a color
+        let color = match opts.color {
+            TargetColor::RandomPerIteration | TargetColor::RandomOnce => {
+                Color::from((random(), random(), random()))
+            }
+            TargetColor::Specific(c) => c,
+        };
 
-    // retrieve size metadata
-    let Response::Size {
-        width: canvas_width,
-        height: canvas_height,
-    } = px
+        // accumulate color commands into one large buffer buffer
+        tracing::debug!("Filling command-buffer to draw #{color:X} from {x_min},{y_min} to {x_max},{y_max}");
+        let mut coords = (x_min..x_max).cartesian_product(y_min..y_max).collect::<Vec<_>>();
+        coords.shuffle(&mut thread_rng());
+        for (x, y) in coords {
+            Request::SetPixel { x, y, color }.write(buf).unwrap();
+        }
+    };
+
+    run_gen_client(
+        fill_buf,
+        &opts.common,
+        matches!(opts.color, TargetColor::RandomPerIteration),
+    )
+    .await
+}
+
+async fn put_image(opts: &cli::PutImageData) {
+    let fill_buf = |buf: &mut Writer<BytesMut>, x_min: usize, x_max: usize, y_min: usize, y_max: usize| {
+        tracing::debug!("Opening image at {}", &opts.path.display());
+        let img = ImageReader::open(&opts.path)
+            .expect("Could not open image file")
+            .decode()
+            .expect("Could not decode image")
+            .to_rgb8();
+
+        tracing::debug!("Resizing image to dimensions {}x{}", x_max - x_min, y_max - y_min);
+        let img = image::imageops::resize(
+            &img,
+            (x_max - x_min) as u32,
+            (y_max - y_min) as u32,
+            FilterType::Triangle,
+        );
+
+        // accumulate color commands into one large buffer buffer
+        tracing::debug!("Converting image to pixelflut commands");
+        let mut coords = (x_min..x_max).cartesian_product(y_min..y_max).collect::<Vec<_>>();
+        coords.shuffle(&mut thread_rng());
+        for (x, y) in coords {
+            let color = img.get_pixel(x as u32, y as u32);
+            Request::SetPixel {
+                x,
+                y,
+                color: color.0.into(),
+            }
+            .write(buf)
+            .unwrap();
+        }
+    };
+
+    run_gen_client(fill_buf, &opts.common, false).await
+}
+
+/// Run a generic client loop that fills its command buffer from the provided function.
+///
+/// `fill_buf` should be a function that fills the provided buffer with pixelflut commands.
+/// It is given `x_min, x_max, y_min, y_max` as additional arguments so that commands can be generated for the right
+/// dimensions.
+///
+/// If `requires_buf_refresh` is true, then the command is filled per iteration of the client loop.
+/// Otherwise it is only filled once.
+async fn run_gen_client<F>(fill_buf: F, opts: &cli::CommonClientOps, requires_buf_refresh: bool)
+where
+    F: Fn(&mut Writer<BytesMut>, usize, usize, usize, usize),
+{
+    // preparation
+    let mut px = make_client(opts.server).await;
+    let (canvas_width, canvas_height) = get_size(&mut px).await;
+    let (x_min, x_max, y_min, y_max) = calc_bounds(canvas_width, canvas_height, &opts);
+    let mut buf = BytesMut::new().writer();
+
+    tracing::info!("Preparing command buffer");
+    fill_buf(&mut buf, x_min, x_max, y_min, y_max);
+
+    // main loop
+    tracing::info!("Running client loop");
+    loop {
+        // send whole buffer to server
+        tracing::debug!("Sending prepared commands to server");
+        px.get_writer()
+            .write_all(buf.get_ref())
+            .await
+            .expect("Could not write commands to server");
+
+        // abort loop if only one iteration is requested
+        if !opts.do_loop {
+            break;
+        }
+
+        // refresh buffer content if required
+        if requires_buf_refresh {
+            buf.get_mut().clear();
+            fill_buf(&mut buf, x_min, x_max, y_min, y_max);
+        }
+    }
+}
+
+async fn make_client(addr: SocketAddr) -> TcpClient {
+    tracing::info!("Connecting to pixelflut server {}", addr);
+    TcpClient::connect(addr)
+        .await
+        .expect("Could not connect to pixelflut server")
+}
+
+async fn get_size(px: &mut TcpClient) -> (usize, usize) {
+    let Response::Size { width, height } = px
         .exchange(Request::GetSize)
         .await
         .expect("Could not retrieve size from pixelflut server")
@@ -241,11 +350,20 @@ async fn put_rectangle(opts: &cli::PutRectangleData) {
     };
     tracing::info!(
         "Successfully exchanged metadata with pixelflut server (width={}, height={})",
-        canvas_width,
-        canvas_height
+        width,
+        height
     );
+    (width, height)
+}
 
-    // determine dimensions inside which to draw our rectangle
+/// Determine effective bounds from cli args as well as remote canvas size
+///
+/// Returns `(x_min, x_max, y_min, y_max)`
+fn calc_bounds(
+    canvas_width: usize,
+    canvas_height: usize,
+    opts: &cli::CommonClientOps,
+) -> (usize, usize, usize, usize) {
     let x_min = if opts.x_offset >= canvas_width {
         panic!(
             "given x-offset {} is outside of servers canvas with width {}",
@@ -289,44 +407,5 @@ async fn put_rectangle(opts: &cli::PutRectangleData) {
         }
     };
 
-    // construct a target buffer that accumulates all draw commands
-    let mut buf = BytesMut::new().writer();
-    let prepare_buffer = |buf: &mut Writer<BytesMut>| {
-        // select a color
-        let color = match opts.color {
-            TargetColor::RandomPerIteration | TargetColor::RandomOnce => {
-                Color::from((random(), random(), random()))
-            }
-            TargetColor::Specific(c) => c,
-        };
-        tracing::info!("Preparing buffer to draw {color:X} from {x_min},{y_min} to {x_max},{y_max}");
-
-        // accumulate color commands into one large buffer buffer
-        let mut coords = (x_min..x_max).cartesian_product(y_min..y_max).collect::<Vec<_>>();
-        coords.shuffle(&mut thread_rng());
-        for (x, y) in coords {
-            Request::SetPixel { x, y, color }.write(buf).unwrap();
-        }
-    };
-    prepare_buffer(&mut buf);
-
-    // main loop
-    loop {
-        // send whole buffer to server
-        tracing::info!("Sending prepared commands to server");
-        px.get_writer()
-            .write_all_buf(buf.get_mut())
-            .await
-            .expect("Could not write commands to server");
-
-        // abort loop if only one iteration is requested
-        if !opts.do_loop {
-            break;
-        }
-
-        // select a new color for next iteration if requested
-        if let TargetColor::RandomPerIteration = opts.color {
-            prepare_buffer(&mut buf);
-        }
-    }
+    (x_min, x_max, y_min, y_max)
 }
