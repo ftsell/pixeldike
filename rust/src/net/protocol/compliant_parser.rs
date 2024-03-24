@@ -1,9 +1,6 @@
 //! A pixelflut request parser implementation that is fully compliant to the wire protocol
 
 use anyhow::anyhow;
-use std::io;
-use std::io::BufRead;
-use std::io::Read;
 use thiserror::Error;
 
 use crate::net::protocol::{HelpTopic, Request, Response};
@@ -85,7 +82,7 @@ fn parse_size_data(width: &str, height: &str) -> Result<Response, ParseErr> {
 }
 
 #[inline(always)]
-pub fn parse_help_data(topic: &str) -> Result<Response, ParseErr> {
+fn parse_help_data(topic: &str) -> Result<Response, ParseErr> {
     match topic {
         "help" | "HELP" | "general" | "GENERAL" => Ok(Response::Help(HelpTopic::General)),
         "size" | "SIZE" => Ok(Response::Help(HelpTopic::Size)),
@@ -132,7 +129,7 @@ impl<'s, const MAX_TOKS: usize> FromIterator<&'s str> for TokBuf<'s, MAX_TOKS> {
 
 /// Try to parse a single pixelflut request
 #[inline(always)]
-pub fn parse_request(line: &str) -> Result<Request, ParseErr> {
+pub fn parse_request_str(line: &str) -> Result<Request, ParseErr> {
     let tokens: TokBuf<'_, 4> = line.split_whitespace().collect();
     let tokens = tokens.tokens();
     match tokens.len() {
@@ -155,7 +152,7 @@ pub fn parse_request_bin(line: &[u8]) -> anyhow::Result<Request> {
     if line.is_ascii() {
         // Safety: This is fine because the bytes are already checked to be ascii
         let str = unsafe { std::str::from_utf8_unchecked(line) };
-        Ok(parse_request(str)?)
+        Ok(parse_request_str(str)?)
     } else {
         Err(anyhow!("request buffer does not contain an ascii string"))
     }
@@ -163,7 +160,7 @@ pub fn parse_request_bin(line: &[u8]) -> anyhow::Result<Request> {
 
 /// Try to parse a single pixelflut response
 #[inline(always)]
-pub fn parse_response(line: &str) -> Result<Response, ParseErr> {
+pub fn parse_response_str(line: &str) -> Result<Response, ParseErr> {
     let tokens: TokBuf<'_, 4> = line.split_whitespace().collect();
     let tokens = tokens.tokens();
     match tokens.len() {
@@ -180,7 +177,7 @@ pub fn parse_response_bin(line: &[u8]) -> anyhow::Result<Response> {
     if line.is_ascii() {
         // Safety: This is fine because the bytes are already checked to be ascii
         let str = unsafe { std::str::from_utf8_unchecked(line) };
-        Ok(parse_response(str)?)
+        Ok(parse_response_str(str)?)
     } else {
         Err(anyhow!("response buffer does not contain an ascii string"))
     }

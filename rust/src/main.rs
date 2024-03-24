@@ -1,6 +1,7 @@
 #![feature(never_type)]
 
 use clap::Parser;
+use rand::random;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::{JoinSet, LocalSet};
@@ -9,10 +10,12 @@ use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+use pixelflut::net::clients::{GenClient, TcpClient};
+use pixelflut::net::protocol::{Request, Response};
 use pixelflut::net::servers::{
     GenServer, TcpServerOptions, UdpServer, UdpServerOptions, WsServer, WsServerOptions,
 };
-use pixelflut::pixmap::Pixmap;
+use pixelflut::pixmap::{Color, Pixmap};
 use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
 use pixelflut::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
 use pixelflut::sinks::pixmap_file::{FileSink, FileSinkOptions};
@@ -156,7 +159,7 @@ async fn start_server(opts: &cli::ServerOpts) {
             bind_addr: udp_bind_addr.to_owned(),
         });
         server
-            .start(pixmap, &mut join_set)
+            .start_many(pixmap, 16, &mut join_set)
             .await
             .expect("Could not start udp server");
     }
@@ -186,39 +189,36 @@ async fn start_server(opts: &cli::ServerOpts) {
 }
 
 async fn put_image(opts: &cli::PutImageOpts) {
-    /*
-    tracing::info!("Connecting to pixelflut server for metadata retrieval");
-    let mut px = TcpClient::<128>::connect(TcpClientOptions {
-        server_addr: opts.server,
-    })
-    .await
-    .expect("Could not connect to pixelflut server over tcp");
-
-    // get size from server
-    px.get_msg_writer()
-        .write_request(&Request::GetSize)
+    tracing::info!("Connecting to pixelflut server {}", opts.server);
+    let mut px = TcpClient::connect(opts.server)
         .await
-        .unwrap();
-    px.get_msg_writer().flush().await.unwrap();
-    let response = px.get_msg_reader().read_msg().await.unwrap();
-    let response = parse_response(response).unwrap();
-    let Response::Size { width, height } = response else {
-        panic!("Server responded with invalid response: {response:?} to size request")
+        .expect("Could not connect to pixelflut server");
+
+    // retrieve size metadata
+    let Response::Size { width, height } = px
+        .exchange(Request::GetSize)
+        .await
+        .expect("Could not retrieve size from pixelflut server")
+    else {
+        panic!("Server sent invalid response to size request")
     };
-    tracing::info!("Pixelflut server has canvas size {width}x{height}");
+    tracing::info!(
+        "Successfully exchanged metadata with pixelflut server (width={}, height={})",
+        width,
+        height
+    );
 
     loop {
+        // send random color and fill screen with it
         let color = Color::from((random(), random(), random()));
         tracing::info!("Drawing {color:X} onto the server…");
 
-        for x in 0..width {
-            for y in 0..height {
-                px.get_msg_writer()
-                    .write_request(&Request::SetPixel { x, y, color })
+        for y in 0..height {
+            for x in 0..width {
+                px.send_request(Request::SetPixel { x, y, color })
                     .await
-                    .unwrap();
+                    .expect("Could not send pixel");
             }
         }
     }
-     */
 }

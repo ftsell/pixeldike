@@ -30,7 +30,7 @@ impl TcpServer {
             let pixmap = pixmap.clone();
             tokio::spawn(async move {
                 if let Err(e) = TcpServer::handle_connection(stream, remote_addr, pixmap).await {
-                    tracing::error!("Got error while handling tcp connection: {e}");
+                    tracing::warn!("Got error while handling tcp connection: {e}");
                 }
             });
         }
@@ -50,9 +50,9 @@ impl TcpServer {
             // fill the line buffer from the network
             let n = stream.read_buf(&mut req_buf).await?;
             if n == 0 {
-                tracing::debug!("Client stream exhausted; likely disconnected");
                 return Err(anyhow!("client stream exhausted"));
             }
+            tracing::trace!("Received {}KiB stream data: {:?}", n / 1024, req_buf);
 
             // handle all lines contained in the buffer
             while let Some((i, _)) = req_buf.iter().enumerate().find(|(_, &b)| b == b'\n') {
@@ -69,6 +69,10 @@ impl TcpServer {
 
             // clear the buffer if someone is deliberately not sending a newline
             if req_buf.len() > MAX_LINE_LEN {
+                tracing::warn!(
+                    "Request buffer has {}B but no lines left in it. Client is probably misbehaving.",
+                    req_buf.len()
+                );
                 req_buf.clear();
             }
         }

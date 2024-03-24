@@ -8,7 +8,7 @@ mod tcp_server;
 mod udp_server;
 mod ws_server;
 
-use crate::net::protocol::{parse_request, Request, Response};
+use crate::net::protocol::{parse_request_bin, Request, Response};
 use crate::pixmap::SharedPixmap;
 
 pub use tcp_server::{TcpServer, TcpServerOptions};
@@ -21,7 +21,7 @@ pub use ws_server::{WsServer, WsServerOptions};
 /// It parses requests, handles them and generates responses.
 /// The actual IO is left to the specific server though.
 fn handle_request(line: &[u8], pixmap: &SharedPixmap) -> Result<Option<Response>, String> {
-    let parse_result = parse_request(line);
+    let parse_result = parse_request_bin(line);
     match parse_result {
         Err(e) => Err(e.to_string()),
         Ok(request) => match request {

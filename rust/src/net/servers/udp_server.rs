@@ -92,13 +92,16 @@ impl UdpServer {
         }
 
         // write accumulated responses back to the sender
-        tracing::trace!(
-            "Sending back {}KiB response: {:?}",
-            resp_buf.get_ref().len() / 1024,
-            &resp_buf.get_ref()
-        );
-        if let Err(e) = socket.send_to(resp_buf.get_ref(), sender).await {
-            tracing::error!("Error while writing response to {}: {}", sender, e);
+        let resp_buf = resp_buf.into_inner();
+        if !resp_buf.is_empty() {
+            tracing::trace!(
+                "Sending back {}KiB response: {:?}",
+                resp_buf.len() / 1024,
+                &resp_buf
+            );
+            if let Err(e) = socket.send_to(&resp_buf, sender).await {
+                tracing::error!("Error while writing response to {}: {}", sender, e);
+            }
         }
     }
 }
