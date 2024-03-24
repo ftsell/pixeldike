@@ -2,6 +2,9 @@
 
 mod gen_server;
 
+#[cfg(test)]
+mod benchmark;
+
 pub use gen_server::GenServer;
 
 #[cfg(feature = "tcp")]
