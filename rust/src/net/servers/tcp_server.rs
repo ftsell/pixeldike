@@ -1,11 +1,11 @@
-use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter};
 use crate::net::servers::GenServer;
 use crate::pixmap::SharedPixmap;
 use crate::DaemonResult;
+use anyhow::anyhow;
 use async_trait::async_trait;
+use bytes::BytesMut;
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::{AbortHandle, JoinSet};
 
@@ -42,27 +42,34 @@ impl TcpServer {
         _remote_addr: SocketAddr,
         pixmap: SharedPixmap,
     ) -> anyhow::Result<()> {
+        const MAX_LINE_LEN: usize = 32;
         tracing::debug!("Client connected");
-        let (read_stream, write_stream) = stream.split();
-        let buffer = BufferedMsgReader::<512, _>::new_empty(read_stream);
-        match super::handle_requests(buffer, write_stream, pixmap).await {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                // handle known errors which are expected and known to be okay
-                if let Some(e) = e.downcast_ref::<std::io::Error>() {
-                    if let std::io::ErrorKind::UnexpectedEof | std::io::ErrorKind::ConnectionReset = e.kind()
-                    {
-                        tracing::debug!("Client disconnected");
-                        return Ok(());
-                    }
-                }
 
-                // handle unknown errors by logging and returning them
-                tracing::debug!(
-                    error = e.to_string(),
-                    "Got unexpected error while handling client sinks"
-                );
-                return Err(e);
+        let mut req_buf = BytesMut::with_capacity(8 * 1024);
+        loop {
+            // fill the line buffer from the network
+            let n = stream.read_buf(&mut req_buf).await?;
+            if n == 0 {
+                tracing::debug!("Client stream exhausted; likely disconnected");
+                return Err(anyhow!("client stream exhausted"));
+            }
+
+            // handle all lines contained in the buffer
+            while let Some((i, _)) = req_buf.iter().enumerate().find(|(_, &b)| b == b'\n') {
+                let line = req_buf.split_to(i + 1);
+                let result = super::handle_request(&line, &pixmap);
+                match result {
+                    Err(e) => {
+                        stream.write_all(format!("{}\n", e).as_bytes()).await?;
+                    }
+                    Ok(Some(response)) => response.write_async(&mut stream).await?,
+                    Ok(None) => {}
+                }
+            }
+
+            // clear the buffer if someone is deliberately not sending a newline
+            if req_buf.len() > MAX_LINE_LEN {
+                req_buf.clear();
             }
         }
     }
@@ -89,31 +96,5 @@ impl GenServer for TcpServer {
             .name("tcp_server")
             .spawn(async move { TcpServer::handle_listener(listener, pixmap).await })?;
         Ok(handle)
-    }
-}
-
-#[async_trait]
-impl BufferFiller for ReadHalf<'_> {
-    async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize> {
-        assert!(buffer.len() > 0);
-        match self.read(buffer).await {
-            Ok(n) => match n {
-                0 => Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof).into()),
-                n => Ok(n),
-            },
-            Err(e) => Err(e.into()),
-        }
-    }
-}
-
-#[async_trait]
-impl MsgWriter for WriteHalf<'_> {
-    async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
-        <Self as AsyncWriteExt>::write(self, msg).await?;
-        Ok(())
-    }
-
-    async fn flush(&mut self) -> std::io::Result<()> {
-        <Self as AsyncWriteExt>::flush(self).await
     }
 }

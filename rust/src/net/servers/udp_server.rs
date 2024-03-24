@@ -1,8 +1,9 @@
-use crate::net::framing::{BufferFiller, BufferedMsgReader, MsgWriter, VoidWriter};
 use crate::net::servers::gen_server::GenServer;
 use crate::pixmap::SharedPixmap;
 use crate::DaemonResult;
 use async_trait::async_trait;
+use bytes::{BufMut, Bytes, BytesMut};
+use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -32,8 +33,12 @@ impl UdpServer {
         join_set: &mut JoinSet<DaemonResult>,
     ) -> anyhow::Result<Vec<AbortHandle>> {
         let socket = Arc::new(UdpSocket::bind(self.options.bind_addr).await?);
+        tracing::info!(
+            "Started UDP Server on {} with {} tasks",
+            self.options.bind_addr,
+            n
+        );
         (0..n)
-            .into_iter()
             .map(|i| {
                 let pixmap = pixmap.clone();
                 let socket = socket.clone();
@@ -48,10 +53,53 @@ impl UdpServer {
 
     #[tracing::instrument(skip_all)]
     async fn listen(pixmap: SharedPixmap, socket: Arc<UdpSocket>) -> anyhow::Result<!> {
-        const BUF_SIZE: usize = 256;
-        let filler = UdpBufferFiller::<BUF_SIZE>::new(socket);
-        let reader = BufferedMsgReader::<{ BUF_SIZE * 2 * 2 * 2 }, _>::new_empty(filler);
-        super::handle_requests(reader, VoidWriter, pixmap).await
+        loop {
+            // fill a buffer from the network
+            let mut req_buf = BytesMut::with_capacity(4 * 1024);
+            let (_, sender) = socket.recv_buf_from(&mut req_buf).await?;
+
+            // process received commands in the background
+            let pixmap = pixmap.clone();
+            let socket = socket.clone();
+            tokio::spawn(
+                async move { Self::handle_requests(sender, req_buf.freeze(), pixmap, socket).await },
+            );
+        }
+    }
+
+    #[tracing::instrument(skip_all, fields(remote = sender.to_string()))]
+    async fn handle_requests(
+        sender: SocketAddr,
+        mut buf: Bytes,
+        pixmap: SharedPixmap,
+        socket: Arc<UdpSocket>,
+    ) {
+        tracing::trace!("Received {}KiB UDP datagram: {:?}", buf.len() / 1024, buf);
+
+        let mut resp_buf = BytesMut::with_capacity(4 * 1024).writer();
+
+        // handle all lines contained in the request buffer
+        while let Some((i, _)) = buf.iter().enumerate().find(|(_, &b)| b == b'\n') {
+            let line = buf.split_to(i + 1);
+            let result = super::handle_request(&line, &pixmap);
+            match result {
+                Err(e) => {
+                    resp_buf.write_fmt(format_args!("{}\n", e)).unwrap();
+                }
+                Ok(Some(response)) => response.write(&mut resp_buf).unwrap(),
+                Ok(None) => {}
+            }
+        }
+
+        // write accumulated responses back to the sender
+        tracing::trace!(
+            "Sending back {}KiB response: {:?}",
+            resp_buf.get_ref().len() / 1024,
+            &resp_buf.get_ref()
+        );
+        if let Err(e) = socket.send_to(resp_buf.get_ref(), sender).await {
+            tracing::error!("Error while writing response to {}: {}", sender, e);
+        }
     }
 }
 
@@ -76,95 +124,5 @@ impl GenServer for UdpServer {
             .name("udp_server")
             .spawn(async move { UdpServer::listen(pixmap, socket).await })?;
         Ok(handle)
-    }
-}
-
-/// A helper struct for implementing `BufferFiller` in a way that only fills completed pixelflut messages into the buffer.
-///
-/// This works by first receiving data from a udp socket into an intermediate buffer whose size can be configured via
-/// the `UdpBufferFiller` generic constant, then checking if the last byte is a \n and then only filling the given
-/// buffer if that is the case.
-pub(crate) struct UdpBufferFiller<const TMP_BUF_SIZE: usize> {
-    socket: Arc<UdpSocket>,
-    tmp_buffer: [u8; TMP_BUF_SIZE],
-}
-
-impl<const TMP_BUF_SIZE: usize> UdpBufferFiller<TMP_BUF_SIZE> {
-    fn new(socket: Arc<UdpSocket>) -> Self {
-        Self {
-            socket,
-            tmp_buffer: [0u8; TMP_BUF_SIZE],
-        }
-    }
-}
-
-#[async_trait]
-impl<const TMP_BUF_SIZE: usize> BufferFiller for UdpBufferFiller<TMP_BUF_SIZE> {
-    async fn fill_buffer(&mut self, buffer: &mut [u8]) -> anyhow::Result<usize> {
-        let bytes_read = self.socket.recv(&mut self.tmp_buffer).await?;
-
-        if bytes_read == 0 {
-            tracing::warn!("received invalid empty udp packet");
-            return Ok(0);
-        }
-
-        if self.tmp_buffer[bytes_read - 1] == '\n' as u8 {
-            buffer[..bytes_read].copy_from_slice(&self.tmp_buffer[..bytes_read]);
-            Ok(bytes_read)
-        } else {
-            tracing::warn!("received invalid udp packet without \\n");
-            Ok(0)
-        }
-    }
-}
-
-/// A helper struct for assembling udp packets that contain multiple pixelflut messages
-#[derive(Debug)]
-pub struct UdpPacketAssembler<const BUF_SIZE: usize> {
-    socket: UdpSocket,
-    write_buffer: [u8; BUF_SIZE],
-    fill_marker: usize,
-}
-
-impl<const BUF_SIZE: usize> UdpPacketAssembler<BUF_SIZE> {
-    /// Create a new instance that writes to the given socket.
-    pub fn new(socket: UdpSocket) -> Self {
-        Self {
-            write_buffer: [0u8; BUF_SIZE],
-            fill_marker: 0,
-            socket,
-        }
-    }
-
-    /// How much free space the internal buffer has before it needs to be flushed to the server.
-    pub fn free_space(&self) -> usize {
-        self.write_buffer.len() - self.fill_marker
-    }
-}
-
-#[async_trait]
-impl<const BUF_SIZE: usize> MsgWriter for UdpPacketAssembler<BUF_SIZE> {
-    async fn write_data(&mut self, msg: &[u8]) -> std::io::Result<()> {
-        if self.free_space() < msg.len() {
-            tracing::warn!("UdpPacketAssembler is full and cannot add more data to its assembly");
-            return Err(std::io::Error::from(std::io::ErrorKind::OutOfMemory));
-        }
-
-        self.write_buffer[self.fill_marker..][..msg.len()].copy_from_slice(msg);
-        self.fill_marker += msg.len();
-        Ok(())
-    }
-
-    async fn flush(&mut self) -> std::io::Result<()> {
-        // write the whole assembled packet to the socket
-        let written = self.socket.send(&self.write_buffer[..self.fill_marker]).await?;
-        if written != self.fill_marker {
-            tracing::warn!("UDP socket did not send the whole assembled packet, only {} out of {} bytes were written to the socket.", written, self.fill_marker);
-        }
-
-        // reset the internal buffer so that there is free space again
-        self.fill_marker = 0;
-
-        Ok(())
     }
 }

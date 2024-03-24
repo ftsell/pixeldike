@@ -140,7 +140,7 @@ pub fn parse_request(line: &str) -> Result<Request, ParseErr> {
         3 => parse_px_get_args(tokens[1], tokens[2]),
         2 => parse_help_args(tokens[1]),
         1 => match tokens[0] {
-            "SIZE" => Ok(Request::GetSize),
+            "SIZE" | "size" => Ok(Request::GetSize),
             "HELP" | "help" => Ok(Request::Help(HelpTopic::General)),
             _ => Err(ParseErr::UnknownCommand),
         },
@@ -214,6 +214,7 @@ pub fn read_request_slice<'b, 'r: 'b>(
     }
 }
 
+/*
 #[inline(always)]
 pub fn read_request_line<'l, 'r: 'l>(
     read: &'r mut impl BufRead,
@@ -233,6 +234,7 @@ pub fn read_request_line<'l, 'r: 'l>(
         _ => Ok(Some(line.as_str())),
     }
 }
+ */
 
 // pub fn pixmap_consumer(mut read: impl BufRead, pixmap: &mut Pixmap) -> PxResult<()> {
 //     let mut line = String::with_capacity(32);

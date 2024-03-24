@@ -1,8 +1,6 @@
 #![feature(never_type)]
 
 use clap::Parser;
-use nom::Finish;
-use rand::random;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::{JoinSet, LocalSet};
@@ -11,13 +9,10 @@ use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use pixelflut::net::clients::{GenClient, TcpClient, TcpClientOptions};
-use pixelflut::net::framing::MsgWriter;
-use pixelflut::net::protocol::{parse_response, Request, Response};
 use pixelflut::net::servers::{
     GenServer, TcpServerOptions, UdpServer, UdpServerOptions, WsServer, WsServerOptions,
 };
-use pixelflut::pixmap::{Color, Pixmap};
+use pixelflut::pixmap::Pixmap;
 use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
 use pixelflut::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
 use pixelflut::sinks::pixmap_file::{FileSink, FileSinkOptions};
@@ -31,7 +26,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .with(
             EnvFilter::builder()
-                .parse("debug,wgpu_core=warn,wgpu_hal=warn,naga=warn")
+                .parse("trace,tokio=warn,runtime=warn")
                 .unwrap(),
         )
         .init();
@@ -161,7 +156,7 @@ async fn start_server(opts: &cli::ServerOpts) {
             bind_addr: udp_bind_addr.to_owned(),
         });
         server
-            .start_many(pixmap, 16, &mut join_set)
+            .start(pixmap, &mut join_set)
             .await
             .expect("Could not start udp server");
     }
@@ -191,6 +186,7 @@ async fn start_server(opts: &cli::ServerOpts) {
 }
 
 async fn put_image(opts: &cli::PutImageOpts) {
+    /*
     tracing::info!("Connecting to pixelflut server for metadata retrieval");
     let mut px = TcpClient::<128>::connect(TcpClientOptions {
         server_addr: opts.server,
@@ -224,4 +220,5 @@ async fn put_image(opts: &cli::PutImageOpts) {
             }
         }
     }
+     */
 }
