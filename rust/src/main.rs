@@ -10,10 +10,13 @@ use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::task::{JoinSet, LocalSet};
 use tokio::time::interval;
+use tracing::metadata::LevelFilter;
+use tracing_subscriber::filter;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+use crate::cli::CliOpts;
 use pixelflut::net::clients::{GenClient, TcpClient};
 use pixelflut::net::protocol::{Request, Response};
 use pixelflut::net::servers::{
@@ -29,17 +32,10 @@ mod cli;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(
-            EnvFilter::builder()
-                .parse("trace,tokio=warn,runtime=warn")
-                .unwrap(),
-        )
-        .init();
-
     let args = cli::CliOpts::parse();
+    init_logger(&args);
 
+    // prepare async environment and run the specified program action
     let local_set = LocalSet::new();
     local_set
         .run_until(async move {
@@ -49,6 +45,40 @@ async fn main() {
             };
         })
         .await;
+}
+
+#[inline]
+fn init_logger(args: &CliOpts) {
+    // determine combined log level from cli arguments
+    const DEFAULT_LEVEL: u8 = 3;
+    let log_level = match DEFAULT_LEVEL
+        .saturating_add(args.verbose)
+        .saturating_sub(args.quiet)
+    {
+        0 => LevelFilter::OFF,
+        1 => LevelFilter::ERROR,
+        2 => LevelFilter::WARN,
+        3 => LevelFilter::INFO,
+        4 => LevelFilter::DEBUG,
+        _ => LevelFilter::TRACE,
+    };
+
+    // configure appropriate level filter
+    // tokio is very spammy on higher log levels which is usually not interesting so we filter it out
+    let filter = filter::Targets::new()
+        .with_default(log_level)
+        .with_target("tokio", Ord::min(LevelFilter::WARN, log_level))
+        .with_target("runtime", Ord::min(LevelFilter::WARN, log_level));
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(filter)
+        .with(log_level)
+        .with(
+            EnvFilter::builder()
+                .parse("trace,tokio=warn,runtime=warn")
+                .unwrap(),
+        )
+        .init();
 }
 
 async fn start_server(opts: &cli::ServerOpts) {
@@ -219,7 +249,7 @@ async fn put_image(opts: &cli::PutImageOpts) {
         tracing::info!("Drawing {color:X} onto the server…");
 
         // accumulate color commands into one large buffer buffer
-        let mut coords = (0..height).cartesian_product(0..width).collect::<Vec<_>>();
+        let mut coords = (0..width).cartesian_product(0..height).collect::<Vec<_>>();
         coords.shuffle(&mut thread_rng());
         for (x, y) in coords {
             Request::SetPixel { x, y, color }.write(&mut buf).unwrap();

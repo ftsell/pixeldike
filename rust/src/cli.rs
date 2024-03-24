@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{ArgAction, Args, Parser, Subcommand};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -8,6 +8,18 @@ use std::path::PathBuf;
 pub(crate) struct CliOpts {
     #[command(subcommand)]
     pub command: Command,
+
+    /// Increase program verbosity
+    ///
+    /// The default verbosity level is INFO.
+    #[arg(short = 'v', long = "verbose", action = ArgAction::Count, default_value = "0")]
+    pub verbose: u8,
+
+    /// Decrease program verbosity
+    ///
+    /// The default verbosity level is INFO.
+    #[arg(short = 'q', long = "quiet", action = ArgAction::Count, default_value = "0")]
+    pub quiet: u8,
 }
 
 #[derive(Subcommand, Debug, Clone)]
