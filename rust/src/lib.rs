@@ -2,6 +2,7 @@
 #![feature(cursor_remaining)]
 #![feature(sync_unsafe_cell)]
 #![feature(int_roundings)]
+#![feature(test)]
 #![deny(trivial_casts)]
 #![warn(
     rustdoc::missing_crate_level_docs,
@@ -24,6 +25,8 @@
 #[cfg(test)]
 #[macro_use]
 extern crate quickcheck;
+#[cfg(test)]
+extern crate test;
 
 pub mod net;
 pub mod pixmap;

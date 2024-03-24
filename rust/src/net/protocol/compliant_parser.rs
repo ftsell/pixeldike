@@ -186,6 +186,8 @@ pub fn parse_response_bin(line: &[u8]) -> anyhow::Result<Response> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use ::test::Bencher;
+    use std::hint::black_box;
 
     #[test]
     fn test_parse_commands() {
@@ -212,6 +214,24 @@ mod test {
                 color: Color::from((0xAA, 0xBB, 0xCC)),
             },
         );
+    }
+
+    #[bench]
+    fn bench_parse_get_pixel(b: &mut Bencher) {
+        let cmd = black_box("PX 17 7632");
+        b.iter(move || parse_request_str(cmd).unwrap());
+    }
+
+    #[bench]
+    fn bench_parse_set_pixel(b: &mut Bencher) {
+        let cmd = "PX 17 7632 12FBA5";
+        b.iter(move || parse_request_str(black_box(cmd)).unwrap());
+    }
+
+    #[bench]
+    fn bench_parse_size(b: &mut Bencher) {
+        let cmd = "SIZE";
+        b.iter(move || parse_request_str(black_box(cmd)).unwrap());
     }
 
     /*
@@ -316,21 +336,6 @@ mod test {
     //     use super::*;
     //     use std::hint::black_box;
     //     use test::bench::Bencher;
-    //
-    //     #[bench]
-    //     fn bench_parse_get_pixel(b: &mut Bencher) {
-    //         let x = black_box("17");
-    //         let y = black_box("7632");
-    //         b.iter(move || parse_get_pixel(x, y).unwrap());
-    //     }
-    //
-    //     #[bench]
-    //     fn bench_parse_set_pixel(b: &mut Bencher) {
-    //         let x = black_box("17");
-    //         let y = black_box("7632");
-    //         let px = black_box("57A011");
-    //         b.iter(move || parse_set_pixel(x, y, px).unwrap());
-    //     }
     //
     //     #[bench]
     //     fn bench_line_split_whitespace(b: &mut Bencher) {
