@@ -18,9 +18,6 @@ categories = ["command-line-utilities", "games"]
 codegen-units = 1
 lto = "fat"
 
-[profile.bench]
-debug = true
-
 [features]
 default = ["cli", "tcp", "udp"]
 ws = ["dep:tokio-tungstenite", "dep:futures-util"]
@@ -31,17 +28,11 @@ cli = ["tcp", "dep:clap", "dep:rand", "dep:tracing-subscriber", "dep:image"]
 
 [lib]
 path = "src/lib.rs"
-bench = false       # disable default cargo benchmarks because we use criterion
 
 [[bin]]
 name = "pixelflut"
 path = "src/main.rs"
 required-features = ["cli"]
-bench = false       # disable default cargo benchmarks because we use criterion
-
-[[bench]]
-name = "command_e2e_benchmark"
-harness = false
 
 [dependencies]
 anyhow = "1.0.68"
@@ -61,6 +52,5 @@ tracing-subscriber = { version = "0.3.17", optional = true }
 clap = { version = "4.0.30", optional = true, features = [ "derive" ] }
 
 [dev-dependencies]
-criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }
 quickcheck = "1.0.3"
 tempfile = "3.3.0"
