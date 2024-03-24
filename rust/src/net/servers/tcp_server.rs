@@ -3,7 +3,8 @@ use crate::pixmap::SharedPixmap;
 use crate::DaemonResult;
 use anyhow::anyhow;
 use async_trait::async_trait;
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
+use std::io::Write;
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -46,6 +47,7 @@ impl TcpServer {
         tracing::debug!("Client connected");
 
         let mut req_buf = BytesMut::with_capacity(8 * 1024);
+        let mut resp_buf = BytesMut::with_capacity(2 * 1024).writer();
         loop {
             // fill the line buffer from the network
             let n = stream.read_buf(&mut req_buf).await?;
@@ -60,9 +62,9 @@ impl TcpServer {
                 let result = super::handle_request(&line, &pixmap);
                 match result {
                     Err(e) => {
-                        stream.write_all(format!("{}\n", e).as_bytes()).await?;
+                        resp_buf.write_fmt(format_args!("{}\n", e)).unwrap();
                     }
-                    Ok(Some(response)) => response.write_async(&mut stream).await?,
+                    Ok(Some(response)) => response.write(&mut resp_buf).unwrap(),
                     Ok(None) => {}
                 }
             }
@@ -74,6 +76,17 @@ impl TcpServer {
                     req_buf.len()
                 );
                 req_buf.clear();
+                resp_buf.write_all("line too long\n".as_bytes()).unwrap();
+            }
+
+            // write accumulated responses back to the sender
+            if !resp_buf.get_ref().is_empty() {
+                tracing::trace!(
+                    "Sending back {}KiB response: {:?}",
+                    resp_buf.get_ref().len() / 1024,
+                    resp_buf.get_ref()
+                );
+                stream.write_all_buf(resp_buf.get_mut()).await?;
             }
         }
     }

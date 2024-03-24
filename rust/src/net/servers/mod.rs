@@ -21,6 +21,14 @@ pub use ws_server::{WsServer, WsServerOptions};
 /// It parses requests, handles them and generates responses.
 /// The actual IO is left to the specific server though.
 fn handle_request(line: &[u8], pixmap: &SharedPixmap) -> Result<Option<Response>, String> {
+    tracing::trace!(
+        "Handling single request {:?}",
+        match line.is_ascii() {
+            true => unsafe { std::str::from_utf8_unchecked(line) }.to_string(),
+            false => format!("{:?}", line),
+        }
+    );
+
     let parse_result = parse_request_bin(line);
     match parse_result {
         Err(e) => Err(e.to_string()),
@@ -31,11 +39,11 @@ fn handle_request(line: &[u8], pixmap: &SharedPixmap) -> Result<Option<Response>
                 Ok(Some(Response::Size { width, height }))
             }
             Request::GetPixel { x, y } => {
-                let color = pixmap.get_pixel(x, y).map_err(|e| format!("{:?}", e))?;
+                let color = pixmap.get_pixel(x, y).map_err(|e| format!("{}", e))?;
                 Ok(Some(Response::PxData { x, y, color }))
             }
             Request::SetPixel { x, y, color } => {
-                pixmap.set_pixel(x, y, color).map_err(|e| format!("{:?}", e))?;
+                pixmap.set_pixel(x, y, color).map_err(|e| format!("{}", e))?;
                 Ok(None)
             }
         },

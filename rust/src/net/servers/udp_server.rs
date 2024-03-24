@@ -76,7 +76,7 @@ impl UdpServer {
     ) {
         tracing::trace!("Received {}KiB UDP datagram: {:?}", buf.len() / 1024, buf);
 
-        let mut resp_buf = BytesMut::with_capacity(4 * 1024).writer();
+        let mut resp_buf = BytesMut::with_capacity(2 * 1024).writer();
 
         // handle all lines contained in the request buffer
         while let Some((i, _)) = buf.iter().enumerate().find(|(_, &b)| b == b'\n') {
