@@ -1,7 +1,7 @@
 //! Data types that describe all protocol interactions as safe-to-use structs
 
-use crate::i18n;
 use crate::pixmap::Color;
+use crate::texts;
 use std::fmt::{Display, Formatter};
 use std::io::Write;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
@@ -121,9 +121,9 @@ impl Response {
     pub fn write(&self, writer: &mut impl Write) -> std::io::Result<()> {
         match self {
             Response::Help(topic) => match topic {
-                HelpTopic::General => writer.write_all(i18n::HELP_GENERAL.as_bytes()),
-                HelpTopic::Size => writer.write_all(i18n::HELP_SIZE.as_bytes()),
-                HelpTopic::Px => writer.write_all(i18n::HELP_PX.as_bytes()),
+                HelpTopic::General => writer.write_all(texts::HELP_GENERAL.as_bytes()),
+                HelpTopic::Size => writer.write_all(texts::HELP_SIZE.as_bytes()),
+                HelpTopic::Px => writer.write_all(texts::HELP_PX.as_bytes()),
             },
             Response::Size { width, height } => {
                 writer.write_all(format!("SIZE {} {}\n", width, height).as_bytes())
@@ -138,9 +138,9 @@ impl Response {
     pub async fn write_async(&self, writer: &mut (impl AsyncWrite + Unpin)) -> std::io::Result<()> {
         match self {
             Response::Help(topic) => match topic {
-                HelpTopic::General => writer.write_all(i18n::HELP_GENERAL.as_bytes()).await,
-                HelpTopic::Size => writer.write_all(i18n::HELP_SIZE.as_bytes()).await,
-                HelpTopic::Px => writer.write_all(i18n::HELP_PX.as_bytes()).await,
+                HelpTopic::General => writer.write_all(texts::HELP_GENERAL.as_bytes()).await,
+                HelpTopic::Size => writer.write_all(texts::HELP_SIZE.as_bytes()).await,
+                HelpTopic::Px => writer.write_all(texts::HELP_PX.as_bytes()).await,
             },
             Response::Size { width, height } => {
                 writer
@@ -160,9 +160,9 @@ impl Display for Response {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Response::Help(topic) => match topic {
-                HelpTopic::General => f.write_str(i18n::HELP_GENERAL),
-                HelpTopic::Size => f.write_str(i18n::HELP_SIZE),
-                HelpTopic::Px => f.write_str(i18n::HELP_PX),
+                HelpTopic::General => f.write_str(texts::HELP_GENERAL),
+                HelpTopic::Size => f.write_str(texts::HELP_SIZE),
+                HelpTopic::Px => f.write_str(texts::HELP_PX),
             },
             Response::Size { width, height } => f.write_fmt(format_args!("SIZE {} {}", width, height)),
             Response::PxData { x, y, color } => f.write_fmt(format_args!("PX {} {} {:X}", x, y, color)),

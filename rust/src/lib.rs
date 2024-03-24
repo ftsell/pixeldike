@@ -25,10 +25,10 @@
 #[macro_use]
 extern crate quickcheck;
 
-mod i18n;
 pub mod net;
 pub mod pixmap;
 pub mod sinks;
+mod texts;
 
 /// The result type which all background tasks return
 pub type DaemonResult = anyhow::Result<!>;
