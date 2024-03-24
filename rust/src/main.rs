@@ -1,9 +1,13 @@
 #![feature(never_type)]
 
+use bytes::{BufMut, BytesMut};
 use clap::Parser;
-use rand::random;
+use itertools::Itertools;
+use rand::prelude::*;
+use rand::{random, thread_rng};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::io::AsyncWriteExt;
 use tokio::task::{JoinSet, LocalSet};
 use tokio::time::interval;
 use tracing_subscriber::filter::EnvFilter;
@@ -208,17 +212,23 @@ async fn put_image(opts: &cli::PutImageOpts) {
         height
     );
 
+    let mut buf = BytesMut::new().writer();
     loop {
         // send random color and fill screen with it
         let color = Color::from((random(), random(), random()));
         tracing::info!("Drawing {color:X} onto the server…");
 
-        for y in 0..height {
-            for x in 0..width {
-                px.send_request(Request::SetPixel { x, y, color })
-                    .await
-                    .expect("Could not send pixel");
-            }
+        // accumulate color commands into one large buffer buffer
+        let mut coords = (0..height).cartesian_product(0..width).collect::<Vec<_>>();
+        coords.shuffle(&mut thread_rng());
+        for (x, y) in coords {
+            Request::SetPixel { x, y, color }.write(&mut buf).unwrap();
         }
+
+        // send whole buffer to server
+        px.get_writer()
+            .write_all_buf(buf.get_mut())
+            .await
+            .expect("Could not write commands to server");
     }
 }

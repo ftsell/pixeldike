@@ -2,7 +2,7 @@ use crate::net::clients::GenClient;
 use crate::net::protocol::{parse_response_str, Request, Response};
 use async_trait::async_trait;
 use std::net::SocketAddr;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 
@@ -17,6 +17,11 @@ impl TcpClient {
     /// Flush the write buffer to immediately send all enqueued requests to the server.
     async fn flush(&mut self) -> std::io::Result<()> {
         self.writer.flush().await
+    }
+
+    /// Get the raw writer that is connected to the pixelflut server
+    pub fn get_writer(&mut self) -> &mut BufWriter<impl AsyncWrite> {
+        &mut self.writer
     }
 }
 
