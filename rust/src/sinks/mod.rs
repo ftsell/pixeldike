@@ -5,4 +5,5 @@
 pub mod ffmpeg;
 pub mod framebuffer;
 pub mod pixmap_file;
+#[cfg(feature = "windowing")]
 pub mod window;

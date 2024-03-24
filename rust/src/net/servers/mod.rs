@@ -4,15 +4,21 @@ mod gen_server;
 
 pub use gen_server::GenServer;
 
+#[cfg(feature = "tcp")]
 mod tcp_server;
+#[cfg(feature = "udp")]
 mod udp_server;
+#[cfg(feature = "ws")]
 mod ws_server;
 
 use crate::net::protocol::{parse_request_bin, Request, Response};
 use crate::pixmap::SharedPixmap;
 
+#[cfg(feature = "tcp")]
 pub use tcp_server::{TcpServer, TcpServerOptions};
+#[cfg(feature = "udp")]
 pub use udp_server::{UdpServer, UdpServerOptions};
+#[cfg(feature = "ws")]
 pub use ws_server::{WsServer, WsServerOptions};
 
 /// Handle a single request
@@ -20,6 +26,7 @@ pub use ws_server::{WsServer, WsServerOptions};
 /// This is the core request handling method that is run by all servers.
 /// It parses requests, handles them and generates responses.
 /// The actual IO is left to the specific server though.
+#[allow(unused)]
 fn handle_request(line: &[u8], pixmap: &SharedPixmap) -> Result<Option<Response>, String> {
     tracing::trace!(
         "Handling single request {:?}",

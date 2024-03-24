@@ -14,18 +14,20 @@ categories = ["command-line-utilities", "games"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-default = []
-cli = ["clap", "tracing-subscriber"]
-image = ["dep:image"]
-
-
 [profile.release]
 codegen-units = 1
 lto = "fat"
 
 [profile.bench]
 debug = true
+
+[features]
+default = ["cli", "tcp", "udp"]
+ws = ["dep:tokio-tungstenite", "dep:futures-util"]
+tcp = []
+udp = []
+windowing = ["dep:minifb"]
+cli = ["tcp", "dep:clap", "dep:rand", "dep:tracing-subscriber", "dep:image"]
 
 [lib]
 path = "src/lib.rs"
@@ -43,33 +45,22 @@ harness = false
 
 [dependencies]
 anyhow = "1.0.68"
-base64 = "0.21.0"
-byteorder = "1.4.3"
 bytes = "1.3.0"
-futures-util = "0.3.25"
-lazy_static = "1.4.0"
-tracing = { version = "0.1.37", features = ["release_max_level_debug"] }
-nom = "7.1.1"
-regex = "1.7.0"
-sha1 = "0.10.5"
 thiserror = "1.0.38"
-tokio = { version = "1.35.0", features = ["full", "tracing"] }
 async-trait = "0.1.73"
 framebuffer ="0.3.1"
 itertools = "0.12.0"
-tokio-tungstenite = "0.21.0"
-
-# cli
+tracing = { version = "0.1.37", features = ["release_max_level_debug"] }
+tokio = { version = "1.35.0", features = ["full", "tracing"] }
+futures-util = { version = "0.3.25", optional = true }
+tokio-tungstenite = { version = "0.21.0", optional = true }
+rand = { version = "0.8.5", optional = true }
+minifb = { version = "0.25.0", optional = true }
 image = { version = "0.24.7", optional = true }
+tracing-subscriber = { version = "0.3.17", optional = true }
 clap = { version = "4.0.30", optional = true, features = [ "derive" ] }
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"], optional = true }
-embedded-graphics = { version = "0.8.1", optional = true }
-rand = "0.8.5"
-rayon = "1.8.1"
-minifb = "0.25.0"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "plotters"] }
 quickcheck = "1.0.3"
 tempfile = "3.3.0"
-rand = "0.8.5"

@@ -43,10 +43,12 @@ pub(crate) struct ServerOpts {
     pub tcp_bind_addr: Option<SocketAddr>,
 
     /// bind address on which a tcp server should be started
+    #[cfg(feature = "udp")]
     #[arg(long = "udp")]
     pub udp_bind_addr: Option<SocketAddr>,
 
     /// port on which to start a websocket listener
+    #[cfg(feature = "ws")]
     #[arg(long = "ws")]
     pub ws_bind_addr: Option<SocketAddr>,
 
@@ -67,6 +69,7 @@ pub(crate) struct ServerOpts {
     #[command(flatten)]
     pub fb_opts: FramebufferOpts,
 
+    #[cfg(feature = "windowing")]
     #[arg(long = "open-window")]
     pub open_window: bool,
 }

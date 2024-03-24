@@ -4,7 +4,6 @@ use bytes::buf::Writer;
 use bytes::{BufMut, BytesMut};
 use clap::Parser;
 use image::imageops::FilterType;
-use itertools::Itertools;
 use rand::prelude::*;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -14,17 +13,19 @@ use tokio::task::{JoinSet, LocalSet};
 use tokio::time::interval;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::filter;
-use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::cli::{CliOpts, TargetColor, TargetDimension};
 use image::io::Reader as ImageReader;
+use itertools::Itertools;
 use pixelflut::net::clients::{GenClient, TcpClient};
 use pixelflut::net::protocol::{Request, Response};
-use pixelflut::net::servers::{
-    GenServer, TcpServerOptions, UdpServer, UdpServerOptions, WsServer, WsServerOptions,
-};
+use pixelflut::net::servers::{GenServer, TcpServerOptions};
+#[cfg(feature = "udp")]
+use pixelflut::net::servers::{UdpServer, UdpServerOptions};
+#[cfg(feature = "ws")]
+use pixelflut::net::servers::{WsServer, WsServerOptions};
 use pixelflut::pixmap::{Color, Pixmap};
 use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
 use pixelflut::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
@@ -76,12 +77,6 @@ fn init_logger(args: &CliOpts) {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(filter)
-        .with(log_level)
-        .with(
-            EnvFilter::builder()
-                .parse("trace,tokio=warn,runtime=warn")
-                .unwrap(),
-        )
         .init();
 }
 
@@ -125,13 +120,14 @@ async fn start_server(opts: &cli::ServerOpts) {
     }
 
     // configure gui window
+    #[cfg(feature = "windowing")]
     if opts.open_window {
         let pixmap = pixmap.clone();
         pixelflut::sinks::window::start(&mut join_set, pixmap)
             .expect("Could not open window for live rendering");
     }
 
-    // configure streaming
+    // configure streaming sink
     if opts.stream_opts.rtmp_dst_addr.is_some() || opts.stream_opts.rtsp_dst_addr.is_some() {
         // construct output spec depending on cli options
         let mut output_spec = Vec::new();
@@ -165,7 +161,7 @@ async fn start_server(opts: &cli::ServerOpts) {
             .expect("Could not start ffmpeg sink");
     }
 
-    // configure framebuffer rendering
+    // configure framebuffer sink
     if let Some(fb_device) = &opts.fb_opts.fb_device {
         let pixmap = pixmap.clone();
         let sink = FramebufferSink::new(
@@ -191,6 +187,7 @@ async fn start_server(opts: &cli::ServerOpts) {
             .expect("Could not start tcp server");
     }
 
+    #[cfg(feature = "udp")]
     if let Some(udp_bind_addr) = &opts.udp_bind_addr {
         let pixmap = pixmap.clone();
         let server = UdpServer::new(UdpServerOptions {
@@ -202,6 +199,7 @@ async fn start_server(opts: &cli::ServerOpts) {
             .expect("Could not start udp server");
     }
 
+    #[cfg(feature = "ws")]
     if let Some(ws_bind_addr) = &opts.ws_bind_addr {
         let pixmap = pixmap.clone();
         let server = WsServer::new(WsServerOptions {

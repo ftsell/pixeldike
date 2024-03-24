@@ -43,11 +43,10 @@ impl WsServer {
         pixmap: SharedPixmap,
     ) -> anyhow::Result<()> {
         tracing::debug!("Client connected; performing WebSocket handshake");
-        let stream = tokio_tungstenite::accept_async(stream).await?;
-        let (mut write_stream, mut read_stream) = stream.split();
+        let mut stream = tokio_tungstenite::accept_async(stream).await?;
 
         loop {
-            let request = read_stream.next().await;
+            let request = stream.next().await;
             let request = match &request {
                 None => return Err(anyhow!("stream is closed")),
                 Some(Err(e)) => return Err(anyhow!("{}", e)),
@@ -60,8 +59,8 @@ impl WsServer {
             };
             let result = super::handle_request(request, &pixmap);
             match result {
-                Err(e) => write_stream.send(Message::Text(e)).await?,
-                Ok(Some(response)) => write_stream.send(Message::Text(format!("{}", response))).await?,
+                Err(e) => stream.send(Message::Text(e)).await?,
+                Ok(Some(response)) => stream.send(Message::Text(format!("{}", response))).await?,
                 Ok(None) => {}
             }
         }
