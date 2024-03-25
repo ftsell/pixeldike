@@ -19,18 +19,18 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::cli::{CliOpts, TargetColor, TargetDimension};
 use image::io::Reader as ImageReader;
 use itertools::Itertools;
-use pixelflut::net::clients::{GenClient, TcpClient};
-use pixelflut::net::protocol::{Request, Response};
-use pixelflut::net::servers::{GenServer, TcpServerOptions};
+use pixeldike::net::clients::{GenClient, TcpClient};
+use pixeldike::net::protocol::{Request, Response};
+use pixeldike::net::servers::{GenServer, TcpServerOptions};
 #[cfg(feature = "udp")]
-use pixelflut::net::servers::{UdpServer, UdpServerOptions};
+use pixeldike::net::servers::{UdpServer, UdpServerOptions};
 #[cfg(feature = "ws")]
-use pixelflut::net::servers::{WsServer, WsServerOptions};
-use pixelflut::pixmap::{Color, Pixmap};
-use pixelflut::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
-use pixelflut::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
-use pixelflut::sinks::pixmap_file::{FileSink, FileSinkOptions};
-use pixelflut::DaemonResult;
+use pixeldike::net::servers::{WsServer, WsServerOptions};
+use pixeldike::pixmap::{Color, Pixmap};
+use pixeldike::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
+use pixeldike::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
+use pixeldike::sinks::pixmap_file::{FileSink, FileSinkOptions};
+use pixeldike::DaemonResult;
 
 mod cli;
 
@@ -85,7 +85,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     let pixmap = match &opts.file_opts.load_snapshot {
         None => Arc::new(Pixmap::new(opts.width, opts.height).unwrap()),
         Some(path) => {
-            let pixmap = pixelflut::sinks::pixmap_file::load_pixmap_file(path)
+            let pixmap = pixeldike::sinks::pixmap_file::load_pixmap_file(path)
                 .await
                 .unwrap();
             let (width, height) = pixmap.get_size();
@@ -123,7 +123,7 @@ async fn start_server(opts: &cli::ServerOpts) {
     #[cfg(feature = "windowing")]
     if opts.open_window {
         let pixmap = pixmap.clone();
-        pixelflut::sinks::window::start(&mut join_set, pixmap)
+        pixeldike::sinks::window::start(&mut join_set, pixmap)
             .expect("Could not open window for live rendering");
     }
 
@@ -178,7 +178,7 @@ async fn start_server(opts: &cli::ServerOpts) {
 
     if let Some(bind_addr) = &opts.tcp_bind_addr {
         let pixmap = pixmap.clone();
-        let server = pixelflut::net::servers::TcpServer::new(TcpServerOptions {
+        let server = pixeldike::net::servers::TcpServer::new(TcpServerOptions {
             bind_addr: bind_addr.to_owned(),
         });
         server

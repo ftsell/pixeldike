@@ -21,7 +21,7 @@ use tokio::task::{AbortHandle, JoinSet};
 /// To stream to an rtsp server with 10fps:
 ///
 /// ```rust
-/// # use pixelflut::sinks::ffmpeg::FfmpegOptions;
+/// # use pixeldike::sinks::ffmpeg::FfmpegOptions;
 ///
 /// const FPS: usize = 10;
 /// let options = FfmpegOptions {
@@ -35,7 +35,7 @@ use tokio::task::{AbortHandle, JoinSet};
 /// Stream to an RTSP and RTMP server simultaneously:
 ///
 /// ```rust
-/// # use pixelflut::sinks::ffmpeg::FfmpegOptions;
+/// # use pixeldike::sinks::ffmpeg::FfmpegOptions;
 ///
 /// const FPS: usize = 10;
 /// let options = FfmpegOptions {

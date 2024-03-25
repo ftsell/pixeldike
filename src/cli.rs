@@ -1,7 +1,7 @@
 use clap::builder::{PossibleValue, RangedU64ValueParser, TypedValueParser, ValueParserFactory};
 use clap::error::ErrorKind;
 use clap::{Arg, ArgAction, Args, Error, Parser, Subcommand};
-use pixelflut::pixmap::Color;
+use pixeldike::pixmap::Color;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
