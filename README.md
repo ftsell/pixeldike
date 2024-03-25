@@ -1,7 +1,7 @@
 # pixelflut
 > A pixel drawing game for programmers
 
-Pixelflut provides a 2D pixel canvas upon which many people can competitively set single color values. 
+Pixelflut provides a 2D pixel canvas upon which many people can competitively set single color values.
 It is inspired by Reddits [r/place](https://www.reddit.com/r/place) and [CCCGOE's Pixelflut](https://cccgoe.de/wiki/Pixelflut).
 
 ![Screenshot](.screenshot.png)
@@ -30,7 +30,7 @@ cargo install --git=https://github.com/ftsell/pixelflut.git --features=default,b
   ```
 
 - Start a pixelflut tcp server on port 1234 with default size and persisted in the file *~/pixmap.pixmap*
- 
+
   ```bash
   pixelflut server --file ~/pixmap.pixmap --tcp 1234
   ```
@@ -40,4 +40,3 @@ cargo install --git=https://github.com/ftsell/pixelflut.git --features=default,b
   ```bash
   pixelflut server --file ~/pixmap.pixmap --udp 1234 --width 10 --height 20
   ```
-

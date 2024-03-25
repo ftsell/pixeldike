@@ -19,5 +19,5 @@ repos:
           name: rust check
           types: [ rust ]
           language: system
-          entry: cargo check --all-targets --all-features
+          entry: cargo check --all-features
           pass_filenames: false

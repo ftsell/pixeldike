@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use std::net::SocketAddr;
 
 /// A trait to unify the different transport protocol clients
-/// 
+///
 /// Most clients are implemented for convenience and not for high-performance.
 /// If you care about performance and need high control about buffering and write scheduling,
 /// it is recommended to implement your own client.
