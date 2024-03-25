@@ -1,36 +1,36 @@
 use crate::net::clients::GenClient;
 use crate::net::protocol::{parse_response_str, Request, Response};
 use async_trait::async_trait;
-use std::net::SocketAddr;
+use std::path::PathBuf;
 use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::net::TcpStream;
+use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::UnixStream;
 
-/// A pixelflut client that uses TCP and buffered read/write for communication with a pixelflut server.
+/// A pixelflut client that connects to a unix domain socket and uses buffered read/write for communication with a pixelflut server
 #[derive(Debug)]
-pub struct TcpClient {
+pub struct UnixSocketClient {
     reader: BufReader<OwnedReadHalf>,
     writer: BufWriter<OwnedWriteHalf>,
 }
 
-impl TcpClient {
+impl UnixSocketClient {
     /// Flush the write buffer to immediately send all enqueued requests to the server.
     async fn flush(&mut self) -> std::io::Result<()> {
         self.writer.flush().await
     }
 
-    /// Get the raw writer that is connected to the pixelflut server
+    /// Get the raw writer that is connected to the pixelflut server.
     pub fn get_writer(&mut self) -> &mut BufWriter<impl AsyncWrite> {
         &mut self.writer
     }
 }
 
 #[async_trait]
-impl GenClient for TcpClient {
-    type ConnectionParam = SocketAddr;
+impl GenClient for UnixSocketClient {
+    type ConnectionParam = PathBuf;
 
     async fn connect(addr: Self::ConnectionParam) -> std::io::Result<Self> {
-        let (reader, writer) = TcpStream::connect(addr).await?.into_split();
+        let (reader, writer) = UnixStream::connect(addr).await?.into_split();
         Ok(Self {
             reader: BufReader::new(reader),
             writer: BufWriter::new(writer),

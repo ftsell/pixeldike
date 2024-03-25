@@ -20,6 +20,7 @@ The following features are implemented:
 - TCP Transport
 - UDP Transport
 - WebSocket Transport
+- Unix socket Transport
 - Live-Streaming of the servers canvas via RTMP/RTSP
 - Live-Display of the servers canvas via a window or linux framebuffer device
 - Drawing of images (and colored rectangles) on a remote servers canvas

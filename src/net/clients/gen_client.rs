@@ -1,6 +1,5 @@
 use crate::net::protocol::{Request, Response};
 use async_trait::async_trait;
-use std::net::SocketAddr;
 
 /// A trait to unify the different transport protocol clients
 ///
@@ -9,8 +8,11 @@ use std::net::SocketAddr;
 /// it is recommended to implement your own client.
 #[async_trait]
 pub trait GenClient: Sized {
+    /// The parameter given to `connect()` that specifies where to connect to
+    type ConnectionParam;
+
     /// Create a new client by connecting to a server
-    async fn connect(addr: SocketAddr) -> std::io::Result<Self>;
+    async fn connect(addr: Self::ConnectionParam) -> std::io::Result<Self>;
 
     /// Send a request to the connected server
     async fn send_request(&mut self, request: Request) -> std::io::Result<()>;

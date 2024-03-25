@@ -11,6 +11,7 @@ pub use gen_server::GenServer;
 mod tcp_server;
 #[cfg(feature = "udp")]
 mod udp_server;
+mod unix_sock_server;
 #[cfg(feature = "ws")]
 mod ws_server;
 
@@ -21,6 +22,7 @@ use crate::pixmap::SharedPixmap;
 pub use tcp_server::{TcpServer, TcpServerOptions};
 #[cfg(feature = "udp")]
 pub use udp_server::{UdpServer, UdpServerOptions};
+pub use unix_sock_server::{UnixSocketOptions, UnixSocketServer};
 #[cfg(feature = "ws")]
 pub use ws_server::{WsServer, WsServerOptions};
 

@@ -7,6 +7,8 @@ use image::imageops::FilterType;
 use rand::prelude::*;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -22,7 +24,7 @@ use image::io::Reader as ImageReader;
 use itertools::Itertools;
 use pixeldike::net::clients::{GenClient, TcpClient};
 use pixeldike::net::protocol::{Request, Response};
-use pixeldike::net::servers::{GenServer, TcpServer, TcpServerOptions};
+use pixeldike::net::servers::{GenServer, TcpServer, TcpServerOptions, UnixSocketOptions, UnixSocketServer};
 #[cfg(feature = "udp")]
 use pixeldike::net::servers::{UdpServer, UdpServerOptions};
 #[cfg(feature = "ws")]
@@ -203,6 +205,13 @@ async fn start_server(opts: &cli::ServerOpts) {
                         .await
                         .expect(&format!("Could not start tcp server on {}", url));
                 }
+            }
+            "unix" => {
+                let path = PathBuf::from_str(url.path()).expect("Could not turn url path into system path");
+                UnixSocketServer::new(UnixSocketOptions { path })
+                    .start(pixmap.clone(), &mut join_set)
+                    .await
+                    .expect(&format!("Could not start unix socket listener on {}", url));
             }
             #[cfg(feature = "udp")]
             "udp" => {

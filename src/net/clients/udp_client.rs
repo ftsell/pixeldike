@@ -18,7 +18,9 @@ pub struct UdpClient {
 
 #[async_trait]
 impl GenClient for UdpClient {
-    async fn connect(addr: SocketAddr) -> std::io::Result<Self> {
+    type ConnectionParam = SocketAddr;
+
+    async fn connect(addr: Self::ConnectionParam) -> std::io::Result<Self> {
         let socket = if addr.is_ipv4() {
             UdpSocket::bind(SocketAddr::from_str("0.0.0.0:0").unwrap()).await?
         } else {
