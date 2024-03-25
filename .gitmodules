@@ -1,4 +1,0 @@
-[submodule "frontend-js"]
-	path = frontend-js
-	url = https://github.com/ftsell/pixelflut-js.git
-	branch = main

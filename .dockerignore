@@ -1,0 +1,6 @@
+.gitignore
+.run
+target/
+Dockerfile
+k8s
+scripts
