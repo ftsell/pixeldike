@@ -1,15 +1,30 @@
-# pixelflut
-> A pixel drawing game for programmers
+# pixeldike
 
-Pixelflut provides a 2D pixel canvas upon which many people can competitively set single color values.
-It is inspired by Reddits [r/place](https://www.reddit.com/r/place) and [CCCGOE's Pixelflut](https://cccgoe.de/wiki/Pixelflut).
+[![crates.io Crate](https://img.shields.io/crates/v/pixeldike?style=flat-square&logo=rust)](https://crates.io/crate/pixeldike)
+[![Documentation](https://img.shields.io/docsrs/pixeldike?style=flat-square&logo=docsdotrs)](https://docs.rs/pixeldike)
 
-![Screenshot](.screenshot.png)
+> A fast and reusable pixelflut implementation
+
+Pixelflut is a competitive programing game that provides a 2D pixel canvas upon which many people can set single color values over the network.
+
+![Logo](.logo.webp)
+
+The implementation contained in this repository is done in Rust and includes a reusable library as well as a standalone binary.
+The library
+
+## Features
+
+The following features are implemented:
+
+- Generic protocol serialization and parsing
+- TCP Transport
+- UDP Transport
+- WebSocket Transport
+- Live-Streaming of the servers canvas via RTMP/RTSP
+- Live-Display of the servers canvas via a window or linux framebuffer device
+- Drawing of images (and colored rectangles) on a remote servers canvas
 
 ## Installation
-
-Multiple implementations have been developed by me (mostly because it was fun) but the
-most current one is the rust implementation.
 
 ### Install via cargo from source
 
@@ -18,7 +33,7 @@ This installation methods assumes you already have a working rust toolchain and 
 If you do you can run the following:
 
 ```bash
-cargo install --git=https://github.com/ftsell/pixelflut.git --features=default,bin --bin=pixelflut
+cargo install --git=https://github.com/ftsell/pixelflut.git --all-features --bin=pixelflut
 ```
 
 ## Usage examples
