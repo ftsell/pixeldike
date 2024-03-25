@@ -4,9 +4,9 @@ version = "0.1.0"
 authors = ["Finn-Thorben Sell <dev@finn-thorben.me>"]
 edition = "2021"
 description = "pixel drawing game for programmers inspired by reddits r/place"
-documentation = "https://docs.rs/pixelflut-4k"
+documentation = "https://docs.rs/pixeldike"
 readme = "README.md"
-repository = "https://github.com/ftsell/pixelflut.git"
+repository = "https://github.com/ftsell/pixeldike.git"
 license = "MIT"
 keywords = ["pixelflut"]
 categories = ["command-line-utilities", "games", "parser-implementations"]
@@ -29,7 +29,7 @@ cli = ["tcp", "dep:clap", "dep:rand", "dep:tracing-subscriber", "dep:image"]
 path = "src/lib.rs"
 
 [[bin]]
-name = "pixelflut"
+name = "pixeldike"
 path = "src/main.rs"
 required-features = ["cli"]
 

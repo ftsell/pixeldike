@@ -33,25 +33,25 @@ This installation methods assumes you already have a working rust toolchain and 
 If you do you can run the following:
 
 ```bash
-cargo install --git=https://github.com/ftsell/pixelflut.git --all-features --bin=pixelflut
+cargo install --git=https://github.com/ftsell/pixeldike.git --all-features --bin=pixelflut
 ```
 
 ## Usage examples
 - Retrieve command-line help
 
   ```bash
-  pixelflut -h
-  pixelflut server -h
+  pixeldike -h
+  pixeldike server -h
   ```
 
 - Start a pixelflut tcp server on port 1234 with default size and persisted in the file *~/pixmap.pixmap*
 
   ```bash
-  pixelflut server --file ~/pixmap.pixmap --tcp 1234
+  pixeldike server --file ~/pixmap.pixmap --tcp 1234
   ```
 
 - Start a pixelflut udp server on port 1234 with custom size and persisted in the file *~/pixmap.pixmap*
 
   ```bash
-  pixelflut server --file ~/pixmap.pixmap --udp 1234 --width 10 --height 20
+  pixeldike server --file ~/pixmap.pixmap --udp 1234 --width 10 --height 20
   ```
