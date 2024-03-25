@@ -1,10 +1,9 @@
-use clap::builder::{PossibleValue, RangedU64ValueParser, TypedValueParser, ValueParserFactory};
-use clap::error::ErrorKind;
-use clap::{Arg, ArgAction, Args, Error, Parser, Subcommand};
+use clap::{ArgAction, Args, Parser, Subcommand};
 use pixeldike::pixmap::Color;
-use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
+use url::Url;
 
 /// Command-Line arguments as a well formatted struct, parsed using clap.
 #[derive(Parser, Debug, Clone)]
@@ -38,19 +37,11 @@ pub(crate) enum Command {
 
 #[derive(Args, Debug, Clone)]
 pub(crate) struct ServerOpts {
-    /// bind address on which a tcp server should be started
-    #[arg(long = "tcp")]
-    pub tcp_bind_addr: Option<SocketAddr>,
-
-    /// bind address on which a tcp server should be started
-    #[cfg(feature = "udp")]
-    #[arg(long = "udp")]
-    pub udp_bind_addr: Option<SocketAddr>,
-
-    /// port on which to start a websocket listener
-    #[cfg(feature = "ws")]
-    #[arg(long = "ws")]
-    pub ws_bind_addr: Option<SocketAddr>,
+    /// Url on which to bind a server
+    ///
+    /// Valid protocols are "tcp://", "udp://" and "ws://".
+    #[arg(long = "listen")]
+    pub listen: Vec<Url>,
 
     /// width of the pixmap
     #[arg(short = 'x', long = "width", default_value = "800")]
@@ -132,9 +123,13 @@ pub(crate) struct CommonClientOps {
     #[arg(long = "server")]
     pub server: SocketAddr,
     /// The width of the rectangle that should be drawn
+    ///
+    /// Possible values: ["fill", <number>]
     #[arg(long = "width", default_value = "fill")]
     pub width: TargetDimension,
     /// The height of the rectangle that should be drawn
+    ///
+    /// Possible values: ["fill", <number>]
     #[arg(long = "height", default_value = "fill")]
     pub height: TargetDimension,
     /// Offset from the left of the canvas edge to start drawing
@@ -176,42 +171,16 @@ pub(crate) enum TargetDimension {
     Specific(usize),
 }
 
-impl ValueParserFactory for TargetDimension {
-    type Parser = TargetDimensionParser;
+impl FromStr for TargetDimension {
+    type Err = <usize as FromStr>::Err;
 
-    fn value_parser() -> Self::Parser {
-        TargetDimensionParser
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct TargetDimensionParser;
-
-impl TypedValueParser for TargetDimensionParser {
-    type Value = TargetDimension;
-
-    fn parse_ref(&self, cmd: &clap::Command, arg: Option<&Arg>, value: &OsStr) -> Result<Self::Value, Error> {
-        let str_value = value.to_str().ok_or(cmd.clone().error(
-            ErrorKind::InvalidValue,
-            format!(
-                "{} argument is neither 'fill' nor a number",
-                arg.unwrap().get_id()
-            ),
-        ))?;
-
-        if str_value.eq_ignore_ascii_case("fill") {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq_ignore_ascii_case("fill") {
             Ok(TargetDimension::Fill)
         } else {
-            RangedU64ValueParser::new()
-                .parse_ref(cmd, arg, value)
-                .map(|int_value: usize| TargetDimension::Specific(int_value))
+            let v = usize::from_str(s)?;
+            Ok(TargetDimension::Specific(v))
         }
-    }
-
-    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {
-        Some(Box::new(
-            [PossibleValue::new("fill"), PossibleValue::new("<number>")].into_iter(),
-        ))
     }
 }
 
@@ -222,51 +191,17 @@ pub(crate) enum TargetColor {
     Specific(Color),
 }
 
-impl ValueParserFactory for TargetColor {
-    type Parser = TargetColorParser;
+impl FromStr for TargetColor {
+    type Err = <u32 as FromStr>::Err;
 
-    fn value_parser() -> Self::Parser {
-        TargetColorParser
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct TargetColorParser;
-
-impl TypedValueParser for TargetColorParser {
-    type Value = TargetColor;
-
-    fn parse_ref(&self, cmd: &clap::Command, arg: Option<&Arg>, value: &OsStr) -> Result<Self::Value, Error> {
-        let make_error = || {
-            cmd.clone().error(
-                ErrorKind::InvalidValue,
-                format!(
-                    "{} argument is neither 'random', 'random-per-iteration' nor a valid hex color",
-                    arg.unwrap().get_id()
-                ),
-            )
-        };
-
-        let str_value = value.to_str().ok_or(make_error())?;
-
-        if str_value.eq_ignore_ascii_case("random") {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq_ignore_ascii_case("random") {
             Ok(TargetColor::RandomOnce)
-        } else if str_value.eq_ignore_ascii_case("random-per-iteration") {
+        } else if s.eq_ignore_ascii_case("random-per-iteration") {
             Ok(TargetColor::RandomPerIteration)
         } else {
-            let color = u32::from_str_radix(str_value, 16).map_err(|_| make_error())?;
+            let color = u32::from_str_radix(s, 16)?;
             Ok(TargetColor::Specific(color.into()))
         }
-    }
-
-    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {
-        Some(Box::new(
-            [
-                PossibleValue::new("random"),
-                PossibleValue::new("random-per-iteration"),
-                PossibleValue::new("<hex-color>"),
-            ]
-            .into_iter(),
-        ))
     }
 }

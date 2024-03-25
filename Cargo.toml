@@ -49,6 +49,7 @@ minifb = { version = "0.25.0", optional = true }
 image = { version = "0.25.0", optional = true }
 tracing-subscriber = { version = "0.3.17", optional = true }
 clap = { version = "4.0.30", optional = true, features = [ "derive" ] }
+url = "2.5.0"
 
 [dev-dependencies]
 quickcheck = "1.0.3"

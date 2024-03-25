@@ -6,6 +6,7 @@ use clap::Parser;
 use image::imageops::FilterType;
 use rand::prelude::*;
 use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -21,7 +22,7 @@ use image::io::Reader as ImageReader;
 use itertools::Itertools;
 use pixeldike::net::clients::{GenClient, TcpClient};
 use pixeldike::net::protocol::{Request, Response};
-use pixeldike::net::servers::{GenServer, TcpServerOptions};
+use pixeldike::net::servers::{GenServer, TcpServer, TcpServerOptions};
 #[cfg(feature = "udp")]
 use pixeldike::net::servers::{UdpServer, UdpServerOptions};
 #[cfg(feature = "ws")]
@@ -176,39 +177,88 @@ async fn start_server(opts: &cli::ServerOpts) {
             .expect("Coult not start task for framebuffer rendering");
     }
 
-    if let Some(bind_addr) = &opts.tcp_bind_addr {
-        let pixmap = pixmap.clone();
-        let server = pixeldike::net::servers::TcpServer::new(TcpServerOptions {
-            bind_addr: bind_addr.to_owned(),
-        });
-        server
-            .start(pixmap, &mut join_set)
-            .await
-            .expect("Could not start tcp server");
-    }
+    // configure and start all servers
+    for url in &opts.listen {
+        match url.scheme() {
+            #[cfg(feature = "tcp")]
+            "tcp" => {
+                if !url.username().is_empty() {
+                    tracing::warn!(
+                        "{} listen directive specifies credentials which is not supported by the TCP server",
+                        url
+                    )
+                }
+                if !url.path().is_empty() {
+                    tracing::warn!(
+                        "{} listen directive specifies a path which is not supported by the TCP server",
+                        url
+                    );
+                }
+                for bind_addr in (url.host_str().unwrap(), url.port().unwrap_or(1234))
+                    .to_socket_addrs()
+                    .expect("Could not resolve socket addr from listener url")
+                {
+                    TcpServer::new(TcpServerOptions { bind_addr })
+                        .start(pixmap.clone(), &mut join_set)
+                        .await
+                        .expect(&format!("Could not start tcp server on {}", url));
+                }
+            }
+            #[cfg(feature = "udp")]
+            "udp" => {
+                if !url.username().is_empty() {
+                    tracing::info!("{}", url.authority());
+                    tracing::warn!(
+                        "{} listen directive specifies credentials which is not supported by the UDP server",
+                        url
+                    )
+                }
+                if !url.path().is_empty() {
+                    tracing::warn!(
+                        "{} listen directive specifies a path which is not supported by the UDP server",
+                        url
+                    );
+                }
+                for bind_addr in (url.host_str().unwrap(), url.port().unwrap_or(1234))
+                    .to_socket_addrs()
+                    .expect("Could not resolve socket addr from listener url")
+                {
+                    UdpServer::new(UdpServerOptions { bind_addr })
+                        .start(pixmap.clone(), &mut join_set)
+                        .await
+                        .expect(&format!("Could not start tcp server on {}", url));
+                }
+            }
+            #[cfg(feature = "ws")]
+            "ws" => {
+                if !url.username().is_empty() {
+                    tracing::info!("{}", url.authority());
+                    tracing::warn!(
+                        "{} listen directive specifies credentials which is not supported by the WebSocket server",
+                        url
+                    )
+                }
+                if url.path() != "/" {
+                    tracing::warn!(
+                        "{} listen directive specifies a path which is not supported by the WebSocket server. The WebSocket is instead available on all paths.",
+                        url
+                    );
+                }
 
-    #[cfg(feature = "udp")]
-    if let Some(udp_bind_addr) = &opts.udp_bind_addr {
-        let pixmap = pixmap.clone();
-        let server = UdpServer::new(UdpServerOptions {
-            bind_addr: udp_bind_addr.to_owned(),
-        });
-        server
-            .start_many(pixmap, 16, &mut join_set)
-            .await
-            .expect("Could not start udp server");
-    }
-
-    #[cfg(feature = "ws")]
-    if let Some(ws_bind_addr) = &opts.ws_bind_addr {
-        let pixmap = pixmap.clone();
-        let server = WsServer::new(WsServerOptions {
-            bind_addr: ws_bind_addr.to_owned(),
-        });
-        server
-            .start(pixmap, &mut join_set)
-            .await
-            .expect("Could not start websocket server");
+                for bind_addr in (url.host_str().unwrap(), url.port().unwrap_or(1235))
+                    .to_socket_addrs()
+                    .expect("Could not resolve socket addr from listener url")
+                {
+                    WsServer::new(WsServerOptions { bind_addr })
+                        .start(pixmap.clone(), &mut join_set)
+                        .await
+                        .expect(&format!("Could not start tcp server on {}", url));
+                }
+            }
+            proto => {
+                panic!("Unsupported server protocol {}", proto);
+            }
+        }
     }
 
     // wait until one tasks exits
