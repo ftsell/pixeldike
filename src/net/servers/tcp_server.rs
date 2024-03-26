@@ -1,7 +1,6 @@
 use crate::net::servers::GenServer;
 use crate::pixmap::SharedPixmap;
 use crate::DaemonResult;
-use anyhow::anyhow;
 use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use std::io::Write;
@@ -52,7 +51,8 @@ impl TcpServer {
             // fill the line buffer from the network
             let n = stream.read_buf(&mut req_buf).await?;
             if n == 0 {
-                return Err(anyhow!("client stream exhausted"));
+                tracing::debug!("Client stream exhausted, likely disconnected");
+                return Ok(());
             }
             tracing::trace!("Received {}KiB stream data: {:?}", n / 1024, req_buf);
 
