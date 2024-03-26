@@ -53,4 +53,14 @@ impl UdpClient {
         let response = self.await_response().await?;
         Ok(response)
     }
+
+    /// Send pre-encoded commands in bulk
+    ///
+    /// Note that because UDP is an unreliable transport mechanism, not all bytes might actually be sent.
+    /// If the buffer size is larger than the maximum size supported by UDP or the maximum transmission unit of the
+    /// underlying network layer, the packet might even be discarded completely.
+    pub async fn send_bulk(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        let _ = self.socket.send(buf).await?;
+        Ok(())
+    }
 }

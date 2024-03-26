@@ -383,7 +383,10 @@ where
                 .write_all(buf.get_ref())
                 .await
                 .expect("Could not write commands to server"),
-            _ => panic!("Chosen client implementation can only send one command at a time"),
+            DynClient::Udp(udp) => udp
+                .send_bulk(buf.get_ref())
+                .await
+                .expect("Could not send commands to server"),
         }
 
         // abort loop if only one iteration is requested
