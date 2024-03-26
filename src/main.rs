@@ -5,7 +5,6 @@ use bytes::{BufMut, BytesMut};
 use clap::Parser;
 use image::imageops::FilterType;
 use rand::prelude::*;
-use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -22,7 +21,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::cli::{CliOpts, TargetColor, TargetDimension};
 use image::io::Reader as ImageReader;
 use itertools::Itertools;
-use pixeldike::net::clients::{GenClient, TcpClient};
+use pixeldike::net::clients::{TcpClient, UdpClient, UnixSocketClient};
 use pixeldike::net::protocol::{Request, Response};
 use pixeldike::net::servers::{GenServer, TcpServer, TcpServerOptions, UnixSocketOptions, UnixSocketServer};
 #[cfg(feature = "udp")]
@@ -34,6 +33,7 @@ use pixeldike::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
 use pixeldike::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
 use pixeldike::sinks::pixmap_file::{FileSink, FileSinkOptions};
 use pixeldike::DaemonResult;
+use url::Url;
 
 mod cli;
 
@@ -359,7 +359,7 @@ where
     F: Fn(&mut Writer<BytesMut>, usize, usize, usize, usize),
 {
     // preparation
-    let mut px = make_client(opts.server).await;
+    let mut px = DynClient::connect(&opts.server).await.unwrap();
     let (canvas_width, canvas_height) = get_size(&mut px).await;
     let (x_min, x_max, y_min, y_max) = calc_bounds(canvas_width, canvas_height, &opts);
     let mut buf = BytesMut::new().writer();
@@ -370,12 +370,21 @@ where
     // main loop
     tracing::info!("Running client loop");
     loop {
-        // send whole buffer to server
+        // send whole buffer to server (using the most performant method available)
         tracing::debug!("Sending prepared commands to server");
-        px.get_writer()
-            .write_all(buf.get_ref())
-            .await
-            .expect("Could not write commands to server");
+        match &mut px {
+            DynClient::Tcp(tcp) => tcp
+                .get_writer()
+                .write_all(buf.get_ref())
+                .await
+                .expect("Could not write commands to server"),
+            DynClient::Unix(unix) => unix
+                .get_writer()
+                .write_all(buf.get_ref())
+                .await
+                .expect("Could not write commands to server"),
+            _ => panic!("Chosen client implementation can only send one command at a time"),
+        }
 
         // abort loop if only one iteration is requested
         if !opts.do_loop {
@@ -390,14 +399,7 @@ where
     }
 }
 
-async fn make_client(addr: SocketAddr) -> TcpClient {
-    tracing::info!("Connecting to pixelflut server {}", addr);
-    TcpClient::connect(addr)
-        .await
-        .expect("Could not connect to pixelflut server")
-}
-
-async fn get_size(px: &mut TcpClient) -> (usize, usize) {
+async fn get_size(px: &mut DynClient) -> (usize, usize) {
     let Response::Size { width, height } = px
         .exchange(Request::GetSize)
         .await
@@ -465,4 +467,63 @@ fn calc_bounds(
     };
 
     (x_min, x_max, y_min, y_max)
+}
+
+enum DynClient {
+    Tcp(TcpClient),
+    Udp(UdpClient),
+    Unix(UnixSocketClient),
+}
+
+impl DynClient {
+    async fn connect(url: &Url) -> std::io::Result<Self> {
+        tracing::info!("Connecting to pixelflut server at {}", url);
+        match url.scheme() {
+            #[cfg(feature = "tcp")]
+            "tcp" => {
+                let addr = url
+                    .socket_addrs(|| Some(1234))
+                    .expect("Could not resolve servers address")[0];
+                Ok(Self::Tcp(TcpClient::connect(&addr).await?))
+            }
+            #[cfg(feature = "udp")]
+            "udp" => {
+                let addr = url
+                    .socket_addrs(|| Some(1234))
+                    .expect("Could not resolve servers address")[0];
+                Ok(Self::Udp(UdpClient::connect(&addr).await?))
+            }
+            "unix" => {
+                let path = PathBuf::from(url.path());
+                Ok(Self::Unix(UnixSocketClient::connect(&path).await?))
+            }
+            scheme => panic!("Unsupported url scheme {}", scheme),
+        }
+    }
+
+    #[allow(unused)]
+    async fn send_request(&mut self, request: Request) -> std::io::Result<()> {
+        match self {
+            DynClient::Tcp(tcp) => tcp.send_request(request).await,
+            DynClient::Udp(udp) => udp.send_request(request).await,
+            DynClient::Unix(unix) => unix.send_request(request).await,
+        }
+    }
+
+    #[allow(unused)]
+    async fn await_response(&mut self) -> anyhow::Result<Response> {
+        match self {
+            DynClient::Tcp(tcp) => tcp.await_response().await,
+            DynClient::Udp(udp) => udp.await_response().await,
+            DynClient::Unix(unix) => unix.await_response().await,
+        }
+    }
+
+    async fn exchange(&mut self, request: Request) -> anyhow::Result<Response> {
+        match self {
+            DynClient::Tcp(tcp) => tcp.exchange(request).await,
+            DynClient::Udp(udp) => udp.exchange(request).await,
+            DynClient::Unix(unix) => unix.exchange(request).await,
+        }
+    }
 }

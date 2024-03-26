@@ -1,7 +1,5 @@
-use crate::net::clients::GenClient;
 use crate::net::protocol::{parse_response_bin, Request, Response};
 use anyhow::anyhow;
-use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -16,11 +14,9 @@ pub struct UdpClient {
     socket: UdpSocket,
 }
 
-#[async_trait]
-impl GenClient for UdpClient {
-    type ConnectionParam = SocketAddr;
-
-    async fn connect(addr: Self::ConnectionParam) -> std::io::Result<Self> {
+impl UdpClient {
+    /// Try to connect to the server running at the given address
+    pub async fn connect(addr: &SocketAddr) -> std::io::Result<Self> {
         let socket = if addr.is_ipv4() {
             UdpSocket::bind(SocketAddr::from_str("0.0.0.0:0").unwrap()).await?
         } else {
@@ -30,14 +26,16 @@ impl GenClient for UdpClient {
         Ok(Self { socket })
     }
 
-    async fn send_request(&mut self, request: Request) -> std::io::Result<()> {
+    /// Send a single request to the configured server
+    pub async fn send_request(&mut self, request: Request) -> std::io::Result<()> {
         let mut buf = BytesMut::with_capacity(64).writer();
         request.write(&mut buf).unwrap();
         self.socket.send(&buf.get_ref()).await?;
         Ok(())
     }
 
-    async fn await_response(&mut self) -> anyhow::Result<Response> {
+    /// Wait for the server to send a response back
+    pub async fn await_response(&mut self) -> anyhow::Result<Response> {
         let mut buf = BytesMut::with_capacity(64);
         self.socket.recv_buf(&mut buf).await?;
         match buf.iter().enumerate().find(|(_, b)| **b == b'\n') {
@@ -47,5 +45,12 @@ impl GenClient for UdpClient {
             }
             None => Err(anyhow!("server did not return a valid response line")),
         }
+    }
+
+    /// Send a single request to the configured server and wait for a response back
+    pub async fn exchange(&mut self, request: Request) -> anyhow::Result<Response> {
+        self.send_request(request).await?;
+        let response = self.await_response().await?;
+        Ok(response)
     }
 }

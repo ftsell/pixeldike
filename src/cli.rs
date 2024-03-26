@@ -1,6 +1,5 @@
 use clap::{ArgAction, Args, Parser, Subcommand};
 use pixeldike::pixmap::Color;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use url::Url;
@@ -120,8 +119,8 @@ pub(crate) struct FramebufferOpts {
 #[derive(Args, Debug, Clone)]
 pub(crate) struct CommonClientOps {
     /// Address of the pixelflut server
-    #[arg(long = "server")]
-    pub server: SocketAddr,
+    #[arg(short = 's', long = "server")]
+    pub server: Url,
     /// The width of the rectangle that should be drawn
     ///
     /// Possible values: ["fill", <number>]
