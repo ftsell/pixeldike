@@ -88,19 +88,29 @@ async fn start_server(opts: &cli::ServerOpts) {
     let pixmap = match &opts.file_opts.load_snapshot {
         None => Arc::new(Pixmap::new(opts.width, opts.height).unwrap()),
         Some(path) => {
-            let pixmap = pixeldike::sinks::pixmap_file::load_pixmap_file(path)
-                .await
-                .unwrap();
-            let (width, height) = pixmap.get_size();
-            if width != opts.width || height != opts.height {
-                tracing::warn!(
+            let loaded_pixmap = pixeldike::sinks::pixmap_file::load_pixmap_file(path).await;
+            match loaded_pixmap {
+                Err(e) => {
+                    tracing::error!(
+                        "Could not load snapshot from {}, using empty pixmap instead: {}",
+                        path.display(),
+                        e
+                    );
+                    Arc::new(Pixmap::new(opts.width, opts.height).unwrap())
+                }
+                Ok(loaded_pixmap) => {
+                    let (width, height) = loaded_pixmap.get_size();
+                    if width != opts.width || height != opts.height {
+                        tracing::warn!(
                     "Stored snapshot has different dimensions than {}x{}, creating an empty pixmap instead",
                     opts.width,
                     opts.height
                 );
-                Arc::new(Pixmap::new(opts.width, opts.height).unwrap())
-            } else {
-                Arc::new(pixmap)
+                        Arc::new(Pixmap::new(opts.width, opts.height).unwrap())
+                    } else {
+                        Arc::new(loaded_pixmap)
+                    }
+                }
             }
         }
     };
