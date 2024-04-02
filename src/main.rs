@@ -1,5 +1,6 @@
 #![feature(never_type)]
 
+use ab_glyph::{Font, FontRef};
 use bytes::buf::Writer;
 use bytes::{BufMut, BytesMut};
 use clap::Parser;
@@ -38,6 +39,8 @@ use url::Url;
 mod cli;
 mod main_utils;
 
+const FONT_HERMIT_REGULAR: &[u8] = include_bytes!("../resources/Hermit-Regular.otf");
+
 #[tokio::main]
 async fn main() {
     let args = cli::CliOpts::parse();
@@ -51,6 +54,7 @@ async fn main() {
                 cli::Command::Server(opts) => start_server(opts).await,
                 cli::Command::PutRectangle(opts) => put_rectangle(opts).await,
                 cli::Command::PutImage(opts) => put_image(opts).await,
+                cli::Command::PutText(opts) => put_text(opts).await,
             };
         })
         .await;
@@ -365,5 +369,64 @@ async fn put_image(opts: &cli::PutImageData) {
         .await
         .expect("Could not connect to pixelflut server")
         .run_loop(fill_buf, &opts.common, false)
+        .await;
+}
+
+async fn put_text(opts: &cli::PutTextOpts) {
+    let font = FontRef::try_from_slice(FONT_HERMIT_REGULAR).unwrap();
+
+    // define how a request buffer is filled
+    let fill_buf = |buf: &mut Writer<BytesMut>, x_min: usize, x_max: usize, y_min: usize, y_max: usize| {
+        // select a color
+        let color = match opts.color {
+            TargetColor::RandomPerIteration | TargetColor::RandomOnce => {
+                Color::from((random(), random(), random()))
+            }
+            TargetColor::Specific(c) => c,
+        };
+        tracing::debug!("Determined color to be #{color:X}");
+
+        // calculate scaling depending on requested text width (this is only possible because we use a monospace font)
+        let scaling = {
+            let glyph = font.glyph_id('_').with_scale(1.0);
+            let glyph_width = font.glyph_bounds(&glyph).width();
+            let target_width = (x_max - x_min) as f32 / opts.text.chars().count() as f32;
+            target_width / glyph_width
+        };
+        tracing::debug!("Determined font scaling to be {scaling}");
+
+        // iterate over all characters
+        tracing::debug!(
+            "Filling command-buffer to draw {:?} in #{color:X} from {x_min},{y_min} to {x_max},{y_max}",
+            opts.text
+        );
+        for (i, char) in opts.text.chars().enumerate() {
+            let glyph = font.glyph_id(char).with_scale(scaling);
+            let glyph_width = font.glyph_bounds(&glyph).width() as usize;
+
+            let outline = font.outline_glyph(glyph).unwrap();
+            outline.draw(|x, y, coverage| {
+                if coverage >= 0.5 {
+                    Request::SetPixel {
+                        x: x_min + (x as usize + i * glyph_width),
+                        y: y_min + (y as usize),
+                        color,
+                    }
+                    .write(buf)
+                    .unwrap();
+                }
+            });
+        }
+    };
+
+    // run main client loop
+    main_utils::DynClient::connect(&opts.common.server)
+        .await
+        .expect("Could not connect to pixelflut server")
+        .run_loop(
+            fill_buf,
+            &opts.common,
+            matches!(opts.color, TargetColor::RandomPerIteration),
+        )
         .await;
 }

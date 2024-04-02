@@ -32,6 +32,8 @@ pub(crate) enum Command {
     PutRectangle(PutRectangleData),
     /// Upload an image to a pixelflut server
     PutImage(PutImageData),
+    /// Render a string onto the server (with transparent background)
+    PutText(PutTextOpts),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -162,6 +164,20 @@ pub(crate) struct PutImageData {
     /// Path to an image file that should be uploaded
     #[arg(short = 'f', long = "file")]
     pub path: PathBuf,
+}
+
+#[derive(Args, Debug, Clone)]
+pub(crate) struct PutTextOpts {
+    #[command(flatten)]
+    pub common: CommonClientOps,
+
+    /// The text to draw
+    #[arg(short = 't', long = "text")]
+    pub text: String,
+
+    /// The color in which the text is rendered
+    #[arg(long = "color")]
+    pub color: TargetColor,
 }
 
 #[derive(Debug, Clone)]
