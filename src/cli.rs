@@ -148,6 +148,8 @@ pub(crate) struct PutRectangleData {
     pub common: CommonClientOps,
 
     /// The color which the rectangle should have.
+    ///
+    /// Available values are 'random', 'random-per-iteration' or a specific hex encoded color.
     #[arg(long = "color", default_value = "random")]
     pub color: TargetColor,
 }
