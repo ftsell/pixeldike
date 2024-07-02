@@ -34,7 +34,7 @@ This installation methods assumes you already have a working rust toolchain and 
 If you do you can run the following:
 
 ```bash
-cargo install --git=https://github.com/ftsell/pixeldike.git --all-features --bin=pixelflut
+cargo install --git=https://github.com/ftsell/pixeldike.git --all-features --bin=pixeldike
 ```
 
 ## Usage examples
