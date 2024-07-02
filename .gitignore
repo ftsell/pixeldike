@@ -3,3 +3,4 @@
 **/*.pixmap
 **/*.pxmap
 target/
+.direnv
