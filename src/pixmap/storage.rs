@@ -26,13 +26,6 @@ pub struct InvalidSizeError {
     details: &'static str,
 }
 
-#[derive(Debug, Error, Copy, Clone)]
-#[error("Cannot put data with size {data_len} into pixmap of dimensions {}x{} (expected data size = {}) ", .pixmap_size.0, .pixmap_size.1, .pixmap_size.0 * .pixmap_size.1)]
-pub struct InvalidDataShapeError {
-    pixmap_size: (usize, usize),
-    data_len: usize,
-}
-
 impl Pixmap {
     /// Create a new Pixmap with the specified dimensions
     pub fn new(width: usize, height: usize) -> Result<Self, InvalidSizeError> {
