@@ -1,6 +1,7 @@
 { pkgs ? import <nixpkgs> { } }:
 let
   overrides = (builtins.fromTOML (builtins.readFile ./rust-toolchain.toml));
+  cargoConfig = (builtins.fromTOML (builtins.readFile ./.cargo/config.toml));
   libPath = with pkgs; lib.makeLibraryPath [
     # load external libraries that you need in your rust project here
   ];
@@ -24,7 +25,7 @@ pkgs.mkShell rec {
   RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
     # add libraries here (e.g. pkgs.libvmi)
     #pkgs.openssl.dev
-  ]);
+  ]) ++ cargoConfig.build.rustflags;
   LD_LIBRARY_PATH = libPath;
   # Add glibc, clang, glib, and other headers to bindgen search path
   BINDGEN_EXTRA_CLANG_ARGS =
