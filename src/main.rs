@@ -2,7 +2,7 @@
 
 use ab_glyph::{Font, FontRef};
 use bytes::buf::Writer;
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use clap::Parser;
 use image::imageops::FilterType;
 use rand::prelude::*;
@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::AsyncWriteExt;
 use tokio::task::{JoinSet, LocalSet};
 use tokio::time::interval;
 use tracing::metadata::LevelFilter;
@@ -19,11 +18,10 @@ use tracing_subscriber::filter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::cli::{CliOpts, TargetColor, TargetDimension};
+use crate::cli::{CliOpts, TargetColor};
 use image::io::Reader as ImageReader;
 use itertools::Itertools;
-use pixeldike::net::clients::{TcpClient, UdpClient, UnixSocketClient};
-use pixeldike::net::protocol::{Request, Response};
+use pixeldike::net::protocol::Request;
 use pixeldike::net::servers::{GenServer, TcpServer, TcpServerOptions, UnixSocketOptions, UnixSocketServer};
 #[cfg(feature = "udp")]
 use pixeldike::net::servers::{UdpServer, UdpServerOptions};
@@ -34,7 +32,6 @@ use pixeldike::sinks::ffmpeg::{FfmpegOptions, FfmpegSink};
 use pixeldike::sinks::framebuffer::{FramebufferSink, FramebufferSinkOptions};
 use pixeldike::sinks::pixmap_file::{FileSink, FileSinkOptions};
 use pixeldike::DaemonResult;
-use url::Url;
 
 mod cli;
 mod main_utils;

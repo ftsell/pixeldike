@@ -5,7 +5,6 @@ use crate::DaemonResult;
 use anyhow::anyhow;
 use itertools::Itertools;
 use std::io::SeekFrom;
-use std::mem;
 use std::path::{Path, PathBuf};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -13,7 +12,7 @@ use tokio::task::{AbortHandle, JoinSet};
 use tokio::time::Interval;
 
 const FILE_MAGIC: &[u8] = b"PIXELFLUT";
-const HEADER_SIZE: usize = mem::size_of::<u64>() * 2; // enough space for width and height
+const HEADER_SIZE: usize = size_of::<u64>() * 2; // enough space for width and height
 
 const SEEK_MAGIC: SeekFrom = SeekFrom::Start(0);
 const SEEK_HEADER: SeekFrom = SeekFrom::Start(FILE_MAGIC.len() as u64);
