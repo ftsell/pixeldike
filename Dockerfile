@@ -1,4 +1,4 @@
-FROM docker.io/rust:1.77 as build
+FROM docker.io/rust as build
 
 RUN apt update && apt install -y musl-tools
 RUN rustup target add x86_64-unknown-linux-musl
