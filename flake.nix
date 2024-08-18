@@ -38,7 +38,7 @@
       apps = rec {
         default = pixeldike;
         pixeldike = flake-utils.lib.mkApp {
-          drv = packages.x86_64-linux.pixeldike;
+          drv = packages.pixeldike;
         };
       };
 
