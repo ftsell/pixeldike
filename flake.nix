@@ -33,6 +33,14 @@
           buildFeatures = [ "default" "ws" "windowing" ];
           RUSTFLAGS = "--cfg tokio_unstable ";
         };
+        pixeldike-oci = pkgs.dockerTools.buildLayeredImage {
+          name = "ghcr.io/ftsell/pixeldike";
+          tag = "latest";
+          config = {
+            Cmd = [ "${pixeldike}/bin/pixeldike" ];
+            User = "1000:1000";
+          };
+        };
       };
 
       apps = rec {
