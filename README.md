@@ -37,6 +37,29 @@ If you do you can run the following:
 cargo install --git=https://github.com/ftsell/pixeldike.git --all-features --bin=pixeldike
 ```
 
+### With Nix
+
+Nix (and Lix) users can build and run pixeldike using flakes:
+
+```bash
+nix run github:ftsell/pixeldike -- --help
+```
+
+The flake definition contains the outputs listed below for the systems `aarch64-darwin`, `aarch64-linux`, `x86_64-darwin` and `x86_64-linux`, however only `x86_64-linux` has currently been tested.
+```
+github:ftsell/pixeldike
+├───apps
+│   ├───<system>
+│   │   ├───default: app
+│   │   └───pixeldike: app
+├───devShells (omitted)
+└───packages
+    └───<system>
+        ├───default: package 'pixeldike'
+        └───pixeldike: package 'pixeldike'
+
+```
+
 ## Usage examples
 - Retrieve command-line help
 
