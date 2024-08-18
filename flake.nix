@@ -10,18 +10,20 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }: rec {
-      packages.x86_64-linux = let 
-        pkgs = import nixpkgs {
-          system = "x86_64-linux";
-          overlays = [ (import rust-overlay) ];
-        };
-        rustPlatform = pkgs.makeRustPlatform rec {
-          cargo = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml);
-          rustc = cargo;
-        };
-        cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
-      in rec {
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }: flake-utils.lib.eachDefaultSystem (system:
+    let
+      pkgs = import nixpkgs {
+        system = system;
+        overlays = [ (import rust-overlay) ];
+      };
+      rustPlatform = pkgs.makeRustPlatform rec {
+        cargo = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml);
+        rustc = cargo;
+      };
+      cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
+    in
+    rec {
+      packages = rec {
         default = pixeldike;
         pixeldike = rustPlatform.buildRustPackage {
           name = "pixeldike";
@@ -33,11 +35,17 @@
         };
       };
 
-      apps.x86_64-linux = rec {
+      apps = rec {
         default = pixeldike;
         pixeldike = flake-utils.lib.mkApp {
           drv = packages.x86_64-linux.pixeldike;
         };
       };
-    };
+
+      devShells.default = pkgs.mkShell {
+        packages = with pkgs; [
+          rustPlatform.rust.cargo
+        ];
+      };
+    });
 }
