@@ -1,5 +1,4 @@
 #![feature(never_type)]
-#![feature(cursor_remaining)]
 #![feature(sync_unsafe_cell)]
 #![feature(int_roundings)]
 #![feature(test)]
