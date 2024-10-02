@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tokio::task::{AbortHandle, JoinSet};
 use tokio::time::{interval, Instant, MissedTickBehavior};
-use tracing::info;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Sampler {
@@ -148,7 +147,7 @@ impl FramebufferSink {
                 fb_pixels,
             );
             let t2 = Instant::now();
-            info!("Render: {}ms", (t2 - t1).as_millis());
+            tracing::trace!("Render: {}ms", (t2 - t1).as_millis());
             interval.tick().await;
         }
     }
