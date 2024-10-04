@@ -401,18 +401,19 @@ async fn put_text(opts: &cli::PutTextOpts) {
             let glyph = font.glyph_id(char).with_scale(scaling);
             let glyph_width = font.glyph_bounds(&glyph).width() as usize;
 
-            let outline = font.outline_glyph(glyph).unwrap();
-            outline.draw(|x, y, coverage| {
-                if coverage >= 0.5 {
-                    Request::SetPixel {
-                        x: x_min + (x as usize + i * glyph_width),
-                        y: y_min + (y as usize),
-                        color,
+            if let Some(outline) = font.outline_glyph(glyph) {
+                outline.draw(|x, y, coverage| {
+                    if coverage >= 0.5 {
+                        Request::SetPixel {
+                            x: x_min + (x as usize + i * glyph_width),
+                            y: y_min + (y as usize),
+                            color,
+                        }
+                        .write(buf)
+                        .unwrap();
                     }
-                    .write(buf)
-                    .unwrap();
-                }
-            });
+                });
+            }
         }
     };
 
