@@ -33,6 +33,10 @@ name = "pixeldike"
 path = "src/main.rs"
 required-features = ["cli"]
 
+[[bin]]
+name = "wavering-line"
+path = "bin/wavering_line.rs"
+
 [dependencies]
 ab_glyph = { version = "0.2.23", optional = true }
 anyhow = "1.0.68"

@@ -7,7 +7,7 @@ use std::io::Write;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 /// The help topics that can be requested from the server
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum HelpTopic {
     /// Help about the general pixelflut protocol and links to further topics
     General,
@@ -18,7 +18,7 @@ pub enum HelpTopic {
 }
 
 /// A request to a pixelflut server
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Request {
     /// Request help about a specific topic
     Help(HelpTopic),
