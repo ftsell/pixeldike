@@ -1,0 +1,30 @@
+steps:
+  - name: check-pre-commit
+    depends_on: []
+    when:
+      - event: push
+      - event: cron
+      - event: manual
+    image: docker.io/nixos/nix
+    volumes:
+      - woodpecker-cache:/woodpecker/src/cache
+    environment:
+      XDG_CACHE_HOME: /woodpecker/src/cache
+    commands:
+      - . <(nix --extra-experimental-features "nix-command flakes" print-dev-env .)
+      - pre-commit run --show-diff-on-failure --all-files
+
+  - name: cargo-test
+    depends_on: []
+    when:
+      - event: push
+      - event: cron
+      - event: manual
+    image: docker.io/nixos/nix
+    volumes:
+      - woodpecker-cache:/woodpecker/src/cache
+    environment:
+      XDG_CACHE_HOME: /woodpecker/src/cache
+    commands:
+      - . <(nix --extra-experimental-features "nix-command flakes" print-dev-env .)
+      - cargo test

@@ -1,0 +1,28 @@
+depends_on: [ test ]
+
+steps:
+  - name: build container image
+    when:
+      - event: push
+      - event: cron
+      - event: manual
+    image: docker.io/nixos/nix
+    privileged: true
+    secrets: [ "FORGEJO_PACKAGES_ACCESS", "GITHUB_PACKAGES_ACCESS" ]
+    commands:
+      - nix --extra-experimental-features "nix-command flakes" build -o container.tar.gz.lnk ".#homepage-oci"
+      - cp $(realpath container.tar.gz.lnk) container.tar.gz
+
+  - name: publish container image
+    when:
+      - event: manual
+        branch: main
+      - event: push
+        branch: main
+      - event: cron
+        cron: periodic-rebuild
+    image: quay.io/containers/skopeo
+    secrets: [ "FORGEJO_PACKAGES_ACCESS", "GITHUB_PACKAGES_ACCESS" ]
+    commands:
+      - skopeo copy --dest-username ftsell --dest-password $FORGEJO_PACKAGES_ACCESS docker-archive:container.tar.gz docker://git.lly.sh/ftsell/homepage
+      - skopeo copy --dest-username ftsell --dest-password $GITHUB_PACKAGES_ACCESS docker-archive:container.tar.gz docker://ghcr.io/ftsell/homepage
