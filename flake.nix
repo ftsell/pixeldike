@@ -53,6 +53,7 @@
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
           rustPlatform.rust.cargo
+          pre-commit
         ];
       };
     });
