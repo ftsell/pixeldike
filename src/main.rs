@@ -19,7 +19,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::cli::{CliOpts, TargetColor};
-use image::io::Reader as ImageReader;
+use image::ImageReader;
 use itertools::Itertools;
 use pixeldike::net::protocol::Request;
 use pixeldike::net::servers::{GenServer, TcpServer, TcpServerOptions, UnixSocketOptions, UnixSocketServer};
